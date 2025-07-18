@@ -16,7 +16,7 @@ import os
 import logfire # type: ignore
 from datetime import datetime, timezone
 
-LOGFIRE_TOKEN="pylf_v1_us_ylC40ftpjQSClVZnK3scSgJn1H38jZsnR1kLkZK3VXf5"
+LOGFIRE_TOKEN=os.environ.get('LOGFIRE_TOKEN', '')
 
 def main():
     """Process Claude Code hook data and send to Logfire."""
