@@ -3,6 +3,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #     "logfire",
+#     "python-dotenv",
 # ]
 # ///
 """
@@ -15,6 +16,9 @@ import sys
 import os
 import logfire # type: ignore
 from datetime import datetime, timezone
+from dotenv import load_dotenv # type: ignore
+
+load_dotenv()
 
 LOGFIRE_TOKEN=os.environ.get('LOGFIRE_TOKEN', '')
 
@@ -72,13 +76,7 @@ def main():
     if event_type == 'PreToolUse':
         logfire.info(f"Claude Code: {tool_name} starting", **log_data)
     elif event_type == 'PostToolUse':
-        success = input_data['tool_response']['success']
-        # Check for errors in output
-        if success:
             logfire.info(f"Claude Code: {tool_name} completed", **log_data)
-        else:
-            logfire.error(f"Claude Code: {tool_name} failed", 
-                         error=tool_output.get('error'), **log_data)
     else:
         logfire.info(f"Claude Code: {event_type}", **log_data)
     
