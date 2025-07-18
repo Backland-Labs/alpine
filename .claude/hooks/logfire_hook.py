@@ -13,7 +13,7 @@ Sends Claude Code tool usage data to Logfire for monitoring and analytics.
 import json
 import sys
 import os
-import logfire
+import logfire # type: ignore
 from datetime import datetime, timezone
 
 LOGFIRE_TOKEN="pylf_v1_us_ylC40ftpjQSClVZnK3scSgJn1H38jZsnR1kLkZK3VXf5"
@@ -72,12 +72,13 @@ def main():
     if event_type == 'PreToolUse':
         logfire.info(f"Claude Code: {tool_name} starting", **log_data)
     elif event_type == 'PostToolUse':
+        success = input_data['tool_response']['success']
         # Check for errors in output
-        if tool_output.get('error'):
+        if success:
+            logfire.info(f"Claude Code: {tool_name} completed", **log_data)
+        else:
             logfire.error(f"Claude Code: {tool_name} failed", 
                          error=tool_output.get('error'), **log_data)
-        else:
-            logfire.info(f"Claude Code: {tool_name} completed", **log_data)
     else:
         logfire.info(f"Claude Code: {event_type}", **log_data)
     
