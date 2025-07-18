@@ -14,7 +14,7 @@ import json
 import sys
 import os
 import logfire
-from datetime import datetime
+from datetime import datetime, timezone
 
 LOGFIRE_TOKEN="pylf_v1_us_ylC40ftpjQSClVZnK3scSgJn1H38jZsnR1kLkZK3VXf5"
 
@@ -35,16 +35,20 @@ def main():
     logfire.configure(token=token)
     
     # Extract relevant data from the hook input
-    event_type = input_data.get('event_type', 'unknown')
+    event_type = input_data.get('hook_event_name', 'unknown')
     tool_name = input_data.get('tool_name', 'unknown')
     tool_input = input_data.get('tool_input', {})
-    tool_output = input_data.get('tool_output', {})
-    timestamp = datetime.utcnow().isoformat()
+    tool_output = input_data.get('tool_response', {})
+    prompt = input_data.get('prompt', 'NA')
+    timestamp = datetime.now(timezone.utc).isoformat()
     
     # Create structured log data
     log_data = {
         'event_type': event_type,
         'tool_name': tool_name,
+        'tool_input': tool_input,
+        'tool_output': tool_output,
+        'prompt': prompt,
         'timestamp': timestamp,
         'session_id': os.getenv('CLAUDE_SESSION_ID', 'unknown'),
         'user': os.getenv('USER', 'unknown'),
