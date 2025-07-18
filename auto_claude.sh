@@ -138,6 +138,7 @@ execute_claude() {
 get_next_subissue() {
     local parent_issue_id="$1"
     local prompt=$(PARENT_ISSUE_ID="$parent_issue_id" envsubst <<< "$GET_NEXT_SUBISSUE_PROMPT")
+    echo "Prompt: $prompt"
     execute_claude "$prompt"
 }
 
