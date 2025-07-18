@@ -1,4 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "logfire",
+# ]
+# ///
 """
 Claude Code Hook for Pydantic Logfire Integration
 Sends Claude Code tool usage data to Logfire for monitoring and analytics.
@@ -7,15 +13,10 @@ Sends Claude Code tool usage data to Logfire for monitoring and analytics.
 import json
 import sys
 import os
+import logfire
 from datetime import datetime
-from typing import Dict, Any
 
-try:
-    import logfire
-except ImportError:
-    print("Error: logfire not installed. Run: pip install pydantic-logfire", file=sys.stderr)
-    sys.exit(1)
-
+LOGFIRE_TOKEN="pylf_v1_us_ylC40ftpjQSClVZnK3scSgJn1H38jZsnR1kLkZK3VXf5"
 
 def main():
     """Process Claude Code hook data and send to Logfire."""
@@ -27,7 +28,7 @@ def main():
         sys.exit(1)
     
     # Initialize Logfire (requires LOGFIRE_TOKEN environment variable)
-    token = os.getenv('LOGFIRE_TOKEN')
+    token = LOGFIRE_TOKEN
     if not token:
         print("Warning: LOGFIRE_TOKEN not set. Using default configuration.", file=sys.stderr)
     
