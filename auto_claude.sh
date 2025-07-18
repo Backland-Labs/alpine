@@ -129,10 +129,25 @@ Return JSON format:
 
 execute_claude() {
     local prompt="$1"
-    claude -p "$prompt" \
+    local raw_response=$(claude -p "$prompt" \
         --output-format json \
-        --system-prompt "You are an expert software engineer with deep knowledge of TDD, Python, Typescript. Execute the following tasks with surgical precision while taking care not to overengineer solutions." \
-        --allowedTools "mcp__linear__*" "mcp__context7__*" "Bash" "Read" "Write" "Edit" "Remove"
+        --system-prompt "You are an expert software engineer with deep knowledge of TDD, Python, Typescript. Execute the following tasks with surgical precision while taking care not to overengineer solutions. IMPORTANT: Return ONLY valid JSON without any additional text, markdown formatting, or explanations." \
+        --allowedTools "mcp__linear-server__*" "mcp__context7__*" "Bash" "Read" "Write" "Edit" "Remove")
+    
+    # Extract the result field from Claude's wrapper JSON
+    local result=$(echo "$raw_response" | jq -r '.result // empty' 2>/dev/null)
+    
+    # Extract JSON from the result string
+    # First, try to find JSON between ```json and ``` markers
+    local json_content=$(echo "$result" | sed -n '/```json/,/```/p' | sed '1d;$d')
+    
+    # If no markdown code block, try to extract JSON starting with { and ending with final }
+    if [[ -z "$json_content" ]]; then
+        # Use awk to extract complete JSON object (handles nested braces)
+        json_content=$(echo "$result" | awk 'BEGIN{b=0} /{/{if(b==0)start=NR; b++} b>0{s=s $0 "\n"} /}/{b--; if(b==0){print s; s=""; exit}}')
+    fi
+    
+    echo "$json_content"
 }
 
 get_next_subissue() {
@@ -167,16 +182,37 @@ main() {
         echo "Getting next sub-issue..."
         
         next_issue_json=$(get_next_subissue "$parent_issue_id")
-        has_next=$(echo "$next_issue_json" | jq -r '.has_next // false')
+        
+        # Debug: Print extracted JSON
+        echo "DEBUG: Extracted JSON response:"
+        echo "$next_issue_json"
+        
+        # Validate JSON
+        if ! echo "$next_issue_json" | jq . >/dev/null 2>&1; then
+            echo "ERROR: Invalid JSON response"
+            break
+        fi
+        
+        # Extract has_next with better error handling
+        has_next=$(echo "$next_issue_json" | jq -r '.has_next // false' 2>/dev/null || echo "false")
+        
+        echo "DEBUG: has_next value: '$has_next'"
         
         if [[ "$has_next" != "true" ]]; then
             echo "No more sub-issues to process!"
             break
         fi
         
-        issue_id=$(echo "$next_issue_json" | jq -r '.issue.id')
-        issue_title=$(echo "$next_issue_json" | jq -r '.issue.title')
-        issue_desc=$(echo "$next_issue_json" | jq -r '.issue.description')
+        issue_id=$(echo "$next_issue_json" | jq -r '.issue.id // empty' 2>/dev/null)
+        issue_title=$(echo "$next_issue_json" | jq -r '.issue.title // empty' 2>/dev/null)
+        issue_desc=$(echo "$next_issue_json" | jq -r '.issue.description // empty' 2>/dev/null)
+        
+        # Check if we successfully extracted issue data
+        if [[ -z "$issue_id" || -z "$issue_title" ]]; then
+            echo "ERROR: Failed to extract issue data from JSON"
+            echo "DEBUG: issue_id='$issue_id', issue_title='$issue_title'"
+            break
+        fi
         
         echo "=== Processing Issue: $issue_title ==="
         
