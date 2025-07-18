@@ -54,6 +54,7 @@ def main():
         'tool_output': tool_output,
         'prompt': prompt,
         'timestamp': timestamp,
+        'input_data': input_data,
         'session_id': os.getenv('CLAUDE_SESSION_ID', 'unknown'),
         'user': os.getenv('USER', 'unknown'),
     }

@@ -2,9 +2,10 @@
 
 # Prompt definitions
 GET_NEXT_SUBISSUE_PROMPT='Use Linear MCP to:
-1. Get parent issue $PARENT_ISSUE_ID and all sub-issues
-2. Find the next sub-issue that is NOT "Done" or "In Review"
-3. Return the first unprocessed sub-issue
+1. Use the linear issue ID, $PARENT_ISSUE_ID, to get_issue. For example, get_issue(ID: "ISS-123")
+2. Use the parentId to list the subissues. list_issues(parentId: "abcd1234-asbsd09-asd0f-1234")
+3. Find the next sub-issue that is NOT "Done" or "In Review"
+4. Return the first unprocessed sub-issue
 
 Return JSON format:
 {

@@ -16,7 +16,6 @@ River processes Linear sub-issues by:
 - `claude` CLI (Claude Code) installed and configured
 - `jq` command-line JSON processor
 - Git repository initialized
-- Linear API key set as `LINEAR_API_KEY` environment variable
 
 ## Installation
 
