@@ -1,0 +1,46 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/max/code/river/claude_logfire_hook.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/max/code/river/claude_logfire_hook.py"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"event_type\": \"UserPromptSubmit\", \"prompt\": '\"'\"'$(jq -r .prompt)'\"'\"'}' | /Users/max/code/river/claude_logfire_hook.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"event_type\": \"Stop\", \"session_id\": \"'$CLAUDE_SESSION_ID'\"}' | /Users/max/code/river/claude_logfire_hook.py"
+          }
+        ]
+      }
+    ]
+  }
+}

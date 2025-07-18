@@ -1,0 +1,10 @@
+[project]
+name = "river"
+version = "0.1.0"
+description = "Shell script automation project integrating Linear with Claude Code"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic-logfire>=0.0.1",
+]
+
