@@ -32,6 +32,10 @@ type Command struct {
 	Type CommandType
 	// Prompt is the user prompt for the command
 	Prompt string
+	// Content is an alternative to Prompt for newer command style
+	Content string
+	// SessionID identifies the session for continuing conversations
+	SessionID string
 	// OutputFormat specifies the output format (e.g., "json")
 	OutputFormat string
 	// SystemPrompt provides system-level instructions to Claude

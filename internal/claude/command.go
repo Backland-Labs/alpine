@@ -35,6 +35,13 @@ func NewCommandBuilder() Claude {
 	return &commandBuilder{}
 }
 
+// New creates a new command builder instance that implements
+// the Claude interface. The returned builder can construct CLI arguments
+// for both plan and continue commands.
+func New() Claude {
+	return &commandBuilder{}
+}
+
 // BuildCommand constructs the CLI arguments for a Claude command.
 // It validates the command structure and builds the appropriate arguments
 // based on the command type (plan or continue).
@@ -92,14 +99,3 @@ func (b *commandBuilder) getPromptPrefix(cmdType CommandType) string {
 	}
 }
 
-// Execute runs a Claude command and returns the response
-func (b *commandBuilder) Execute(ctx context.Context, cmd Command, opts CommandOptions) (*Response, error) {
-	// TODO: Will be implemented in executor.go
-	return nil, nil
-}
-
-// ParseResponse parses JSON output from Claude
-func (b *commandBuilder) ParseResponse(ctx context.Context, output string) (*Response, error) {
-	// TODO: Will be implemented in parser.go
-	return nil, nil
-}
