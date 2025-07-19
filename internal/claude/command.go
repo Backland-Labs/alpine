@@ -54,8 +54,14 @@ func (b *commandBuilder) BuildCommand(ctx context.Context, cmd Command) ([]strin
 		return nil, fmt.Errorf("invalid command: %w", err)
 	}
 	
+	// Use Content field if Prompt is empty (for backward compatibility)
+	prompt := cmd.Prompt
+	if prompt == "" {
+		prompt = cmd.Content
+	}
+	
 	// Validate prompt is not empty
-	if strings.TrimSpace(cmd.Prompt) == "" {
+	if strings.TrimSpace(prompt) == "" {
 		return nil, errors.New("prompt cannot be empty")
 	}
 	
@@ -69,7 +75,7 @@ func (b *commandBuilder) BuildCommand(ctx context.Context, cmd Command) ([]strin
 	
 	// Add the main prompt with appropriate command prefix
 	promptPrefix := b.getPromptPrefix(cmd.Type)
-	args = append(args, flagPrompt, fmt.Sprintf("%s %s", promptPrefix, cmd.Prompt))
+	args = append(args, flagPrompt, fmt.Sprintf("%s %s", promptPrefix, prompt))
 	
 	// Add output format (default to json if not specified)
 	outputFormat := cmd.OutputFormat
