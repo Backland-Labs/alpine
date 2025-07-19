@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -10,35 +11,64 @@ import (
 	"github.com/maxkrieger/river/internal/runner"
 )
 
+// Config holds the parsed command-line configuration
+type Config struct {
+	IssueID string
+	Stream  bool
+}
+
+// parseArguments parses and validates command-line arguments
+func parseArguments() (*Config, error) {
+	var stream bool
+	
+	// Define the --stream flag
+	flag.BoolVar(&stream, "stream", false, "Enable JSON streaming output")
+	
+	// Parse flags
+	flag.Parse()
+	
+	// Get remaining arguments
+	args := flag.Args()
+	
+	// Validate that we have exactly one argument (the issue ID)
+	if len(args) != 1 {
+		return nil, errors.New("missing required LINEAR-ISSUE-ID argument")
+	}
+	
+	issueID := args[0]
+	if issueID == "" {
+		return nil, errors.New("LINEAR-ISSUE-ID cannot be empty")
+	}
+	
+	return &Config{
+		IssueID: issueID,
+		Stream:  stream,
+	}, nil
+}
+
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: river <LINEAR-ISSUE-ID>\n")
+	fmt.Fprintf(os.Stderr, "Usage: river [OPTIONS] <LINEAR-ISSUE-ID>\n\n")
+	fmt.Fprintf(os.Stderr, "Options:\n")
+	flag.PrintDefaults()
 	os.Exit(1)
 }
 
 func main() {
-	// Parse command-line arguments
-	flag.Parse()
-	args := flag.Args()
-
-	// Validate arguments
-	if len(args) != 1 {
-		usage()
-	}
-
-	issueID := args[0]
-	if issueID == "" {
-		fmt.Fprintf(os.Stderr, "Error: LINEAR-ISSUE-ID cannot be empty\n")
+	// Parse and validate command-line arguments
+	config, err := parseArguments()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
 		usage()
 	}
 
 	// Sanitize issue ID for directory name
-	sanitizedID := sanitizeIssueID(issueID)
+	sanitizedID := sanitizeIssueID(config.IssueID)
 
 	// Create worktree directory path
 	worktreePath := fmt.Sprintf("../river-%s", sanitizedID)
 
 	// Main workflow
-	if err := runWorkflow(issueID, worktreePath); err != nil {
+	if err := runWorkflow(config.IssueID, worktreePath, config.Stream); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
@@ -46,8 +76,11 @@ func main() {
 	fmt.Println("Workflow completed successfully")
 }
 
-func runWorkflow(issueID, worktreePath string) error {
+func runWorkflow(issueID, worktreePath string, stream bool) error {
 	fmt.Printf("Processing Linear issue: %s\n", issueID)
+	if stream {
+		fmt.Println("Streaming mode enabled")
+	}
 	fmt.Printf("Creating worktree at: %s\n", worktreePath)
 
 	// Get absolute path for the parent directory
