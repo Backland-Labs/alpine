@@ -1,84 +1,54 @@
 package runner
 
 import (
+	"context"
+	"errors"
 	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"path/filepath"
+
+	"github.com/maxkrieger/river/internal/claude"
 )
 
-// RunAutoClaudeScript copies and executes the auto_claude.sh script in the specified worktree
-func RunAutoClaudeScript(worktreePath, issueID, scriptPath string) error {
-	// Copy auto_claude.sh to worktree
-	destPath := filepath.Join(worktreePath, "auto_claude.sh")
-	if err := copyFile(scriptPath, destPath); err != nil {
-		return fmt.Errorf("failed to copy script: %w", err)
-	}
-
-	// Create command to run the script
-	cmd := exec.Command("/bin/bash", "auto_claude.sh")
-	cmd.Dir = worktreePath
-
-	// Set up stdin to pass issueID
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return fmt.Errorf("failed to create stdin pipe: %w", err)
-	}
-
-	// Stream stdout and stderr to console
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	// Start the command
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start script: %w", err)
-	}
-
-	// Write issueID to stdin
-	if _, err := fmt.Fprintln(stdin, issueID); err != nil {
-		return fmt.Errorf("failed to write issue ID to stdin: %w", err)
-	}
-	stdin.Close()
-
-	// Wait for the command to complete
-	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("script execution failed: %w", err)
-	}
-
-	return nil
+// Runner orchestrates the execution of Linear issue processing using Claude
+type Runner struct {
+	claude claude.Claude
 }
 
-// copyFile copies a file from src to dst, preserving permissions
-func copyFile(src, dst string) error {
-	// Open source file
-	sourceFile, err := os.Open(src)
+// NewRunner creates a new Runner instance with the provided Claude executor
+func NewRunner(claudeExecutor claude.Claude) *Runner {
+	return &Runner{
+		claude: claudeExecutor,
+	}
+}
+
+// Run executes the Claude workflow for processing a Linear issue
+func (r *Runner) Run(ctx context.Context, issueID, workingDir string) error {
+	// Validate inputs
+	if issueID == "" {
+		return errors.New("issue ID cannot be empty")
+	}
+	if workingDir == "" {
+		return errors.New("working directory cannot be empty")
+	}
+
+	// Create the Claude command for processing the Linear issue
+	cmd := claude.Command{
+		Type:         claude.CommandTypePlan,
+		Content:      fmt.Sprintf("Process Linear issue %s following TDD methodology", issueID),
+		OutputFormat: "json",
+		AllowedTools: []string{"linear-server", "code-editing"},
+		SystemPrompt: "You are an AI assistant helping to implement features from Linear issues using Test-Driven Development. Follow the red-green-refactor cycle strictly.",
+	}
+
+	// Set up command options
+	opts := claude.CommandOptions{
+		Stream:     false,
+		WorkingDir: workingDir,
+	}
+
+	// Execute the command
+	_, err := r.claude.Execute(ctx, cmd, opts)
 	if err != nil {
-		return fmt.Errorf("failed to open source file: %w", err)
-	}
-	defer sourceFile.Close()
-
-	// Get source file info for permissions
-	sourceInfo, err := sourceFile.Stat()
-	if err != nil {
-		return fmt.Errorf("failed to stat source file: %w", err)
-	}
-
-	// Create destination file
-	destFile, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, sourceInfo.Mode())
-	if err != nil {
-		return fmt.Errorf("failed to create destination file: %w", err)
-	}
-	defer destFile.Close()
-
-	// Copy file contents
-	if _, err := io.Copy(destFile, sourceFile); err != nil {
-		return fmt.Errorf("failed to copy file contents: %w", err)
-	}
-
-	// Ensure all data is written
-	if err := destFile.Sync(); err != nil {
-		return fmt.Errorf("failed to sync destination file: %w", err)
+		return err
 	}
 
 	return nil
