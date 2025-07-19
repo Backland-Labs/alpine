@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/logfire_hook.py"
+            "command": "uv run /Users/max/code/river/.claude/hooks/logfire_hook.py"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/logfire_hook.py"
+            "command": "uv run /Users/max/code/river/.claude/hooks/logfire_hook.py"
           }
         ]
       }
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/logfire_hook.py"
+            "command": "uv run /Users/max/code/river/.claude/hooks/logfire_hook.py"
           }
         ]
       }
@@ -57,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .claude/hooks/logfire_hook.py"
+            "command": "uv run /Users/max/code/river/.claude/hooks/logfire_hook.py"
           }
         ]
       }
