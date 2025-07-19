@@ -12,10 +12,10 @@ const (
 	claudeBinary = "claude"
 
 	// Command line flags
-	flagSystemPrompt = "-s"
-	flagPrompt       = "-p"
-	flagOutputFormat = "--output-format"
-	flagAllowedTools = "--allowed-tools"
+	flagPrint              = "-p"
+	flagAppendSystemPrompt = "--append-system-prompt"
+	flagOutputFormat       = "--output-format"
+	flagAllowedTools       = "--allowedTools"
 
 	// Slash commands
 	slashCommandPlan     = "/make_plan"
@@ -68,14 +68,8 @@ func (b *commandBuilder) BuildCommand(ctx context.Context, cmd Command) ([]strin
 	// Start building the command arguments
 	args := []string{claudeBinary}
 
-	// Add system prompt if provided
-	if cmd.SystemPrompt != "" {
-		args = append(args, flagSystemPrompt, cmd.SystemPrompt)
-	}
-
-	// Add the main prompt with appropriate command prefix
-	promptPrefix := b.getPromptPrefix(cmd.Type)
-	args = append(args, flagPrompt, fmt.Sprintf("%s %s", promptPrefix, prompt))
+	// Add print flag for non-interactive mode
+	args = append(args, flagPrint)
 
 	// Add output format (default to json if not specified)
 	outputFormat := cmd.OutputFormat
@@ -84,10 +78,19 @@ func (b *commandBuilder) BuildCommand(ctx context.Context, cmd Command) ([]strin
 	}
 	args = append(args, flagOutputFormat, outputFormat)
 
+	// Add system prompt if provided
+	if cmd.SystemPrompt != "" {
+		args = append(args, flagAppendSystemPrompt, cmd.SystemPrompt)
+	}
+
 	// Add allowed tools if specified
 	if len(cmd.AllowedTools) > 0 {
 		args = append(args, flagAllowedTools, strings.Join(cmd.AllowedTools, ","))
 	}
+
+	// Add the main prompt with appropriate command prefix as the last argument
+	promptPrefix := b.getPromptPrefix(cmd.Type)
+	args = append(args, fmt.Sprintf("%s %s", promptPrefix, prompt))
 
 	return args, nil
 }

@@ -2,18 +2,12 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 )
 
-// validateEnvironment checks that all required environment variables and dependencies are available.
+// validateEnvironment checks that all required dependencies are available.
 // This implements the fail-fast principle to prevent cryptic failures later in execution.
 func validateEnvironment() error {
-	// Check LINEAR_API_KEY
-	if os.Getenv("LINEAR_API_KEY") == "" {
-		return fmt.Errorf("env error: LINEAR_API_KEY environment variable is not set")
-	}
-
 	// Check claude availability
 	if err := validateClaudeAvailable(); err != nil {
 		return fmt.Errorf("env error: %w", err)

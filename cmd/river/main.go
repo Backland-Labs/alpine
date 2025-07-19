@@ -56,7 +56,7 @@ func usage() {
 
 const (
 	// maxWorkflowIterations prevents infinite loops in the workflow
-	maxWorkflowIterations = 50
+	maxWorkflowIterations = 100
 
 	// worktreePathFormat defines the format for worktree directory names
 	worktreePathFormat = "../river-%s"
@@ -67,8 +67,7 @@ func main() {
 	if err := validateEnvironment(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "\nPlease ensure:\n")
-		fmt.Fprintf(os.Stderr, "1. LINEAR_API_KEY environment variable is set\n")
-		fmt.Fprintf(os.Stderr, "2. claude CLI is installed and available in PATH\n")
+		fmt.Fprintf(os.Stderr, "- claude CLI is installed and available in PATH\n")
 		os.Exit(1)
 	}
 

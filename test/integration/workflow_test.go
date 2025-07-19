@@ -38,8 +38,7 @@ func TestFullWorkflow(t *testing.T) {
 	cmd := exec.Command(riverBin, issueID)
 	cmd.Dir = testDir
 	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("PATH=%s:%s", mockClaude.BinDir, os.Getenv("PATH")),
-		"LINEAR_API_KEY=test-api-key")
+		fmt.Sprintf("PATH=%s:%s", mockClaude.BinDir, os.Getenv("PATH")))
 
 	output, err := cmd.CombinedOutput()
 
@@ -85,8 +84,7 @@ func TestFullWorkflowWithStreaming(t *testing.T) {
 	cmd := exec.Command(riverBin, "--stream", issueID)
 	cmd.Dir = testDir
 	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("PATH=%s:%s", mockClaude.BinDir, os.Getenv("PATH")),
-		"LINEAR_API_KEY=test-api-key")
+		fmt.Sprintf("PATH=%s:%s", mockClaude.BinDir, os.Getenv("PATH")))
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -257,8 +255,7 @@ func TestGitOperations(t *testing.T) {
 	cmd := exec.Command(riverBin, issueID)
 	cmd.Dir = testDir
 	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("PATH=%s:%s", mockClaude.BinDir, os.Getenv("PATH")),
-		"LINEAR_API_KEY=test-api-key")
+		fmt.Sprintf("PATH=%s:%s", mockClaude.BinDir, os.Getenv("PATH")))
 
 	_, err := cmd.CombinedOutput()
 	require.NoError(t, err)
@@ -307,7 +304,6 @@ func TestEnvironmentValidation(t *testing.T) {
 		cmd.Env = []string{
 			"PATH=/usr/bin:/bin",
 			"HOME=" + os.Getenv("HOME"),
-			"LINEAR_API_KEY=test-api-key",
 		}
 
 		output, err := cmd.CombinedOutput()
@@ -333,7 +329,6 @@ func TestEnvironmentValidation(t *testing.T) {
 		cmd.Env = []string{
 			fmt.Sprintf("PATH=%s", mockClaude.BinDir),
 			"HOME=" + os.Getenv("HOME"),
-			"LINEAR_API_KEY=test-api-key",
 		}
 
 		output, err := cmd.CombinedOutput()

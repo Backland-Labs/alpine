@@ -23,9 +23,9 @@ func TestBuildCommand_Plan(t *testing.T) {
 			expected: []string{
 				"claude",
 				"-p",
-				"/make_plan Implement feature X",
 				"--output-format",
 				"json",
+				"/make_plan Implement feature X",
 			},
 		},
 		{
@@ -38,12 +38,12 @@ func TestBuildCommand_Plan(t *testing.T) {
 			},
 			expected: []string{
 				"claude",
-				"-s",
-				"You are a helpful assistant",
 				"-p",
-				"/make_plan Fix critical bug",
 				"--output-format",
 				"json",
+				"--append-system-prompt",
+				"You are a helpful assistant",
+				"/make_plan Fix critical bug",
 			},
 		},
 		{
@@ -57,11 +57,11 @@ func TestBuildCommand_Plan(t *testing.T) {
 			expected: []string{
 				"claude",
 				"-p",
-				"/make_plan Refactor module",
 				"--output-format",
 				"json",
-				"--allowed-tools",
+				"--allowedTools",
 				"read,write,exec",
+				"/make_plan Refactor module",
 			},
 		},
 		{
@@ -75,14 +75,14 @@ func TestBuildCommand_Plan(t *testing.T) {
 			},
 			expected: []string{
 				"claude",
-				"-s",
-				"Be careful with quotes",
 				"-p",
-				"/make_plan Complex task with \"quotes\" and special chars",
 				"--output-format",
 				"json",
-				"--allowed-tools",
+				"--append-system-prompt",
+				"Be careful with quotes",
+				"--allowedTools",
 				"read,write",
+				"/make_plan Complex task with \"quotes\" and special chars",
 			},
 		},
 	}
@@ -127,9 +127,9 @@ func TestBuildCommand_Continue(t *testing.T) {
 			expected: []string{
 				"claude",
 				"-p",
-				"/continue Continue implementation",
 				"--output-format",
 				"json",
+				"/continue Continue implementation",
 			},
 		},
 		{
@@ -143,14 +143,14 @@ func TestBuildCommand_Continue(t *testing.T) {
 			},
 			expected: []string{
 				"claude",
-				"-s",
-				"Focus on error handling",
 				"-p",
-				"/continue Keep going with fixes",
 				"--output-format",
 				"json",
-				"--allowed-tools",
+				"--append-system-prompt",
+				"Focus on error handling",
+				"--allowedTools",
 				"read,write,exec,test",
+				"/continue Keep going with fixes",
 			},
 		},
 	}

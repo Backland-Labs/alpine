@@ -15,7 +15,6 @@ River processes Linear issues by:
 - Go 1.21 or later
 - `claude` CLI (Claude Code) installed and configured
 - Git repository initialized
-- `LINEAR_API_KEY` environment variable set
 
 ## Installation
 
@@ -49,7 +48,7 @@ river --stream LINEAR-123
 
 ## How It Works
 
-1. **Environment Validation**: River first checks that all required dependencies (Claude CLI, Linear API key) are available.
+1. **Environment Validation**: River first checks that all required dependencies (Claude CLI) are available.
 
 2. **Worktree Creation**: Creates an isolated git worktree in the parent directory (e.g., `../river-linear-123`) with a dedicated branch.
 
@@ -85,7 +84,7 @@ make clean
 
 ## Environment Variables
 
-- `LINEAR_API_KEY`: **Required** - Your Linear API key for accessing issues
+No environment variables are required for River itself. Linear API access is handled through the Claude Code MCP integration.
 
 ## Project Structure
 

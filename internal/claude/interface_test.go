@@ -33,17 +33,22 @@ func TestClaudeOperations(t *testing.T) {
 
 		// Check that args contains expected elements
 		// Should include "claude" as first argument
-		expectedLen := 9 // claude + 8 other args
+		expectedLen := 9 // claude -p --output-format json --append-system-prompt <prompt> --allowedTools <tools> <prompt>
 		if len(args) != expectedLen {
 			t.Errorf("len(args) = %d; want %d", len(args), expectedLen)
+			t.Errorf("actual args: %v", args)
 		}
 
 		// Verify key arguments
 		if args[0] != "claude" {
 			t.Errorf("args[0] = %s; want 'claude'", args[0])
 		}
-		if args[1] != "-p" || args[2] != "/make_plan Create a new feature" {
-			t.Errorf("Plan command prompt not correct")
+		if args[1] != "-p" {
+			t.Errorf("args[1] = %s; want '-p'", args[1])
+		}
+		// Prompt should be last argument
+		if args[len(args)-1] != "/make_plan Create a new feature" {
+			t.Errorf("Last arg = %s; want '/make_plan Create a new feature'", args[len(args)-1])
 		}
 	})
 
@@ -60,9 +65,12 @@ func TestClaudeOperations(t *testing.T) {
 			t.Fatalf("BuildCommand() error = %v; want nil", err)
 		}
 
-		// For continue command, expect ralph prompt
-		if len(args) < 3 || args[1] != "-p" || args[2] != "/ralph" {
-			t.Errorf("Continue command should use /ralph prompt with -p flag")
+		// For continue command, expect ralph prompt as last argument
+		if len(args) < 3 || args[1] != "-p" {
+			t.Errorf("Continue command should use -p flag")
+		}
+		if args[len(args)-1] != "/ralph" {
+			t.Errorf("Last arg = %s; want '/ralph'", args[len(args)-1])
 		}
 	})
 
@@ -127,19 +135,13 @@ type mockClaude struct{}
 
 func (m *mockClaude) BuildCommand(ctx context.Context, cmd Command) ([]string, error) {
 	// Mock implementation to make tests compile
-	args := []string{"claude"}
-
-	if cmd.Type == CommandTypePlan {
-		args = append(args, "-p", "/make_plan "+cmd.Prompt)
-	} else {
-		args = append(args, "-p", "/ralph")
-	}
+	args := []string{"claude", "-p"}
 
 	if cmd.OutputFormat != "" {
 		args = append(args, "--output-format", cmd.OutputFormat)
 	}
 	if cmd.SystemPrompt != "" {
-		args = append(args, "--system-prompt", cmd.SystemPrompt)
+		args = append(args, "--append-system-prompt", cmd.SystemPrompt)
 	}
 	if len(cmd.AllowedTools) > 0 {
 		toolsStr := ""
@@ -150,6 +152,13 @@ func (m *mockClaude) BuildCommand(ctx context.Context, cmd Command) ([]string, e
 			toolsStr += tool
 		}
 		args = append(args, "--allowedTools", toolsStr)
+	}
+
+	// Add prompt as last argument
+	if cmd.Type == CommandTypePlan {
+		args = append(args, "/make_plan "+cmd.Prompt)
+	} else {
+		args = append(args, "/ralph")
 	}
 
 	return args, nil

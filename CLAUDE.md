@@ -4,67 +4,111 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a shell script automation project that integrates Linear (project management) with Claude Code to automate software development workflows. The main script `auto_claude.sh` processes Linear sub-issues and implements features using Test-Driven Development.
+River is a Go-based CLI tool that automates software development workflows by integrating Linear (project management) with Claude Code to implement features using Test-Driven Development (TDD) methodology.
 
 ## Commands
 
-### Running the Main Script
+### Building and Running
 ```bash
-# Execute the automation workflow
-./auto_claude.sh
+# Build the River binary
+make build
 
-# The script requires these dependencies to be installed:
-# - claude (Claude Code CLI)
-# - jq (JSON processor)
+# Install River to $GOPATH/bin
+make install
+
+# Run River with a Linear issue ID
+river <LINEAR-ISSUE-ID>
+
+# Run with streaming JSON output
+river --stream <LINEAR-ISSUE-ID>
+
+# Build for multiple platforms
+make build-all
 ```
 
-### Git Operations
+### Testing
 ```bash
-# Check status
-git status
+# Run all tests
+make test
 
-# Stage and commit changes
-git add .
-git commit -m "commit message"
+# Run tests for a specific package
+go test -v ./internal/claude/
+
+# Run a specific test
+go test -v -run TestExecutorStreaming ./internal/claude/
+```
+
+### Development
+```bash
+# Clean build artifacts
+make clean
+
+# Run with arguments via make
+make run ARGS="--stream RIV-123"
 ```
 
 ## Architecture
 
 ### Core Components
 
-1. **auto_claude.sh** - Main automation script that orchestrates the entire workflow:
-   - Fetches sub-issues from Linear using the API
-   - Creates implementation plans via Claude Code
-   - Implements features following TDD methodology
-   - Updates Linear issues upon completion
+1. **CLI Layer (`cmd/river/`)**
+   - `main.go`: Entry point, workflow orchestration, and main logic
+   - `validation.go`: Environment validation (Claude CLI)
 
-### Key Functions in auto_claude.sh
+2. **Claude Integration (`internal/claude/`)**
+   - `interface.go`: Claude interface definition
+   - `command.go`: Command building logic for plan/continue
+   - `executor.go`: Command execution with streaming support
+   - `types.go`: Response types and structures
 
-- `fetch_sub_issues()` - Retrieves sub-issues for a given Linear parent issue
-- `process_sub_issue()` - Main workflow for each sub-issue
-- `create_implementation_plan()` - Uses Claude to generate detailed plans
-- `implement_with_tdd()` - Executes TDD cycle (red-green-refactor)
-- `update_linear_issue()` - Marks issues as complete in Linear
+3. **Git Operations (`internal/git/`)**
+   - `worktree.go`: Git worktree management for isolated development
 
-### Workflow Architecture
+4. **Runner Package (`internal/runner/`)**
+   - Minimal implementation, designed for future workflow orchestration
 
-The script follows this high-level flow:
-1. Fetch sub-issues from Linear (requires PARENT_ISSUE_ID environment variable)
-2. For each sub-issue:
-   - Create an implementation plan using Claude
-   - Implement using TDD methodology
-   - Update Linear issue status
-3. Continue until all sub-issues are processed
+### Workflow
 
-### Environment Requirements
+1. **Environment Validation**: Checks for `claude` CLI
+2. **Worktree Creation**: Creates `../river-<issue-id>` directory with new git branch
+3. **Claude Execution**: 
+   - Initial `/make_plan` command with TDD instructions
+   - Continue loop (up to 50 iterations) until completion
+4. **Output**: Stream JSON or standard output based on `--stream` flag
 
-- `LINEAR_API_KEY` - Required for Linear API access
-- `PARENT_ISSUE_ID` - The Linear parent issue ID to process sub-issues from
-- System must have `claude` and `jq` commands available in PATH
+### Key Implementation Details
 
-## Development Notes
+- **TDD Enforcement**: System prompt requires Test-Driven Development approach
+- **Isolated Development**: Each issue gets its own git worktree to avoid conflicts
+- **Tool Configuration**: Allows Linear and code-editing tools, disables web tools
+- **Error Handling**: Fail-fast approach with clear error messages
+- **No External Dependencies**: Uses only Go standard library (testify for tests)
 
-- The script uses sub-agents pattern where Claude instances are spawned for specific tasks
-- All Linear API calls are made using curl with proper authentication
-- The TDD implementation follows strict red-green-refactor cycles
-- Error handling includes automatic retries for transient failures
+## Environment Requirements
+
+- **Required System Commands**:
+  - `claude`: Claude Code CLI must be installed and in PATH
+  - `git`: For worktree operations
+
+- **Note**: Linear API access is handled through Claude Code's MCP integration, not through environment variables
+
+## Specs
+
+**IMPORTANT:** Never deleted the `specs/` directory as it contains essential specifications for the River project.
+
+The `specs/` directory contains detailed technical specifications for different aspects of the River system:
+
+### [Overview](specs/overview.md)
+High-level overview of all specifications and recommended implementation order.
+
+### [Type System](specs/types.md)
+Defines data structures and interfaces for Linear integration, Claude responses, and internal workflow state.
+
+### [Error Handling](specs/error_handling.md)
+Patterns for graceful failure management, retry strategies, and recovery mechanisms for API failures.
+
+### [Logging System](specs/logging.md)
+Structured logging requirements for debugging and monitoring the automation workflow.
+
+### [Testing Strategy](specs/testing.md)
+Test-Driven Development approach, testing patterns, and infrastructure for unit and integration tests.
