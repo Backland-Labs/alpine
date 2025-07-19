@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"os"
 	"testing"
+
+	"github.com/maxkrieger/river/internal/claude"
 )
 
 // TestParseArgumentsValid tests parsing valid command-line arguments
@@ -149,4 +153,169 @@ func TestStreamFlagParsing(t *testing.T) {
 // Helper function to check string prefix
 func startsWith(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+// mockClaude implements the claude.Claude interface for testing
+type mockClaude struct {
+	executeFunc func(ctx context.Context, cmd claude.Command, opts claude.CommandOptions) (*claude.Response, error)
+	buildFunc   func(ctx context.Context, cmd claude.Command) ([]string, error)
+	parseFunc   func(ctx context.Context, output string) (*claude.Response, error)
+}
+
+func (m *mockClaude) Execute(ctx context.Context, cmd claude.Command, opts claude.CommandOptions) (*claude.Response, error) {
+	if m.executeFunc != nil {
+		return m.executeFunc(ctx, cmd, opts)
+	}
+	return &claude.Response{Content: "test response", ContinueFlag: false}, nil
+}
+
+func (m *mockClaude) BuildCommand(ctx context.Context, cmd claude.Command) ([]string, error) {
+	if m.buildFunc != nil {
+		return m.buildFunc(ctx, cmd)
+	}
+	return []string{"claude", "test"}, nil
+}
+
+func (m *mockClaude) ParseResponse(ctx context.Context, output string) (*claude.Response, error) {
+	if m.parseFunc != nil {
+		return m.parseFunc(ctx, output)
+	}
+	return &claude.Response{Content: output}, nil
+}
+
+func TestWorkflowSingleIteration(t *testing.T) {
+	// Test a workflow that completes in a single iteration
+	ctx := context.Background()
+	executor := &mockClaude{
+		executeFunc: func(ctx context.Context, cmd claude.Command, opts claude.CommandOptions) (*claude.Response, error) {
+			if cmd.Type == claude.CommandTypePlan {
+				return &claude.Response{
+					Content:      "Plan created successfully",
+					ContinueFlag: false, // No continuation needed
+				}, nil
+			}
+			return nil, errors.New("unexpected command type")
+		},
+	}
+
+	err := executeClaudeWorkflow(ctx, executor, "TEST-123", "/tmp/test", false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+}
+
+func TestWorkflowMultipleIterations(t *testing.T) {
+	// Test a workflow that requires multiple iterations
+	ctx := context.Background()
+	callCount := 0
+	
+	executor := &mockClaude{
+		executeFunc: func(ctx context.Context, cmd claude.Command, opts claude.CommandOptions) (*claude.Response, error) {
+			callCount++
+			switch callCount {
+			case 1: // Initial plan
+				if cmd.Type != claude.CommandTypePlan {
+					t.Errorf("Expected plan command on first call, got: %v", cmd.Type)
+				}
+				return &claude.Response{
+					Content:      "Plan created, need to continue",
+					ContinueFlag: true,
+				}, nil
+			case 2: // First continue
+				if cmd.Type != claude.CommandTypeContinue {
+					t.Errorf("Expected continue command on second call, got: %v", cmd.Type)
+				}
+				return &claude.Response{
+					Content:      "Continuing work...",
+					ContinueFlag: true,
+				}, nil
+			case 3: // Second continue (final)
+				if cmd.Type != claude.CommandTypeContinue {
+					t.Errorf("Expected continue command on third call, got: %v", cmd.Type)
+				}
+				return &claude.Response{
+					Content:      "Work completed",
+					ContinueFlag: false,
+				}, nil
+			default:
+				return nil, errors.New("too many calls")
+			}
+		},
+	}
+
+	err := executeClaudeWorkflow(ctx, executor, "TEST-456", "/tmp/test", false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if callCount != 3 {
+		t.Errorf("Expected 3 calls (1 plan + 2 continue), got: %d", callCount)
+	}
+}
+
+func TestWorkflowErrorHandling(t *testing.T) {
+	// Test error handling in the workflow
+	ctx := context.Background()
+	
+	testCases := []struct {
+		name        string
+		executor    *mockClaude
+		expectedErr string
+	}{
+		{
+			name: "plan_command_fails",
+			executor: &mockClaude{
+				executeFunc: func(ctx context.Context, cmd claude.Command, opts claude.CommandOptions) (*claude.Response, error) {
+					return nil, errors.New("plan execution failed")
+				},
+			},
+			expectedErr: "failed to execute initial plan: plan execution failed",
+		},
+		{
+			name: "continue_command_fails",
+			executor: &mockClaude{
+				executeFunc: func(ctx context.Context, cmd claude.Command, opts claude.CommandOptions) (*claude.Response, error) {
+					if cmd.Type == claude.CommandTypePlan {
+						return &claude.Response{ContinueFlag: true}, nil
+					}
+					return nil, errors.New("continue execution failed")
+				},
+			},
+			expectedErr: "failed to execute continue command (iteration 1): continue execution failed",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := executeClaudeWorkflow(ctx, tc.executor, "TEST-789", "/tmp/test", false)
+			if err == nil {
+				t.Fatal("Expected error, got nil")
+			}
+			if err.Error() != tc.expectedErr {
+				t.Errorf("Expected error %q, got %q", tc.expectedErr, err.Error())
+			}
+		})
+	}
+}
+
+func TestWorkflowWithStreaming(t *testing.T) {
+	// Test that streaming option is passed correctly
+	ctx := context.Background()
+	streamingEnabled := false
+	
+	executor := &mockClaude{
+		executeFunc: func(ctx context.Context, cmd claude.Command, opts claude.CommandOptions) (*claude.Response, error) {
+			streamingEnabled = opts.Stream
+			return &claude.Response{ContinueFlag: false}, nil
+		},
+	}
+
+	err := executeClaudeWorkflow(ctx, executor, "TEST-STREAM", "/tmp/test", true)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if !streamingEnabled {
+		t.Error("Expected streaming to be enabled in command options")
+	}
 }

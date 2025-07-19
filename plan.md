@@ -266,16 +266,24 @@ This plan outlines the conversion of `river.py` into a Go-based CLI tool that au
 
 ---
 
-### Task 6: Implement Main Workflow Loop
+### Task 6: Implement Main Workflow Loop ✅ IMPLEMENTED
 **Priority**: P0  
 **Package**: `cmd/river`  
 **Estimated Time**: 4 hours
+**Status**: COMPLETED ✅
 
 #### Acceptance Criteria
-- Initial plan command executed correctly
-- Continue loop runs until completion
-- Errors handled and reported properly
-- Streaming mode works when enabled
+- ✅ Initial plan command executed correctly
+- ✅ Continue loop runs until completion
+- ✅ Errors handled and reported properly
+- ✅ Streaming mode works when enabled
+
+#### Implementation Notes
+- Removed dependency on auto_claude.sh script
+- Direct integration with claude package
+- Added executeClaudeWorkflow function with plan/continue loop
+- Comprehensive test coverage for all scenarios
+- Safety limit of 50 iterations to prevent infinite loops
 
 #### Test Cases
 1. **Test**: `TestWorkflowSingleIteration`
