@@ -55,6 +55,15 @@ func usage() {
 }
 
 func main() {
+	// Validate environment before anything else
+	if err := validateEnvironment(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\nPlease ensure:\n")
+		fmt.Fprintf(os.Stderr, "1. LINEAR_API_KEY environment variable is set\n")
+		fmt.Fprintf(os.Stderr, "2. claude CLI is installed and available in PATH\n")
+		os.Exit(1)
+	}
+
 	// Parse and validate command-line arguments
 	config, err := parseArguments()
 	if err != nil {

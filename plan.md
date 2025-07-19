@@ -371,31 +371,40 @@ This plan outlines the conversion of `river.py` into a Go-based CLI tool that au
 
 ---
 
-### Task 8: Add Environment Validation
+### Task 8: Add Environment Validation ✅ IMPLEMENTED
 **Priority**: P1  
 **Package**: `cmd/river`  
+**Status**: COMPLETED
 **Estimated Time**: 2 hours
 
 #### Acceptance Criteria
-- Check for required environment variables
-- Validate Claude CLI availability
-- Provide helpful error messages
-- Fail fast on missing requirements
+- ✅ Check for required environment variables
+- ✅ Validate Claude CLI availability
+- ✅ Provide helpful error messages
+- ✅ Fail fast on missing requirements
 
 #### Test Cases
-1. **Test**: `TestEnvironmentValidation`
+1. **Test**: `TestEnvironmentValidation` ✅
    - **Expected**: Missing vars cause early exit
    - **Justification**: Fail-fast principle
 
-2. **Test**: `TestClaudeAvailability`
+2. **Test**: `TestClaudeAvailability` ✅
    - **Expected**: Missing claude binary detected
    - **Justification**: Dependency validation
 
 #### Implementation Steps
-1. Create validation function
-2. Check LINEAR_API_KEY variable
-3. Verify claude command exists
-4. Add to main initialization
+1. ✅ Create validation function
+2. ✅ Check LINEAR_API_KEY variable
+3. ✅ Verify claude command exists
+4. ✅ Add to main initialization
+
+#### Implementation Notes
+- Created `validation.go` with `validateEnvironment()` and `validateClaudeAvailable()` functions
+- Added comprehensive tests in `validation_test.go` following TDD methodology
+- Integrated validation as the first step in `main()` to implement fail-fast principle
+- Error messages follow the error handling spec with "env error:" prefix
+- Provides helpful instructions when validation fails
+- Successfully prevents cryptic runtime failures by checking requirements upfront
 
 #### Integration Points
 - First step in main execution
