@@ -27,7 +27,7 @@ func (m *MockClaude) Execute(ctx context.Context, cmd claude.Command, opts claud
 		cmd  claude.Command
 		opts claude.CommandOptions
 	}{cmd, opts})
-	
+
 	if m.ExecuteFunc != nil {
 		return m.ExecuteFunc(ctx, cmd, opts)
 	}

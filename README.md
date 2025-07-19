@@ -4,7 +4,7 @@ River is a CLI tool that automates software development workflows by integrating
 
 ## Overview
 
-River processes Linear sub-issues by:
+River processes Linear issues by:
 1. Creating isolated git worktrees for each issue
 2. Generating implementation plans using Claude Code
 3. Implementing features following TDD methodology
@@ -14,8 +14,8 @@ River processes Linear sub-issues by:
 
 - Go 1.21 or later
 - `claude` CLI (Claude Code) installed and configured
-- `jq` command-line JSON processor
 - Git repository initialized
+- `LINEAR_API_KEY` environment variable set
 
 ## Installation
 
@@ -37,29 +37,44 @@ make install
 # Run River with a Linear issue ID
 river LINEAR-123
 
+# Run with streaming output (JSON format)
+river --stream LINEAR-123
+
 # The tool will:
 # 1. Create a worktree at ../river-linear-123
-# 2. Copy auto_claude.sh to the worktree
-# 3. Execute the automation workflow
+# 2. Switch to a new branch named 'linear-123'
+# 3. Execute Claude workflow with TDD methodology
+# 4. Process until completion or max iterations
 ```
 
 ## How It Works
 
-1. **Worktree Creation**: River creates an isolated git worktree in the parent directory (e.g., `../river-linear-123`) to keep the main repository clean.
+1. **Environment Validation**: River first checks that all required dependencies (Claude CLI, Linear API key) are available.
 
-2. **Script Execution**: The `auto_claude.sh` script is copied to the worktree and executed, which:
-   - Fetches issue details from Linear
-   - Creates a detailed implementation plan
-   - Implements features using TDD
-   - Updates the Linear issue status
+2. **Worktree Creation**: Creates an isolated git worktree in the parent directory (e.g., `../river-linear-123`) with a dedicated branch.
 
-3. **Isolation**: Each issue gets its own worktree, allowing parallel development on multiple issues.
+3. **Claude Integration**: Uses the Claude CLI directly to:
+   - Create implementation plans with `/make_plan`
+   - Continue workflow iterations with `/continue`
+   - Process Linear issues following TDD methodology
+
+4. **Iterative Processing**: Automatically handles continue loops up to 50 iterations for complex tasks.
+
+## Command-Line Options
+
+- `--stream`: Enable JSON streaming output for real-time progress monitoring
 
 ## Development
 
 ```bash
 # Run tests
 make test
+
+# Run integration tests
+make test-integration
+
+# Build for current platform
+make build
 
 # Build for multiple platforms
 make build-all
@@ -70,18 +85,42 @@ make clean
 
 ## Environment Variables
 
-- `LINEAR_API_KEY`: Required for Linear API access
-- `PARENT_ISSUE_ID`: (Optional) Can be set to specify the parent issue when running auto_claude.sh directly
+- `LINEAR_API_KEY`: **Required** - Your Linear API key for accessing issues
 
 ## Project Structure
 
 ```
 river/
 ├── cmd/river/          # CLI entry point
+│   ├── main.go        # Main application logic
+│   └── validation.go  # Environment validation
 ├── internal/
+│   ├── claude/        # Claude CLI integration
+│   │   ├── command.go # Command building
+│   │   ├── executor.go# Command execution
+│   │   ├── types.go   # Type definitions
+│   │   └── interface.go
 │   ├── git/           # Git worktree management
-│   └── runner/        # Script execution
-├── auto_claude.sh     # Core automation script
+│   └── runner/        # Workflow orchestration
+├── test/
+│   └── integration/   # Integration tests
 ├── specs/             # Specifications
-└── CLAUDE.md          # Claude Code instructions
+├── plan.md           # Implementation plan
+└── CLAUDE.md         # Claude Code instructions
 ```
+
+## Architecture
+
+River follows a clean architecture with clear separation of concerns:
+
+- **CLI Layer** (`cmd/river`): Handles command-line parsing and validation
+- **Claude Integration** (`internal/claude`): Provides type-safe interface to Claude CLI
+- **Git Operations** (`internal/git`): Manages worktree creation and branch switching
+- **Runner** (`internal/runner`): Orchestrates the workflow execution
+
+## Error Handling
+
+River implements fail-fast principles:
+- Environment validation happens before any operations
+- Clear error messages guide users to resolve issues
+- Timeouts prevent hanging on long-running commands (default: 120 seconds)

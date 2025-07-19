@@ -39,10 +39,10 @@ func TestParseArgumentsValid(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset flag.CommandLine for each test
 			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-			
+
 			// Simulate command-line arguments
 			os.Args = append([]string{"river"}, tt.args...)
-			
+
 			config, err := parseArguments()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -84,10 +84,10 @@ func TestParseArgumentsMissing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset flag.CommandLine for each test
 			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-			
+
 			// Simulate command-line arguments
 			os.Args = append([]string{"river"}, tt.args...)
-			
+
 			_, err := parseArguments()
 			if err == nil {
 				t.Error("expected error for missing arguments, got nil")
@@ -121,10 +121,10 @@ func TestStreamFlagParsing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset flag.CommandLine for each test
 			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-			
+
 			// For this test, we'll allow unknown flags
 			os.Args = append([]string{"river"}, tt.args...)
-			
+
 			// Filter out LINEAR issue ID from args
 			var issueID string
 			for _, arg := range tt.args {
@@ -133,11 +133,11 @@ func TestStreamFlagParsing(t *testing.T) {
 					break
 				}
 			}
-			
+
 			if issueID == "" {
 				t.Skip("no issue ID found in args")
 			}
-			
+
 			config, err := parseArguments()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -208,7 +208,7 @@ func TestWorkflowMultipleIterations(t *testing.T) {
 	// Test a workflow that requires multiple iterations
 	ctx := context.Background()
 	callCount := 0
-	
+
 	executor := &mockClaude{
 		executeFunc: func(ctx context.Context, cmd claude.Command, opts claude.CommandOptions) (*claude.Response, error) {
 			callCount++
@@ -256,7 +256,7 @@ func TestWorkflowMultipleIterations(t *testing.T) {
 func TestWorkflowErrorHandling(t *testing.T) {
 	// Test error handling in the workflow
 	ctx := context.Background()
-	
+
 	testCases := []struct {
 		name        string
 		executor    *mockClaude
@@ -302,7 +302,7 @@ func TestWorkflowWithStreaming(t *testing.T) {
 	// Test that streaming option is passed correctly
 	ctx := context.Background()
 	streamingEnabled := false
-	
+
 	executor := &mockClaude{
 		executeFunc: func(ctx context.Context, cmd claude.Command, opts claude.CommandOptions) (*claude.Response, error) {
 			streamingEnabled = opts.Stream

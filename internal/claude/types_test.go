@@ -100,7 +100,7 @@ func TestIssueID(t *testing.T) {
 	t.Run("should create and validate issue ID", func(t *testing.T) {
 		// Test custom IssueID type
 		id := IssueID("LINEAR-123")
-		
+
 		if string(id) != "LINEAR-123" {
 			t.Errorf("IssueID = %s; want 'LINEAR-123'", id)
 		}
@@ -121,9 +121,9 @@ func TestCommandOptions(t *testing.T) {
 	t.Run("should create command options with streaming enabled", func(t *testing.T) {
 		// Test CommandOptions struct
 		opts := CommandOptions{
-			Stream:       true,
-			Timeout:      300,
-			WorkingDir:   "/tmp/test",
+			Stream:     true,
+			Timeout:    300,
+			WorkingDir: "/tmp/test",
 		}
 
 		if !opts.Stream {

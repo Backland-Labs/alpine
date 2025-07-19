@@ -270,7 +270,7 @@ func TestNewCommandBuilder(t *testing.T) {
 	if builder == nil {
 		t.Fatal("NewCommandBuilder() returned nil")
 	}
-	
+
 	// Verify it implements the Claude interface
 	var _ Claude = builder
 }

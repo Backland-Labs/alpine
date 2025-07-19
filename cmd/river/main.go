@@ -21,26 +21,26 @@ type Config struct {
 // parseArguments parses and validates command-line arguments
 func parseArguments() (*Config, error) {
 	var stream bool
-	
+
 	// Define the --stream flag
 	flag.BoolVar(&stream, "stream", false, "Enable JSON streaming output")
-	
+
 	// Parse flags
 	flag.Parse()
-	
+
 	// Get remaining arguments
 	args := flag.Args()
-	
+
 	// Validate that we have exactly one argument (the issue ID)
 	if len(args) != 1 {
 		return nil, errors.New("missing required LINEAR-ISSUE-ID argument")
 	}
-	
+
 	issueID := args[0]
 	if issueID == "" {
 		return nil, errors.New("LINEAR-ISSUE-ID cannot be empty")
 	}
-	
+
 	return &Config{
 		IssueID: issueID,
 		Stream:  stream,
@@ -53,6 +53,14 @@ func usage() {
 	flag.PrintDefaults()
 	os.Exit(1)
 }
+
+const (
+	// maxWorkflowIterations prevents infinite loops in the workflow
+	maxWorkflowIterations = 50
+
+	// worktreePathFormat defines the format for worktree directory names
+	worktreePathFormat = "../river-%s"
+)
 
 func main() {
 	// Validate environment before anything else
@@ -75,7 +83,7 @@ func main() {
 	sanitizedID := sanitizeIssueID(config.IssueID)
 
 	// Create worktree directory path
-	worktreePath := fmt.Sprintf("../river-%s", sanitizedID)
+	worktreePath := fmt.Sprintf(worktreePathFormat, sanitizedID)
 
 	// Main workflow
 	if err := runWorkflow(config.IssueID, worktreePath, config.Stream); err != nil {
@@ -123,7 +131,7 @@ func runWorkflow(issueID, worktreePath string, stream bool) error {
 func executeClaudeWorkflow(ctx context.Context, executor claude.Claude, issueID, workingDir string, stream bool) error {
 	// Initial plan command
 	fmt.Println("Creating initial implementation plan...")
-	
+
 	planCmd := claude.Command{
 		Type:         claude.CommandTypePlan,
 		Content:      fmt.Sprintf("Process Linear issue %s following TDD methodology", issueID),
@@ -146,10 +154,10 @@ func executeClaudeWorkflow(ctx context.Context, executor claude.Claude, issueID,
 	// Continue loop
 	sessionID := "" // Will be set after first response if needed
 	iteration := 1
-	
+
 	for response.ContinueFlag {
 		fmt.Printf("Continuing workflow (iteration %d)...\n", iteration)
-		
+
 		continueCmd := claude.Command{
 			Type:         claude.CommandTypeContinue,
 			SessionID:    sessionID,
@@ -162,10 +170,10 @@ func executeClaudeWorkflow(ctx context.Context, executor claude.Claude, issueID,
 		}
 
 		iteration++
-		
+
 		// Safety check to prevent infinite loops
-		if iteration > 50 {
-			return fmt.Errorf("workflow exceeded maximum iterations (50)")
+		if iteration > maxWorkflowIterations {
+			return fmt.Errorf("workflow exceeded maximum iterations (%d)", maxWorkflowIterations)
 		}
 	}
 

@@ -13,12 +13,12 @@ func validateEnvironment() error {
 	if os.Getenv("LINEAR_API_KEY") == "" {
 		return fmt.Errorf("env error: LINEAR_API_KEY environment variable is not set")
 	}
-	
+
 	// Check claude availability
 	if err := validateClaudeAvailable(); err != nil {
 		return fmt.Errorf("env error: %w", err)
 	}
-	
+
 	return nil
 }
 

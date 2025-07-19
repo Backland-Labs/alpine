@@ -37,7 +37,7 @@ func TestClaudeOperations(t *testing.T) {
 		if len(args) != expectedLen {
 			t.Errorf("len(args) = %d; want %d", len(args), expectedLen)
 		}
-		
+
 		// Verify key arguments
 		if args[0] != "claude" {
 			t.Errorf("args[0] = %s; want 'claude'", args[0])
@@ -75,7 +75,7 @@ func TestClaudeOperations(t *testing.T) {
 			OutputFormat: "json",
 		}
 		opts := CommandOptions{
-			Stream: false,
+			Stream:  false,
 			Timeout: 300,
 		}
 
@@ -128,13 +128,13 @@ type mockClaude struct{}
 func (m *mockClaude) BuildCommand(ctx context.Context, cmd Command) ([]string, error) {
 	// Mock implementation to make tests compile
 	args := []string{"claude"}
-	
+
 	if cmd.Type == CommandTypePlan {
 		args = append(args, "-p", "/make_plan "+cmd.Prompt)
 	} else {
 		args = append(args, "-p", "/ralph")
 	}
-	
+
 	if cmd.OutputFormat != "" {
 		args = append(args, "--output-format", cmd.OutputFormat)
 	}
@@ -151,7 +151,7 @@ func (m *mockClaude) BuildCommand(ctx context.Context, cmd Command) ([]string, e
 		}
 		args = append(args, "--allowedTools", toolsStr)
 	}
-	
+
 	return args, nil
 }
 

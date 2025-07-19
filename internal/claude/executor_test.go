@@ -276,7 +276,7 @@ func TestExecutor_StreamingOutput(t *testing.T) {
 	// This test verifies that streaming option is properly handled
 	// For now, we'll just verify the option is passed correctly
 	// Actual streaming implementation can be tested with integration tests
-	
+
 	cleanup := createMockClaude(t, 0, `{"content": "Streaming response", "continue": false}`, "")
 	defer cleanup()
 
@@ -391,10 +391,10 @@ func TestExecutor_ParseResponse(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name:        "Parse invalid JSON",
-			output:      "Not a JSON response",
+			name:         "Parse invalid JSON",
+			output:       "Not a JSON response",
 			expectedResp: nil,
-			expectedErr: true,
+			expectedErr:  true,
 		},
 		{
 			name:   "Parse empty JSON object",

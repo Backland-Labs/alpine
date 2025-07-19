@@ -10,17 +10,17 @@ import (
 const (
 	// claudeBinary is the name of the Claude CLI executable
 	claudeBinary = "claude"
-	
+
 	// Command line flags
 	flagSystemPrompt = "-s"
 	flagPrompt       = "-p"
 	flagOutputFormat = "--output-format"
 	flagAllowedTools = "--allowed-tools"
-	
+
 	// Slash commands
 	slashCommandPlan     = "/make_plan"
 	slashCommandContinue = "/continue"
-	
+
 	// Default values
 	defaultOutputFormat = "json"
 )
@@ -53,42 +53,42 @@ func (b *commandBuilder) BuildCommand(ctx context.Context, cmd Command) ([]strin
 	if err := cmd.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid command: %w", err)
 	}
-	
+
 	// Use Content field if Prompt is empty (for backward compatibility)
 	prompt := cmd.Prompt
 	if prompt == "" {
 		prompt = cmd.Content
 	}
-	
+
 	// Validate prompt is not empty
 	if strings.TrimSpace(prompt) == "" {
 		return nil, errors.New("prompt cannot be empty")
 	}
-	
+
 	// Start building the command arguments
 	args := []string{claudeBinary}
-	
+
 	// Add system prompt if provided
 	if cmd.SystemPrompt != "" {
 		args = append(args, flagSystemPrompt, cmd.SystemPrompt)
 	}
-	
+
 	// Add the main prompt with appropriate command prefix
 	promptPrefix := b.getPromptPrefix(cmd.Type)
 	args = append(args, flagPrompt, fmt.Sprintf("%s %s", promptPrefix, prompt))
-	
+
 	// Add output format (default to json if not specified)
 	outputFormat := cmd.OutputFormat
 	if outputFormat == "" {
 		outputFormat = defaultOutputFormat
 	}
 	args = append(args, flagOutputFormat, outputFormat)
-	
+
 	// Add allowed tools if specified
 	if len(cmd.AllowedTools) > 0 {
 		args = append(args, flagAllowedTools, strings.Join(cmd.AllowedTools, ","))
 	}
-	
+
 	return args, nil
 }
 
@@ -104,4 +104,3 @@ func (b *commandBuilder) getPromptPrefix(cmdType CommandType) string {
 		return ""
 	}
 }
-
