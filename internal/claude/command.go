@@ -16,10 +16,9 @@ const (
 	flagAppendSystemPrompt = "--append-system-prompt"
 	flagOutputFormat       = "--output-format"
 	flagAllowedTools       = "--allowedTools"
-
-	// Slash commands
-	slashCommandPlan     = "/make_plan"
-	slashCommandContinue = "/continue"
+	flagPermissionMode     = "--permission-mode"
+	flagContinue           = "-c"
+	flagSessionID          = "--session-id"
 
 	// Default values
 	defaultOutputFormat = "json"
