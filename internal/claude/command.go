@@ -63,8 +63,8 @@ func (b *commandBuilder) BuildCommand(ctx context.Context, cmd Command) ([]strin
 		prompt = cmd.Content
 	}
 
-	// Validate prompt is not empty
-	if strings.TrimSpace(prompt) == "" {
+	// For continue commands, allow empty prompt (just use the slash command)
+	if strings.TrimSpace(prompt) == "" && cmd.Type != CommandTypeContinue {
 		return nil, errors.New("prompt cannot be empty")
 	}
 
@@ -93,7 +93,12 @@ func (b *commandBuilder) BuildCommand(ctx context.Context, cmd Command) ([]strin
 
 	// Add the main prompt with appropriate command prefix as the last argument
 	promptPrefix := b.getPromptPrefix(cmd.Type)
-	args = append(args, fmt.Sprintf("%s %s", promptPrefix, prompt))
+	if strings.TrimSpace(prompt) == "" {
+		// For continue commands with no additional content, just use the slash command
+		args = append(args, promptPrefix)
+	} else {
+		args = append(args, fmt.Sprintf("%s %s", promptPrefix, prompt))
+	}
 
 	return args, nil
 }

@@ -153,8 +153,8 @@ func executeClaudeWorkflow(ctx context.Context, executor claude.Claude, config *
 			Type:         claude.CommandTypePlan,
 			Content:      fmt.Sprintf("Process Linear issue %s following TDD methodology", config.IssueID),
 			OutputFormat: config.OutputFormat,
-			AllowedTools: []string{"linear-server", "code-editing"},
-			SystemPrompt: "You are an AI assistant helping to implement features from Linear issues using Test-Driven Development. Follow the red-green-refactor cycle strictly.",
+			AllowedTools: []string{"mcp__linear-server__*", "mcp__context7__*", "Bash", "Read", "Write", "Edit", "Remove"},
+			SystemPrompt: "You are an expert software engineer with deep knowledge of TDD, Python, Typescript. Execute the following tasks with surgical precision while taking care not to overengineer solutions. IMPORTANT: Return ONLY valid JSON without any additional text, markdown formatting, or explanations.",
 		}
 
 		// Execute initial plan
@@ -178,9 +178,11 @@ func executeClaudeWorkflow(ctx context.Context, executor claude.Claude, config *
 
 		continueCmd := claude.Command{
 			Type:         claude.CommandTypeContinue,
-			Content:      "Continue implementation", // Basic prompt for continue command
+			Content:      "", // Just /ralph with no additional content, matching Python script
 			SessionID:    sessionID,
 			OutputFormat: config.OutputFormat,
+			AllowedTools: []string{"mcp__linear-server__*", "mcp__context7__*", "Bash", "Read", "Write", "Edit", "Remove"},
+			SystemPrompt: "You are an expert software engineer with deep knowledge of TDD, Python, Typescript. Execute the following tasks with surgical precision while taking care not to overengineer solutions. IMPORTANT: Return ONLY valid JSON without any additional text, markdown formatting, or explanations.",
 		}
 
 		_, err := executor.Execute(ctx, continueCmd, opts)
