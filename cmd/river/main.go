@@ -178,6 +178,7 @@ func executeClaudeWorkflow(ctx context.Context, executor claude.Claude, config *
 
 		continueCmd := claude.Command{
 			Type:         claude.CommandTypeContinue,
+			Content:      "Continue implementation", // Basic prompt for continue command
 			SessionID:    sessionID,
 			OutputFormat: config.OutputFormat,
 		}
