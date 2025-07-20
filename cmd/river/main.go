@@ -154,7 +154,7 @@ func executeClaudeWorkflow(ctx context.Context, executor claude.Claude, config *
 			Content:      fmt.Sprintf("Process Linear issue %s following TDD methodology", config.IssueID),
 			OutputFormat: config.OutputFormat,
 			AllowedTools: []string{"mcp__linear-server__*", "mcp__context7__*", "Bash", "Read", "Write", "Edit", "Remove"},
-			SystemPrompt: "You are an expert software engineer with deep knowledge of TDD, Python, Typescript. Execute the following tasks with surgical precision while taking care not to overengineer solutions. IMPORTANT: Return ONLY valid JSON without any additional text, markdown formatting, or explanations.",
+			SystemPrompt: "You are an expert software engineer with deep knowledge of TDD, Python, Typescript. Execute the following tasks with surgical precision while taking care not to overengineer solutions.",
 		}
 
 		// Execute initial plan
@@ -182,7 +182,7 @@ func executeClaudeWorkflow(ctx context.Context, executor claude.Claude, config *
 			SessionID:    sessionID,
 			OutputFormat: config.OutputFormat,
 			AllowedTools: []string{"mcp__linear-server__*", "mcp__context7__*", "Bash", "Read", "Write", "Edit", "Remove"},
-			SystemPrompt: "You are an expert software engineer with deep knowledge of TDD, Python, Typescript. Execute the following tasks with surgical precision while taking care not to overengineer solutions. IMPORTANT: Return ONLY valid JSON without any additional text, markdown formatting, or explanations.",
+			SystemPrompt: "You are an expert software engineer with deep knowledge of TDD, Python, Typescript. Execute the following tasks with surgical precision while taking care not to overengineer solutions.",
 		}
 
 		_, err := executor.Execute(ctx, continueCmd, opts)

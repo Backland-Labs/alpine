@@ -10,7 +10,7 @@ def run_claude_code(prompt):
     cmd = [
         'claude', '-p', prompt, #linear_issue
         '--output-format', 'text',
-        '--system-prompt', 'You are an expert software engineer with deep knowledge of TDD, Python, Typescript. Execute the following tasks with surgical precision while taking care not to overengineer solutions. IMPORTANT: Return ONLY valid JSON without any additional text, markdown formatting, or explanations.',
+        '--append-system-prompt', 'You are an expert software engineer with deep knowledge of TDD, Python, Typescript. Execute the following tasks with surgical precision while taking care not to overengineer solutions.',
         '--allowedTools', 'mcp__linear-server__*', 'mcp__context7__*', 'Bash', 'Read', 'Write', 'Edit', 'Remove'
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
