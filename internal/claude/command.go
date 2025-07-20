@@ -20,8 +20,12 @@ const (
 	flagContinue           = "-c"
 	flagSessionID          = "--session-id"
 
+	// Slash commands
+	slashCommandPlan     = "/make_plan"
+	slashCommandContinue = "/ralph"
+
 	// Default values
-	defaultOutputFormat = "json"
+	defaultOutputFormat = "text"
 )
 
 // commandBuilder implements the Claude interface for building CLI commands

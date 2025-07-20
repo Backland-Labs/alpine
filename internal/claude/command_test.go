@@ -129,7 +129,7 @@ func TestBuildCommand_Continue(t *testing.T) {
 				"-p",
 				"--output-format",
 				"json",
-				"/continue Continue implementation",
+				"/ralph Continue implementation",
 			},
 		},
 		{
@@ -150,7 +150,7 @@ func TestBuildCommand_Continue(t *testing.T) {
 				"Focus on error handling",
 				"--allowedTools",
 				"read,write,exec,test",
-				"/continue Keep going with fixes",
+				"/ralph Keep going with fixes",
 			},
 		},
 	}
@@ -231,7 +231,7 @@ func TestBuildCommand_EdgeCases(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "empty output format defaults to json",
+			name: "empty output format defaults to text",
 			cmd: Command{
 				Type:         CommandTypePlan,
 				Prompt:       "Test prompt",

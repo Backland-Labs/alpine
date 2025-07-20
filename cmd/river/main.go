@@ -14,16 +14,22 @@ import (
 
 // Config holds the parsed command-line configuration
 type Config struct {
-	IssueID string
-	Stream  bool
+	IssueID      string
+	Stream       bool
+	NoPlan       bool
+	OutputFormat string
 }
 
 // parseArguments parses and validates command-line arguments
 func parseArguments() (*Config, error) {
 	var stream bool
+	var noPlan bool
+	var outputFormat string
 
-	// Define the --stream flag
+	// Define flags
 	flag.BoolVar(&stream, "stream", false, "Enable JSON streaming output")
+	flag.BoolVar(&noPlan, "no-plan", false, "Skip initial plan generation")
+	flag.StringVar(&outputFormat, "output-format", "text", "Output format: json or text")
 
 	// Parse flags
 	flag.Parse()
@@ -41,22 +47,31 @@ func parseArguments() (*Config, error) {
 		return nil, errors.New("LINEAR-ISSUE-ID cannot be empty")
 	}
 
+	// Validate output format
+	if outputFormat != "json" && outputFormat != "text" {
+		return nil, errors.New("output-format must be 'json' or 'text'")
+	}
+
 	return &Config{
-		IssueID: issueID,
-		Stream:  stream,
+		IssueID:      issueID,
+		Stream:       stream,
+		NoPlan:       noPlan,
+		OutputFormat: outputFormat,
 	}, nil
 }
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: river [OPTIONS] <LINEAR-ISSUE-ID>\n\n")
+	fmt.Fprintf(os.Stderr, "River automates software development workflows by integrating Linear with Claude Code.\n")
+	fmt.Fprintf(os.Stderr, "By default, River generates an implementation plan and then continues until completion.\n\n")
 	fmt.Fprintf(os.Stderr, "Options:\n")
 	flag.PrintDefaults()
 	os.Exit(1)
 }
 
 const (
-	// maxWorkflowIterations prevents infinite loops in the workflow
-	maxWorkflowIterations = 100
+	// maxWorkflowIterations prevents infinite loops in the workflow (matching Python script)
+	maxWorkflowIterations = 20
 
 	// worktreePathFormat defines the format for worktree directory names
 	worktreePathFormat = "../river-%s"
@@ -78,14 +93,8 @@ func main() {
 		usage()
 	}
 
-	// Sanitize issue ID for directory name
-	sanitizedID := sanitizeIssueID(config.IssueID)
-
-	// Create worktree directory path
-	worktreePath := fmt.Sprintf(worktreePathFormat, sanitizedID)
-
 	// Main workflow
-	if err := runWorkflow(config.IssueID, worktreePath, config.Stream); err != nil {
+	if err := runWorkflow(config); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
@@ -93,13 +102,16 @@ func main() {
 	fmt.Println("Workflow completed successfully")
 }
 
-func runWorkflow(issueID, worktreePath string, stream bool) error {
-	fmt.Printf("Processing Linear issue: %s\n", issueID)
-	if stream {
+func runWorkflow(config *Config) error {
+	fmt.Printf("Processing Linear issue: %s\n", config.IssueID)
+	if config.Stream {
 		fmt.Println("Streaming mode enabled")
 	}
-	fmt.Printf("Creating worktree at: %s\n", worktreePath)
-
+	fmt.Printf("Output format: %s\n", config.OutputFormat)
+	if config.NoPlan {
+		fmt.Println("Skipping plan generation")
+	}
+	
 	// Get absolute path for the parent directory
 	currentDir, err := os.Getwd()
 	if err != nil {
@@ -108,7 +120,7 @@ func runWorkflow(issueID, worktreePath string, stream bool) error {
 	parentDir := filepath.Dir(currentDir)
 
 	// Create git worktree
-	worktreeFullPath, err := git.CreateWorktree(parentDir, issueID)
+	worktreeFullPath, err := git.CreateWorktree(parentDir, config.IssueID)
 	if err != nil {
 		return fmt.Errorf("failed to create worktree: %w", err)
 	}
@@ -119,7 +131,7 @@ func runWorkflow(issueID, worktreePath string, stream bool) error {
 	executor := claude.New()
 
 	// Execute the workflow using Claude
-	if err := executeClaudeWorkflow(ctx, executor, issueID, worktreeFullPath, stream); err != nil {
+	if err := executeClaudeWorkflow(ctx, executor, config, worktreeFullPath); err != nil {
 		return fmt.Errorf("failed to execute Claude workflow: %w", err)
 	}
 
@@ -127,53 +139,63 @@ func runWorkflow(issueID, worktreePath string, stream bool) error {
 }
 
 // executeClaudeWorkflow runs the main Claude workflow with plan/continue loop
-func executeClaudeWorkflow(ctx context.Context, executor claude.Claude, issueID, workingDir string, stream bool) error {
-	// Initial plan command
-	fmt.Println("Creating initial implementation plan...")
-
-	planCmd := claude.Command{
-		Type:         claude.CommandTypePlan,
-		Content:      fmt.Sprintf("Process Linear issue %s following TDD methodology", issueID),
-		OutputFormat: "json",
-		AllowedTools: []string{"linear-server", "code-editing"},
-		SystemPrompt: "You are an AI assistant helping to implement features from Linear issues using Test-Driven Development. Follow the red-green-refactor cycle strictly.",
-	}
-
+func executeClaudeWorkflow(ctx context.Context, executor claude.Claude, config *Config, workingDir string) error {
 	opts := claude.CommandOptions{
-		Stream:     stream,
+		Stream:     config.Stream,
 		WorkingDir: workingDir,
 	}
 
-	// Execute initial plan
-	response, err := executor.Execute(ctx, planCmd, opts)
-	if err != nil {
-		return fmt.Errorf("failed to execute initial plan: %w", err)
+	// Initial plan command (unless --no-plan is specified)
+	if !config.NoPlan {
+		fmt.Println("Creating initial implementation plan...")
+
+		planCmd := claude.Command{
+			Type:         claude.CommandTypePlan,
+			Content:      fmt.Sprintf("Process Linear issue %s following TDD methodology", config.IssueID),
+			OutputFormat: config.OutputFormat,
+			AllowedTools: []string{"linear-server", "code-editing"},
+			SystemPrompt: "You are an AI assistant helping to implement features from Linear issues using Test-Driven Development. Follow the red-green-refactor cycle strictly.",
+		}
+
+		// Execute initial plan
+		_, err := executor.Execute(ctx, planCmd, opts)
+		if err != nil {
+			return fmt.Errorf("failed to execute initial plan: %w", err)
+		}
 	}
 
-	// Continue loop
+	// Continue loop using status file monitoring (matching Python script behavior)
 	sessionID := "" // Will be set after first response if needed
-	iteration := 1
+	iteration := 0
+	continueFlag := true
 
-	for response.ContinueFlag {
-		fmt.Printf("Continuing workflow (iteration %d)...\n", iteration)
+	// Ensure cleanup happens even if there's an error
+	defer claude.CleanupStatusFile(workingDir)
+
+	for continueFlag && iteration < maxWorkflowIterations {
+		iteration++
+		fmt.Printf("Starting command... (Iteration %d)\n", iteration)
 
 		continueCmd := claude.Command{
 			Type:         claude.CommandTypeContinue,
 			SessionID:    sessionID,
-			OutputFormat: "json",
+			OutputFormat: config.OutputFormat,
 		}
 
-		response, err = executor.Execute(ctx, continueCmd, opts)
+		_, err := executor.Execute(ctx, continueCmd, opts)
 		if err != nil {
 			return fmt.Errorf("failed to execute continue command (iteration %d): %w", iteration, err)
 		}
 
-		iteration++
-
-		// Safety check to prevent infinite loops
-		if iteration > maxWorkflowIterations {
-			return fmt.Errorf("workflow exceeded maximum iterations (%d)", maxWorkflowIterations)
+		// Check status file for continuation (matching Python script)
+		continueFlag = claude.CheckStatusFile(workingDir)
+		if !continueFlag {
+			fmt.Println("Status file indicates completion. Stopping.")
 		}
+	}
+
+	if iteration >= maxWorkflowIterations {
+		fmt.Printf("Reached maximum iterations (%d). Stopping.\n", maxWorkflowIterations)
 	}
 
 	fmt.Printf("Workflow completed after %d iteration(s)\n", iteration)

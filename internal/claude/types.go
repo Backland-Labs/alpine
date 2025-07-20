@@ -78,3 +78,8 @@ type CommandOptions struct {
 	// WorkingDir specifies the working directory for command execution
 	WorkingDir string
 }
+
+// StatusFile represents the structure of claude_status.json
+type StatusFile struct {
+	Continue string `json:"continue"`
+}

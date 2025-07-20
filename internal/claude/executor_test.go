@@ -154,10 +154,10 @@ func TestExecutor_Execute(t *testing.T) {
 			expectedError: "invalid working directory",
 		},
 		{
-			name: "Handle malformed JSON output",
+			name: "Handle text output when JSON format specified",
 			command: Command{
 				Type:         CommandTypePlan,
-				Prompt:       "Test malformed output",
+				Prompt:       "Test text output",
 				OutputFormat: "json",
 			},
 			opts: CommandOptions{
@@ -167,7 +167,11 @@ func TestExecutor_Execute(t *testing.T) {
 			setupMock: func(t *testing.T) func() {
 				return createMockClaude(t, 0, "This is not JSON", "")
 			},
-			expectedError: "failed to parse response",
+			expectedError: "", // Should not error, just treat as text
+			expectedResp: &Response{
+				Content:      "This is not JSON",
+				ContinueFlag: false,
+			},
 		},
 		{
 			name: "Handle empty output",

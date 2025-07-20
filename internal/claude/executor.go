@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -129,20 +130,66 @@ func (c *commandBuilder) ParseResponse(ctx context.Context, output string) (*Res
 		}, nil
 	}
 
-	// Try to parse as JSON
+	// Try to parse as JSON first
 	var jsonResp struct {
 		Content  string `json:"content"`
 		Continue bool   `json:"continue"`
 	}
 
-	if err := json.Unmarshal([]byte(output), &jsonResp); err != nil {
-		// If it's not valid JSON, treat the entire output as content
-		// This is for backwards compatibility and debugging
-		return nil, fmt.Errorf("invalid JSON: %w", err)
+	if err := json.Unmarshal([]byte(output), &jsonResp); err == nil {
+		// Successfully parsed as JSON
+		return &Response{
+			Content:      jsonResp.Content,
+			ContinueFlag: jsonResp.Continue,
+		}, nil
 	}
 
+	// If JSON parsing failed, treat as text and look for continue signals
+	continueFlag := parseTextContinueFlag(output)
+	
 	return &Response{
-		Content:      jsonResp.Content,
-		ContinueFlag: jsonResp.Continue,
+		Content:      output,
+		ContinueFlag: continueFlag,
 	}, nil
+}
+
+// parseTextContinueFlag extracts continue flag from text output
+func parseTextContinueFlag(text string) bool {
+	lowerText := strings.ToLower(text)
+	
+	// Look for explicit continue signals
+	if strings.Contains(lowerText, "continue=true") {
+		return true
+	}
+	if strings.Contains(lowerText, "continue=false") {
+		return false
+	}
+	
+	// Default to false if no explicit signal found
+	return false
+}
+
+// CheckStatusFile reads claude_status.json to determine continuation status
+func CheckStatusFile(workingDir string) bool {
+	statusPath := filepath.Join(workingDir, "claude_status.json")
+	
+	data, err := os.ReadFile(statusPath)
+	if err != nil {
+		// Continue if no status file (matches Python behavior)
+		return true
+	}
+	
+	var status StatusFile
+	if err := json.Unmarshal(data, &status); err != nil {
+		// Continue if invalid JSON (matches Python behavior)
+		return true
+	}
+	
+	return strings.ToLower(status.Continue) == "yes"
+}
+
+// CleanupStatusFile removes claude_status.json from the working directory
+func CleanupStatusFile(workingDir string) {
+	statusPath := filepath.Join(workingDir, "claude_status.json")
+	os.Remove(statusPath) // Ignore errors like Python version
 }

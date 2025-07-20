@@ -198,7 +198,13 @@ func TestWorkflowSingleIteration(t *testing.T) {
 		},
 	}
 
-	err := executeClaudeWorkflow(ctx, executor, "TEST-123", "/tmp/test", false)
+	config := &Config{
+		IssueID:      "TEST-123",
+		Stream:       false,
+		NoPlan:       false,
+		OutputFormat: "json",
+	}
+	err := executeClaudeWorkflow(ctx, executor, config, "/tmp/test")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -243,7 +249,13 @@ func TestWorkflowMultipleIterations(t *testing.T) {
 		},
 	}
 
-	err := executeClaudeWorkflow(ctx, executor, "TEST-456", "/tmp/test", false)
+	config := &Config{
+		IssueID:      "TEST-456",
+		Stream:       false,
+		NoPlan:       false,
+		OutputFormat: "json",
+	}
+	err := executeClaudeWorkflow(ctx, executor, config, "/tmp/test")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -287,7 +299,13 @@ func TestWorkflowErrorHandling(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := executeClaudeWorkflow(ctx, tc.executor, "TEST-789", "/tmp/test", false)
+			config := &Config{
+				IssueID:      "TEST-789",
+				Stream:       false,
+				NoPlan:       false,
+				OutputFormat: "json",
+			}
+			err := executeClaudeWorkflow(ctx, tc.executor, config, "/tmp/test")
 			if err == nil {
 				t.Fatal("Expected error, got nil")
 			}
@@ -310,7 +328,13 @@ func TestWorkflowWithStreaming(t *testing.T) {
 		},
 	}
 
-	err := executeClaudeWorkflow(ctx, executor, "TEST-STREAM", "/tmp/test", true)
+	config := &Config{
+		IssueID:      "TEST-STREAM",
+		Stream:       true,
+		NoPlan:       false,
+		OutputFormat: "json",
+	}
+	err := executeClaudeWorkflow(ctx, executor, config, "/tmp/test")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
