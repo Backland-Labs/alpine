@@ -16,23 +16,18 @@ def run_claude_code(prompt):
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.stdout
 
-def check_status_file():
-    """Check claude_status.json for continuation status."""
+def check_state():
     try:
-        with open('claude_status.json', 'r') as f:
-            status = json.load(f)
-        return status.get('continue', 'no').lower() == 'yes'
+        with open('claude_state.json', 'r') as f:
+            state = json.load(f)
+        return state
     except (FileNotFoundError, json.JSONDecodeError):
-        return True  # Continue if no status file or invalid JSON
-
-def cleanup_status_file():
-    """Remove the status file at the end."""
-    try:
-        os.remove('claude_status.json')
-    except FileNotFoundError:
-        pass
+        return None
 
 # Run initial command
+# 1. First read claude_state.json
+# 2. parse claude_state.json to get the next step prompt if not none
+# 3. then run prompt with run_claude_code
 linear_issue = input("Enter the initial prompt for Claude Code: ")
 NEED_PLAN = input("Do you need a plan? (True/False): ").strip().lower() == 'true'
 
@@ -40,23 +35,17 @@ if NEED_PLAN:
     print("Generating plan...")
     print(run_claude_code(f"/make_plan {linear_issue}"))
 
-# Loop until status file indicates completion
 continue_flag = True
-max_iterations = 20  # Safety limit
-
 iteration = 0
-while continue_flag and iteration < max_iterations:
+while continue_flag:
     iteration += 1
+    state = check_state()
+
     print(f"Starting command... (Iteration {iteration})")
-    output = run_claude_code("/ralph")
+    output = run_claude_code(state["next_step_prompt"])
     print(output)
     
     # Check status file for continuation
-    continue_flag = check_status_file()
-    if not continue_flag:
+    if state["status"] == "completed":
+        continue_flag = False
         print("Status file indicates completion. Stopping.")
-
-if iteration >= max_iterations:
-    print(f"Reached maximum iterations ({max_iterations}). Stopping.")
-
-cleanup_status_file()
