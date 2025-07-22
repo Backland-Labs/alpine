@@ -7,12 +7,16 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/maxmcd/river/internal/claude"
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/logger"
 	"github.com/maxmcd/river/internal/output"
-	"github.com/maxmcd/river/internal/workflow"
 	"github.com/spf13/cobra"
+)
+
+// Context key types to avoid collisions
+type contextKey string
+
+const (
+	noPlanKey  contextKey = "noPlan"
+	fromFileKey contextKey = "fromFile"
 )
 
 const version = "0.2.0" // Bumped version for new implementation
@@ -55,8 +59,8 @@ Examples:
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if showVersion {
-				fmt.Fprintln(cmd.OutOrStdout(), "river version "+version)
-				return nil
+				_, err := fmt.Fprintln(cmd.OutOrStdout(), "river version "+version)
+				return err
 			}
 			// Delegate to run workflow
 			return runWorkflow(cmd, args)
@@ -69,8 +73,8 @@ Examples:
 
 	// Store flags in command context for runWorkflow
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		ctx := context.WithValue(cmd.Context(), "noPlan", noPlan)
-		ctx = context.WithValue(ctx, "fromFile", fromFile)
+		ctx := context.WithValue(cmd.Context(), noPlanKey, noPlan)
+		ctx = context.WithValue(ctx, fromFileKey, fromFile)
 		cmd.SetContext(ctx)
 		return nil
 	}
@@ -83,43 +87,12 @@ Examples:
 
 // runWorkflow executes the main workflow without Linear dependency
 func runWorkflow(cmd *cobra.Command, args []string) error {
-	var taskDescription string
+	// Get flags from context
+	fromFile, _ := cmd.Context().Value(fromFileKey).(string)
+	noPlan, _ := cmd.Context().Value(noPlanKey).(bool)
 
-	// Get task description from file or command line
-	fromFile, _ := cmd.Context().Value("fromFile").(string)
-	if fromFile != "" {
-		content, err := os.ReadFile(fromFile)
-		if err != nil {
-			return fmt.Errorf("failed to read task file: %w", err)
-		}
-		taskDescription = string(content)
-	} else {
-		if len(args) == 0 {
-			return fmt.Errorf("task description is required")
-		}
-		taskDescription = args[0]
-	}
-
-	// Validate task description
-	if taskDescription == "" {
-		return fmt.Errorf("task description cannot be empty")
-	}
-
-	// Load configuration (without Linear API key requirement)
-	cfg, err := config.New()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	// Initialize logger based on configuration
-	logger.InitializeFromConfig(cfg)
-	logger.Debugf("Starting River workflow for task: %s", taskDescription)
-
-	// Create Claude executor
-	executor := claude.NewExecutor()
-
-	// Create workflow engine without Linear client
-	engine := workflow.NewEngine(executor)
+	// Create real dependencies for production use
+	deps := NewRealDependencies()
 
 	// Set up context with cancellation
 	ctx, cancel := context.WithCancel(cmd.Context())
@@ -135,9 +108,6 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 		cancel()
 	}()
 
-	// Get noPlan flag from context
-	noPlan, _ := ctx.Value("noPlan").(bool)
-
-	// Run the workflow
-	return engine.Run(ctx, taskDescription, !noPlan)
+	// Use the testable workflow function (includes logger initialization)
+	return runWorkflowWithDependencies(ctx, args, noPlan, fromFile, deps)
 }

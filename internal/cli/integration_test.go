@@ -1,0 +1,50 @@
+package cli
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+// TestNewRealDependencies tests that real dependencies can be created without error
+func TestNewRealDependencies(t *testing.T) {
+	deps := NewRealDependencies()
+	
+	assert.NotNil(t, deps)
+	assert.NotNil(t, deps.ConfigLoader)
+	assert.NotNil(t, deps.WorkflowEngine)
+	assert.NotNil(t, deps.FileReader)
+}
+
+// TestRealConfigLoader tests the real config loader
+func TestRealConfigLoader(t *testing.T) {
+	loader := &RealConfigLoader{}
+	
+	// This should work in most environments, though config values may vary
+	cfg, err := loader.Load()
+	
+	// We expect this to succeed in test environment
+	assert.NoError(t, err)
+	assert.NotNil(t, cfg)
+}
+
+// TestRealFileReader tests the real file reader
+func TestRealFileReader(t *testing.T) {
+	reader := &RealFileReader{}
+	
+	// Test reading a file that doesn't exist
+	_, err := reader.ReadFile("nonexistent-file-12345.txt")
+	assert.Error(t, err)
+	
+	// Note: We could create a temp file to test successful reading,
+	// but that would require more setup and the os.ReadFile function
+	// is well-tested by the Go standard library
+}
+
+// TestNewRealWorkflowEngine tests creating a real workflow engine
+func TestNewRealWorkflowEngine(t *testing.T) {
+	engine := NewRealWorkflowEngine()
+	
+	assert.NotNil(t, engine)
+	assert.NotNil(t, engine.engine)
+}

@@ -101,6 +101,6 @@ func TestRootCommand(t *testing.T) {
 func TestExecute(t *testing.T) {
 	// Test that Execute function exists and returns an error type
 	// This is mainly a compilation test
-	var err error = Execute()
+	err := Execute()
 	_ = err // Use the variable to avoid compiler complaints
 }
