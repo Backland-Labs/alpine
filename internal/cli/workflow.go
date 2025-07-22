@@ -1,0 +1,48 @@
+package cli
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/maxmcd/river/internal/logger"
+)
+
+// runWorkflowWithDependencies is the testable version of runWorkflow with dependency injection
+func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, fromFile string, deps *Dependencies) error {
+	var taskDescription string
+
+	// Get task description from file or command line
+	if fromFile != "" {
+		content, err := deps.FileReader.ReadFile(fromFile)
+		if err != nil {
+			return fmt.Errorf("failed to read task file: %w", err)
+		}
+		taskDescription = string(content)
+	} else {
+		if len(args) == 0 {
+			return fmt.Errorf("task description is required")
+		}
+		taskDescription = args[0]
+	}
+
+	// Validate task description (trim whitespace)
+	taskDescription = strings.TrimSpace(taskDescription)
+	if taskDescription == "" {
+		return fmt.Errorf("task description cannot be empty")
+	}
+
+	// Load configuration
+	cfg, err := deps.ConfigLoader.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Initialize logger based on configuration (for production use)
+	logger.InitializeFromConfig(cfg)
+	logger.Debugf("Starting River workflow for task: %s", taskDescription)
+
+	// Run the workflow (generatePlan is opposite of noPlan)
+	generatePlan := !noPlan
+	return deps.WorkflowEngine.Run(ctx, taskDescription, generatePlan)
+}

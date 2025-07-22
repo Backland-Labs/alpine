@@ -1,29 +1,21 @@
-// Package claude provides an interface and types for interacting with the Claude CLI.
+// Package claude provides functionality for executing Claude commands
+// as part of the River workflow automation system.
 //
-// This package defines the core abstractions for building and executing Claude commands,
-// parsing responses, and managing the workflow of plan and continue operations.
+// This package handles:
+//   - Building Claude command-line invocations with appropriate flags
+//   - Managing MCP server connections
+//   - Enforcing tool restrictions for safe execution
+//   - Passing environment variables and system prompts
+//   - Handling command timeouts and error reporting
 //
-// The package follows these design principles:
-//   - Type safety through custom types (IssueID, CommandType)
-//   - Explicit validation at boundaries
-//   - Clean separation between command building, execution, and parsing
-//   - Support for both streaming and non-streaming operations
+// Example usage:
 //
-// Basic usage:
-//
-//	cmd := claude.Command{
-//	    Type:         claude.CommandTypePlan,
-//	    Prompt:       "Create a new feature",
-//	    OutputFormat: "json",
-//	    SystemPrompt: "You are a helpful assistant",
-//	    AllowedTools: []string{"read", "write"},
+//	executor := claude.NewExecutor()
+//	config := claude.ExecuteConfig{
+//		Prompt:      "/make_plan Implement user authentication",
+//		StateFile:   "claude_state.json",
+//		MCPServers:  []string{"context7"},
+//		Timeout:     5 * time.Minute,
 //	}
-//
-//	// Validate the command
-//	if err := cmd.Validate(); err != nil {
-//	    log.Fatal(err)
-//	}
-//
-//	// Use with a Claude implementation to execute
-//	// response, err := claudeImpl.Execute(ctx, cmd, opts)
+//	output, err := executor.Execute(context.Background(), config)
 package claude
