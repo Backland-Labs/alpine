@@ -76,7 +76,7 @@ const DefaultSystemPrompt = "You are an expert software engineer with deep knowl
 // DefaultAllowedTools are the default tools allowed when none are specified
 var DefaultAllowedTools = []string{
 	"mcp__linear-server__*",
-	"mcp__context7__*", 
+	"mcp__context7__*",
 	"Bash",
 	"Read",
 	"Write",

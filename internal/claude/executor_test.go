@@ -187,9 +187,9 @@ func TestExecutor_buildCommand(t *testing.T) {
 		{
 			name: "command with multiple MCP servers",
 			config: ExecuteConfig{
-				Prompt:      "test prompt",
-				StateFile:   "/tmp/state.json",
-				MCPServers:  []string{"playwright", "web-mrkdwn"},
+				Prompt:     "test prompt",
+				StateFile:  "/tmp/state.json",
+				MCPServers: []string{"playwright", "web-mrkdwn"},
 			},
 			expectedArgs: []string{
 				"--output-format", "text",
