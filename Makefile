@@ -91,6 +91,11 @@ watch:
 		exit 1; \
 	fi
 
+# Validate GitHub Actions workflows
+validate-workflows:
+	@echo "Validating GitHub Actions workflows..."
+	@go run test/validate_workflows.go
+
 # Help target
 help:
 	@echo "River - CLI orchestrator for Claude Code"
@@ -107,6 +112,7 @@ help:
 	@echo "  make fmt                - Format code with go fmt"
 	@echo "  make run                - Build and run River"
 	@echo "  make watch              - Watch for changes and rebuild"
+	@echo "  make validate-workflows - Validate GitHub Actions workflows"
 	@echo ""
 	@echo "Integration test targets:"
 	@echo "  make test-integration-full     - Run with real services"
