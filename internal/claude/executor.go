@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 
 	"github.com/maxmcd/river/internal/logger"
@@ -122,9 +121,9 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 	}
 	args = append(args, "--append-system-prompt", systemPrompt)
 
-	// Add project directory (directory of state file)
-	projectDir := filepath.Dir(config.StateFile)
-	args = append(args, "--project", projectDir)
+	// Note: Claude CLI doesn't have a --project flag
+	// It uses the current working directory by default
+	// TODO: Consider using --add-dir flag or changing working directory
 
 	// Add the prompt with -p flag
 	args = append(args, "-p", config.Prompt)

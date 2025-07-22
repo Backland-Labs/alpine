@@ -171,7 +171,6 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"--output-format", "text",
 				"--allowedTools",
 				"--append-system-prompt",
-				"--project", "/tmp",
 				"-p", "test prompt",
 			},
 			expectedEnvSet: map[string]bool{
