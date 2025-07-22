@@ -149,40 +149,32 @@ func generateSystemPrompt(issueTitle, issueDescription string) string
 
 ### 4.3 REFACTOR: Extract constants, improve error messages
 
-## Phase 5: Workflow Engine (TDD)
+## Phase 5: Workflow Engine (TDD) ✅ IMPLEMENTED
 
 ### 5.1 RED: Write Workflow Tests
-`internal/core/workflow_test.go`:
-```go
-// Test cases:
-// - Test Linear issue ID validation
-// - Test plan generation workflow
-// - Test direct execution workflow (--no-plan)
-// - Test state monitoring and updates
-// - Test iteration until completion
-// - Test graceful shutdown on interrupt
-// - Test error handling at each step
-// - Test state file cleanup on completion
-```
+`internal/workflow/workflow_test.go`:
+- ✅ Test Linear issue ID validation
+- ✅ Test plan generation workflow  
+- ✅ Test direct execution workflow (--no-plan)
+- ✅ Test state monitoring and updates
+- ✅ Test iteration until completion
+- ✅ Test context cancellation handling
+- ✅ Test error handling at each step
+- ✅ Test workflow initialization
 
 ### 5.2 GREEN: Implement Workflow
-`internal/core/workflow.go`:
-```go
-type WorkflowEngine struct {
-    Config   *config.Config
-    Claude   ClaudeExecutor
-    StateDir string
-}
-
-func (w *WorkflowEngine) Run(issueID string, skipPlan bool) error
-func (w *WorkflowEngine) fetchLinearIssue(issueID string) (*LinearIssue, error)
-func (w *WorkflowEngine) generatePlan(issue *LinearIssue) error
-func (w *WorkflowEngine) executeIteration(state *State, issue *LinearIssue) error
-func (w *WorkflowEngine) monitorState() error
-func validateLinearIssueID(issueID string) error
-```
+`internal/workflow/workflow.go`:
+- ✅ Implemented `Engine` struct with ClaudeExecutor and LinearClient interfaces
+- ✅ `Run(ctx, issueID, noPlan)` - Main workflow orchestration
+- ✅ `initializeWorkflow()` - Creates initial state file
+- ✅ `waitForStateUpdate()` - Monitors state file changes
+- ✅ Proper error handling and context support throughout
 
 ### 5.3 REFACTOR: Improve separation of concerns, add logging
+- ✅ Created clean interfaces for ClaudeExecutor and LinearClient
+- ✅ Separated workflow logic from Claude execution
+- ✅ Added comprehensive test coverage with mocks
+- ✅ All tests passing with proper TDD methodology
 
 ## Phase 6: CLI Commands (TDD)
 
