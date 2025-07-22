@@ -15,8 +15,9 @@ func TestNewRealDependencies(t *testing.T) {
 	
 	assert.NotNil(t, deps)
 	assert.NotNil(t, deps.ConfigLoader)
-	assert.NotNil(t, deps.WorkflowEngine)
+	assert.Nil(t, deps.WorkflowEngine, "WorkflowEngine should be nil until created with config")
 	assert.NotNil(t, deps.FileReader)
+	assert.Nil(t, deps.WorktreeManager, "WorktreeManager should be nil until created with config")
 }
 
 // TestRealConfigLoader tests the real config loader

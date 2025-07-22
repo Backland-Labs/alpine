@@ -58,19 +58,16 @@ func (r *RealFileReader) ReadFile(filename string) ([]byte, error) {
 
 // NewRealDependencies creates production dependencies
 func NewRealDependencies() *Dependencies {
-	// Load config to get git settings
-	cfg, err := config.New()
-	if err != nil {
-		// If we can't load config, use defaults
-		cfg = &config.Config{
-			Git: config.GitConfig{
-				WorktreeEnabled: true,
-				BaseBranch:      "main",
-				AutoCleanupWT:   true,
-			},
-		}
+	return &Dependencies{
+		ConfigLoader:     &RealConfigLoader{},
+		WorkflowEngine:   nil, // Will be created after config is finalized
+		FileReader:       &RealFileReader{},
+		WorktreeManager:  nil, // Will be created after config is finalized
 	}
+}
 
+// CreateWorkflowEngine creates the workflow engine with finalized config
+func CreateWorkflowEngine(cfg *config.Config) (WorkflowEngine, gitx.WorktreeManager) {
 	// Get current working directory for parent repo
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -80,16 +77,14 @@ func NewRealDependencies() *Dependencies {
 
 	// Create worktree manager
 	var wtMgr gitx.WorktreeManager
-	if cwd != "" {
+	if cwd != "" && cfg.Git.WorktreeEnabled {
 		wtMgr = gitx.NewCLIWorktreeManager(cwd, cfg.Git.BaseBranch)
 	}
 
-	return &Dependencies{
-		ConfigLoader:     &RealConfigLoader{},
-		WorkflowEngine:   NewRealWorkflowEngine(cfg, wtMgr),
-		FileReader:       &RealFileReader{},
-		WorktreeManager:  wtMgr,
-	}
+	// Create workflow engine
+	engine := NewRealWorkflowEngine(cfg, wtMgr)
+	
+	return engine, wtMgr
 }
 
 // Dependencies struct for injection (moved from test file for reuse)

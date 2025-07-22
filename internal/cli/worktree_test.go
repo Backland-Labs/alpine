@@ -266,14 +266,29 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 	}
 }
 
-// TestNewRealDependenciesWithWorktree tests that NewRealDependencies creates WorktreeManager
-func TestNewRealDependenciesWithWorktree(t *testing.T) {
-	deps := NewRealDependencies()
+// TestCreateWorkflowEngine tests that CreateWorkflowEngine creates WorktreeManager
+func TestCreateWorkflowEngine(t *testing.T) {
+	// Create config with worktree enabled
+	cfg := &config.Config{
+		Git: config.GitConfig{
+			WorktreeEnabled: true,
+			BaseBranch:      "main",
+			AutoCleanupWT:   true,
+		},
+	}
 	
-	// Check that dependencies includes a WorktreeManager
-	assert.NotNil(t, deps.ConfigLoader)
-	assert.NotNil(t, deps.WorkflowEngine)
-	assert.NotNil(t, deps.FileReader)
-	assert.NotNil(t, deps.WorktreeManager, "NewRealDependencies should create a WorktreeManager")
+	// Create workflow engine
+	engine, wtMgr := CreateWorkflowEngine(cfg)
+	
+	// Check that engine and worktree manager are created
+	assert.NotNil(t, engine, "CreateWorkflowEngine should create a workflow engine")
+	assert.NotNil(t, wtMgr, "CreateWorkflowEngine should create a WorktreeManager when enabled")
+	
+	// Test with worktree disabled
+	cfg.Git.WorktreeEnabled = false
+	engine2, wtMgr2 := CreateWorkflowEngine(cfg)
+	
+	assert.NotNil(t, engine2, "CreateWorkflowEngine should create a workflow engine")
+	assert.Nil(t, wtMgr2, "CreateWorkflowEngine should not create a WorktreeManager when disabled")
 }
 

@@ -47,6 +47,13 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 	logger.InitializeFromConfig(cfg)
 	logger.Debugf("Starting River workflow for task: %s", taskDescription)
 
+	// Create workflow engine with finalized config if not already created
+	if deps.WorkflowEngine == nil {
+		engine, wtMgr := CreateWorkflowEngine(cfg)
+		deps.WorkflowEngine = engine
+		deps.WorktreeManager = wtMgr
+	}
+
 	// Run the workflow (generatePlan is opposite of noPlan)
 	generatePlan := !noPlan
 	return deps.WorkflowEngine.Run(ctx, taskDescription, generatePlan)
