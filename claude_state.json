@@ -1,6 +1,5 @@
 {
-    "orchestrator_id": null,
-    "current_step_description": "Created PR for Go implementation of River CLI v0.2.0",
-    "next_step_prompt": "No additional work needed - PR is ready for review",
-    "status": "completed"
+  "current_step_description": "Initializing workflow for task",
+  "next_step_prompt": "/ralph none",
+  "status": "running"
 }

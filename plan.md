@@ -1,7 +1,7 @@
 # Git Worktree Integration - Implementation Plan
 
 ## Overview
-Add git worktree support to River CLI enabling isolated task execution in separate directories with automatic branch management, commits, and PR creation.
+Add git worktree support to River CLI enabling isolated task execution in separate directories. Focus on creating worktrees at workflow start for clean isolation.
 
 ## Architecture Changes
 
@@ -10,9 +10,6 @@ Add git worktree support to River CLI enabling isolated task execution in separa
   ```go
   type WorktreeManager interface {
       Create(ctx context.Context, taskName string) (*Worktree, error)
-      CommitAll(ctx context.Context, wt *Worktree, msg string) error
-      Push(ctx context.Context, wt *Worktree) error
-      CreatePR(ctx context.Context, wt *Worktree) (url string, err error)
       Cleanup(ctx context.Context, wt *Worktree) error
   }
 
@@ -32,66 +29,61 @@ Add Git subsection:
 ```go
 type GitConfig struct {
     WorktreeEnabled bool   // default=true
-    Remote          string // default="origin" 
     BaseBranch      string // default="main"
-    GHEnabled       bool   // create PR with gh CLI
     AutoCleanupWT   bool   // default=true
 }
 ```
 
 ### Workflow Engine Changes (`internal/workflow/`)
 - Inject `WorktreeManager` into `Engine` constructor
-- Add worktree lifecycle hooks:
+- Add worktree lifecycle:
   - **Pre-workflow**: Create worktree, change working directory
-  - **Post-workflow**: Commit, push, create PR, cleanup
+  - **Post-workflow**: Optional cleanup
 - Update state file path to live within worktree
 
 ## Implementation Phases
 
-### Phase 1: Configuration Groundwork
+### Phase 1: Configuration Groundwork ✅
 **Goal**: Add git configuration support
-- [ ] Extend `Config` struct with `GitConfig`
-- [ ] Add environment variables: `RIVER_GIT_ENABLED`, `RIVER_GIT_REMOTE`, etc.
-- [ ] Write configuration unit tests
-- [ ] Update config loading logic
+- [x] Extend `Config` struct with `GitConfig`
+- [x] Add environment variables: `RIVER_GIT_ENABLED`, `RIVER_GIT_BASE_BRANCH`, `RIVER_GIT_AUTO_CLEANUP`
+- [x] Write configuration unit tests
+- [x] Update config loading logic
 
 **Tests**:
-- `TestConfigGitDefaults`
-- `TestConfigGitEnvironmentVariables`
-- `TestConfigGitValidation`
+- `TestConfigGitDefaults` ✅
+- `TestConfigGitEnvironmentVariables` ✅
 
-### Phase 2: WorktreeManager Implementation  
-**Goal**: Core git worktree operations
-- [ ] Create `internal/gitx/` package
-- [ ] Implement `WorktreeManager` interface with CLI backend
-- [ ] Add task name sanitization logic
-- [ ] Create mock implementation for testing
+### Phase 2: WorktreeManager Implementation ✅
+**Goal**: Core git worktree creation
+- [x] Create `internal/gitx/` package
+- [x] Implement `WorktreeManager` interface with CLI backend
+- [x] Add task name sanitization logic
+- [x] Create mock implementation for testing
 
 **Tests**:
-- `TestCreateWorktree_basic` - Creates directory, branch, registers worktree
-- `TestCommitAndPush` - Commits changes and pushes to remote
-- `TestCleanup_removesWorktreeDirAndPrunes` - Proper cleanup
-- `TestBranchNameCollisionProducesUniqueNames` - Handles conflicts
-- `TestErrorPropagation_pushFailure` - Error handling
+- `TestCreateWorktree_basic` - Creates directory, branch, registers worktree ✅
+- `TestCleanup_removesWorktreeDirAndPrunes` - Proper cleanup ✅
+- `TestBranchNameCollisionProducesUniqueNames` - Handles conflicts ✅
+- `TestErrorPropagation_gitFailure` - Error handling ✅
 
 ### Phase 3: Engine Integration
-**Goal**: Wire worktree lifecycle into workflow engine
+**Goal**: Wire worktree creation into workflow engine
 - [ ] Add `WorktreeManager` field to `Engine`
 - [ ] Implement `createWorktree()` helper method
-- [ ] Implement `finalizeWorktree()` helper method  
-- [ ] Update `Run()` method with worktree hooks
+- [ ] Update `Run()` method to create worktree before workflow
 - [ ] Handle working directory changes
+- [ ] Update state file path to worktree location
 
 **Tests**:
-- `TestEngineCreatesAndCleansWorktree` - Full lifecycle with mock manager
-- `TestEngineCleanupOnInterrupt` - Cleanup on context cancellation
+- `TestEngineCreatesWorktree` - Worktree creation with mock manager
 - `TestEngineWorktreeDisabled` - Graceful fallback when disabled
+- `TestEngineStateFileInWorktree` - State file location
 
 ### Phase 4: CLI Integration
 **Goal**: Wire everything together at CLI level
 - [ ] Update `NewRealDependencies()` to create `WorktreeManager`
-- [ ] Add CLI flags: `--no-worktree`, `--git-base-branch`
-- [ ] Update command help and documentation
+- [ ] Add CLI flag: `--no-worktree`
 - [ ] Handle dependency injection
 
 **Tests**:
@@ -102,12 +94,10 @@ type GitConfig struct {
 **Goal**: End-to-end validation
 - [ ] Create test repository setup helpers
 - [ ] Write integration tests with real git operations
-- [ ] Add smoke tests for PR creation
-- [ ] Performance testing with large repositories
+- [ ] Test worktree isolation
 
 **Tests** (build tag `e2e`):
-- `TestRiverCreatesPR` - Complete workflow including PR creation
-- `TestRiverParallelWorktrees` - Multiple tasks don't conflict
+- `TestRiverCreatesWorktree` - Complete workflow in isolated worktree
 - `TestRiverWorktreeCleanup` - Proper cleanup after completion/failure
 
 ## Test Strategy
@@ -118,9 +108,9 @@ type GitConfig struct {
 - **config package**: Test configuration loading and validation
 
 ### Integration Tests  
-- Use temporary git repositories with bare remotes
-- Test real git operations but avoid external dependencies
-- Mock GitHub API calls for PR creation tests
+- Use temporary git repositories
+- Test real git worktree operations
+- Verify isolation between worktrees
 
 ### Mocking Strategy
 - Mock `WorktreeManager` for workflow tests
@@ -141,50 +131,43 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
         wt, err := e.wtMgr.Create(ctx, taskDescription)
         if err != nil { return err }
         e.wt = wt
-        os.Chdir(wt.Path) // Change working directory
+        
+        // Change working directory to worktree
+        if err := os.Chdir(wt.Path); err != nil {
+            return fmt.Errorf("failed to change to worktree directory: %w", err)
+        }
+        
+        // Update state file path
+        e.stateFile = filepath.Join(wt.Path, "claude_state.json")
     }
     
-    // ... existing workflow logic ...
+    // ... existing workflow logic runs in worktree ...
     
-    // After completion: Finalize worktree
-    if e.wt != nil {
-        defer e.finalizeWorktree(ctx)
+    // After completion: Optional cleanup
+    if e.wt != nil && e.cfg.Git.AutoCleanupWT {
+        defer e.wtMgr.Cleanup(ctx, e.wt)
     }
 }
 ```
 
-### State File Management
-- State file path becomes `{worktree_path}/claude_state.json`
-- Each task maintains isolated state
-- No changes to `core.State` structure needed
-
-## Error Handling
-
-### Git Operation Failures
-- Graceful degradation when git commands fail
-- Clear error messages for common issues (no git, no remote, etc.)
-- Automatic cleanup on failures
-
-### Worktree Conflicts
-- Generate unique branch names with timestamps
-- Handle existing worktree directories
-- Provide clear conflict resolution guidance
-
-## Future Enhancements
-
-### Not in Scope (Phase 1)
-- [ ] Parallel task orchestration (`river queue` command)
-- [ ] Live commits after each Claude iteration  
-- [ ] Advanced PR template customization
-- [ ] Integration with other git hosting providers
-
-### Configuration Questions
-1. Should we support custom worktree directory patterns?
-2. Do you want automatic PR creation enabled by default?
-3. Should we support custom commit message templates?
-4. Any specific requirements for branch naming conventions?
-
-## Dependencies
-- System `git` binary (required)
-- GitHub CLI `gh` (optional, for PR creation)
-- Existing River architecture (no breaking changes)
+### Core Worktree Operations
+```go
+// Create worktree with new branch
+func (m *CLIWorktreeManager) Create(ctx context.Context, taskName string) (*Worktree, error) {
+    branch := fmt.Sprintf("river/%s", sanitizeTaskName(taskName))
+    repoName := filepath.Base(m.parentRepo)
+    wtPath := filepath.Join("..", fmt.Sprintf("%s-river-%s", repoName, slugify(taskName)))
+    
+    // git worktree add -B <branch> <path> <base-branch>
+    cmd := exec.CommandContext(ctx, "git", "worktree", "add", "-B", branch, wtPath, m.baseBranch)
+    if err := cmd.Run(); err != nil {
+        return nil, fmt.Errorf("failed to create worktree: %w", err)
+    }
+    
+    return &Worktree{
+        Path:       wtPath,
+        Branch:     branch,
+        ParentRepo: m.parentRepo,
+    }, nil
+}
+```
