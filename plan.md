@@ -224,9 +224,29 @@ Created test fixtures in `test/integration/fixtures/`:
 - ✅ Test helper utilities in `test/integration/helpers/`
 - ✅ Makefile with comprehensive test targets
 
-## Phase 8: Build Infrastructure
+## Phase 8: Linear Client Implementation ✅ IMPLEMENTED
 
-### 8.1 Makefile
+### 8.1 Linear API Client
+Created a complete Linear GraphQL API client implementation:
+- ✅ `internal/linear/client.go` - GraphQL client for Linear API
+- ✅ `internal/linear/client_test.go` - Comprehensive test coverage
+- ✅ `internal/linear/adapter.go` - Adapter to workflow.LinearClient interface
+- ✅ `internal/linear/adapter_test.go` - Adapter tests with mocks
+- ✅ `internal/linear/doc.go` - Package documentation
+- ✅ Updated config to include LinearAPIKey from environment
+- ✅ Updated CLI to use real Linear client instead of mock
+- ✅ All tests passing with full TDD methodology
+
+**Implementation Notes**:
+- Uses Linear's GraphQL API to fetch issue details
+- Requires RIVER_LINEAR_API_KEY environment variable
+- Handles all error cases including network errors and missing issues
+- Converts Linear issue format to workflow-compatible format
+- Context-aware with proper timeout handling
+
+## Phase 9: Build Infrastructure
+
+### 9.1 Makefile
 ```makefile
 .PHONY: test test-unit test-integration coverage fmt lint build clean
 
@@ -256,7 +276,7 @@ clean:
 ```
 **Status**: ✅ Implemented (already existed but not previously marked)
 
-### 8.2 CI/CD Configuration
+### 9.2 CI/CD Configuration
 Add GitHub Actions workflow for:
 - Running tests on every push
 - Code coverage reporting
@@ -272,9 +292,9 @@ Add GitHub Actions workflow for:
 - Added workflow validation tests in `test/validate_workflows.go`
 - Created workflow documentation in `.github/workflows/README.md`
 
-## Phase 9: Feature Parity Validation
+## Phase 10: Feature Parity Validation
 
-### 9.1 Comparison Testing
+### 10.1 Comparison Testing
 1. Run Python version with test Linear issues
 2. Run Go version with same issues
 3. Compare:
@@ -283,20 +303,20 @@ Add GitHub Actions workflow for:
    - Final outputs
    - Error handling behavior
 
-### 9.2 Performance Testing
+### 10.2 Performance Testing
 - Measure startup time
 - Measure memory usage
 - Test with long-running workflows
 
-## Phase 10: Polish and Documentation
+## Phase 11: Polish and Documentation
 
-### 10.1 Enhanced Features
+### 11.1 Enhanced Features
 - Add colored output for better UX
 - Add progress indicators
 - Improve error messages with suggestions
 - Add debug logging with timestamps
 
-### 10.2 Documentation
+### 11.2 Documentation
 - Update README with Go-specific instructions
 - Document differences from Python version
 - Add troubleshooting guide

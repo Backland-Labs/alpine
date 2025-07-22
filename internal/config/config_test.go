@@ -15,10 +15,15 @@ func TestNewConfig(t *testing.T) {
 		"RIVER_SHOW_OUTPUT",
 		"RIVER_STATE_FILE",
 		"RIVER_AUTO_CLEANUP",
+		"RIVER_LINEAR_API_KEY",
 	}
 	for _, env := range envVars {
 		os.Unsetenv(env)
 	}
+
+	// Set required LinearAPIKey
+	os.Setenv("RIVER_LINEAR_API_KEY", "test-api-key")
+	defer os.Unsetenv("RIVER_LINEAR_API_KEY")
 
 	cfg, err := New()
 	if err != nil {
@@ -58,6 +63,7 @@ func TestConfigFromEnvironment(t *testing.T) {
 	os.Setenv("RIVER_SHOW_OUTPUT", "false")
 	os.Setenv("RIVER_STATE_FILE", "/custom/state.json")
 	os.Setenv("RIVER_AUTO_CLEANUP", "false")
+	os.Setenv("RIVER_LINEAR_API_KEY", "test-linear-key")
 
 	defer func() {
 		// Clean up
@@ -66,6 +72,7 @@ func TestConfigFromEnvironment(t *testing.T) {
 		os.Unsetenv("RIVER_SHOW_OUTPUT")
 		os.Unsetenv("RIVER_STATE_FILE")
 		os.Unsetenv("RIVER_AUTO_CLEANUP")
+		os.Unsetenv("RIVER_LINEAR_API_KEY")
 	}()
 
 	cfg, err := New()
@@ -91,6 +98,10 @@ func TestConfigFromEnvironment(t *testing.T) {
 
 	if cfg.AutoCleanup {
 		t.Error("AutoCleanup = true, want false")
+	}
+
+	if cfg.LinearAPIKey != "test-linear-key" {
+		t.Errorf("LinearAPIKey = %q, want %q", cfg.LinearAPIKey, "test-linear-key")
 	}
 }
 
@@ -121,7 +132,11 @@ func TestValidateWorkDir(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Setenv("RIVER_WORKDIR", tt.workDir)
-			defer os.Unsetenv("RIVER_WORKDIR")
+			os.Setenv("RIVER_LINEAR_API_KEY", "test-api-key")
+			defer func() {
+				os.Unsetenv("RIVER_WORKDIR")
+				os.Unsetenv("RIVER_LINEAR_API_KEY")
+			}()
 
 			_, err := New()
 			if (err != nil) != tt.wantErr {
@@ -168,7 +183,11 @@ func TestValidateVerbosity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Setenv("RIVER_VERBOSITY", tt.verbosity)
-			defer os.Unsetenv("RIVER_VERBOSITY")
+			os.Setenv("RIVER_LINEAR_API_KEY", "test-api-key")
+			defer func() {
+				os.Unsetenv("RIVER_VERBOSITY")
+				os.Unsetenv("RIVER_LINEAR_API_KEY")
+			}()
 
 			cfg, err := New()
 			if (err != nil) != tt.wantErr {
@@ -231,7 +250,11 @@ func TestValidateBooleanFields(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Setenv(tt.envVar, tt.value)
-			defer os.Unsetenv(tt.envVar)
+			os.Setenv("RIVER_LINEAR_API_KEY", "test-api-key")
+			defer func() {
+				os.Unsetenv(tt.envVar)
+				os.Unsetenv("RIVER_LINEAR_API_KEY")
+			}()
 
 			cfg, err := New()
 			if (err != nil) != tt.wantErr {
@@ -283,7 +306,11 @@ func TestStateFilePath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Setenv("RIVER_STATE_FILE", tt.stateFile)
-			defer os.Unsetenv("RIVER_STATE_FILE")
+			os.Setenv("RIVER_LINEAR_API_KEY", "test-api-key")
+			defer func() {
+				os.Unsetenv("RIVER_STATE_FILE")
+				os.Unsetenv("RIVER_LINEAR_API_KEY")
+			}()
 
 			cfg, err := New()
 			if (err != nil) != tt.wantErr {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/maxmcd/river/internal/claude"
 	"github.com/maxmcd/river/internal/config"
+	"github.com/maxmcd/river/internal/linear"
 	"github.com/maxmcd/river/internal/workflow"
 	"github.com/spf13/cobra"
 )
@@ -76,8 +77,8 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid Linear issue ID format: %s", issueID)
 	}
 
-	// Load configuration (not currently used, but will be needed for actual implementation)
-	_, err := config.New()
+	// Load configuration
+	cfg, err := config.New()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -85,9 +86,11 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 	// Create Claude executor
 	executor := claude.NewExecutor()
 
-	// Create a mock Linear client for now
-	// TODO: Implement actual Linear client
-	linearClient := &mockLinearClient{}
+	// Create Linear client
+	linearClient, err := linear.NewWorkflowAdapter(cfg.LinearAPIKey)
+	if err != nil {
+		return fmt.Errorf("failed to create Linear client: %w", err)
+	}
 
 	// Create workflow engine
 	engine := workflow.NewEngine(executor, linearClient)
@@ -112,14 +115,3 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 	return engine.Run(ctx, issueID, noPlan)
 }
 
-// mockLinearClient is a temporary mock implementation
-type mockLinearClient struct{}
-
-func (m *mockLinearClient) FetchIssue(ctx context.Context, issueID string) (*workflow.LinearIssue, error) {
-	// Return a mock issue for testing
-	return &workflow.LinearIssue{
-		ID:          issueID,
-		Title:       "Mock Issue Title",
-		Description: "Mock Issue Description",
-	}, nil
-}

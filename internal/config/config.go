@@ -36,6 +36,9 @@ type Config struct {
 
 	// AutoCleanup controls whether state file is deleted on success
 	AutoCleanup bool
+
+	// LinearAPIKey is the API key for Linear
+	LinearAPIKey string
 }
 
 // New creates a new Config instance from environment variables
@@ -97,6 +100,13 @@ func New() (*Config, error) {
 		return nil, err
 	}
 	cfg.AutoCleanup = autoCleanup
+
+	// Load LinearAPIKey - required
+	linearAPIKey := os.Getenv("RIVER_LINEAR_API_KEY")
+	if linearAPIKey == "" {
+		return nil, fmt.Errorf("RIVER_LINEAR_API_KEY environment variable is required")
+	}
+	cfg.LinearAPIKey = linearAPIKey
 
 	return cfg, nil
 }
