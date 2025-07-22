@@ -65,6 +65,9 @@ Linear issues and running Claude Code in a loop based on a state-driven workflow
 		return nil
 	}
 
+	// Add subcommands
+	cmd.AddCommand(NewValidateCommand())
+
 	return cmd
 }
 

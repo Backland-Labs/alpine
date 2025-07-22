@@ -303,6 +303,17 @@ Add GitHub Actions workflow for:
    - Final outputs
    - Error handling behavior
 
+**Status**: ✅ Implemented
+**Implementation Notes**:
+- Created `internal/validation/` package with comprehensive comparison functionality
+- Implemented CommandValidator for comparing Claude command arguments
+- Implemented StateValidator for comparing state file contents
+- Implemented OutputValidator for comparing execution outputs
+- Created ParityRunner to orchestrate Python vs Go execution and comparison
+- Added `river validate <issue-id>` CLI command for running parity tests
+- Full TDD approach with tests for all validators
+- Supports normalized comparison (whitespace, line endings, order-independent tool lists)
+
 ### 10.2 Performance Testing
 - Measure startup time
 - Measure memory usage
