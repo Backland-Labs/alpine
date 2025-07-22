@@ -26,23 +26,12 @@ func TestFullWorkflowWithMockClaude(t *testing.T) {
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
 
-	// Create mock Linear client
-	mockLinear := &MockLinearClient{
-		issues: map[string]*workflow.LinearIssue{
-			"TEST-001": {
-				ID:          "TEST-001",
-				Title:       "Implement user authentication",
-				Description: "Add OAuth2 authentication to the application",
-			},
-		},
-	}
-
 	// Create mock Claude executor
 	mockExecutor := &MockClaudeExecutor{
 		stateFile: stateFile,
 		executions: []mockExecution{
 			{
-				expectedPrompt: "/make_plan Implement user authentication\n\nAdd OAuth2 authentication to the application",
+				expectedPrompt: "/make_plan Implement user authentication",
 				responseState: &core.State{
 					CurrentStepDescription: "Created plan for OAuth2 implementation",
 					NextStepPrompt:         "/implement oauth-setup",
@@ -81,11 +70,11 @@ func TestFullWorkflowWithMockClaude(t *testing.T) {
 	}
 
 	// Create workflow engine
-	engine := workflow.NewEngine(mockExecutor, mockLinear)
+	engine := workflow.NewEngine(mockExecutor)
 	engine.SetStateFile(stateFile)
 
 	// Run the workflow
-	err := engine.Run(ctx, "TEST-001", false)
+	err := engine.Run(ctx, "Implement user authentication", true)
 	require.NoError(t, err)
 
 	// Verify the workflow completed successfully
@@ -110,21 +99,11 @@ func TestWorkflowWithNoPlanFlag(t *testing.T) {
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
 
-	mockLinear := &MockLinearClient{
-		issues: map[string]*workflow.LinearIssue{
-			"TEST-002": {
-				ID:          "TEST-002",
-				Title:       "Fix database connection pooling",
-				Description: "Connection pool is exhausting resources under load",
-			},
-		},
-	}
-
 	mockExecutor := &MockClaudeExecutor{
 		stateFile: stateFile,
 		executions: []mockExecution{
 			{
-				expectedPrompt: "/ralph Fix database connection pooling\n\nConnection pool is exhausting resources under load",
+				expectedPrompt: "/ralph Fix database connection pooling",
 				responseState: &core.State{
 					CurrentStepDescription: "Fixed connection pooling issue",
 					NextStepPrompt:         "",
@@ -135,11 +114,11 @@ func TestWorkflowWithNoPlanFlag(t *testing.T) {
 		},
 	}
 
-	engine := workflow.NewEngine(mockExecutor, mockLinear)
+	engine := workflow.NewEngine(mockExecutor)
 	engine.SetStateFile(stateFile)
 
 	// Run with no-plan flag
-	err := engine.Run(ctx, "TEST-002", true)
+	err := engine.Run(ctx, "Fix database connection pooling", false)
 	require.NoError(t, err)
 
 	// Verify only one execution happened
@@ -157,21 +136,11 @@ func TestWorkflowInterruptHandling(t *testing.T) {
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
 
-	mockLinear := &MockLinearClient{
-		issues: map[string]*workflow.LinearIssue{
-			"TEST-003": {
-				ID:          "TEST-003",
-				Title:       "Long running task",
-				Description: "This task will be interrupted",
-			},
-		},
-	}
-
 	mockExecutor := &MockClaudeExecutor{
 		stateFile: stateFile,
 		executions: []mockExecution{
 			{
-				expectedPrompt: "/make_plan Long running task\n\nThis task will be interrupted",
+				expectedPrompt: "/make_plan Long running task",
 				responseState: &core.State{
 					CurrentStepDescription: "Started planning",
 					NextStepPrompt:         "/implement step1",
@@ -195,11 +164,11 @@ func TestWorkflowInterruptHandling(t *testing.T) {
 		},
 	}
 
-	engine := workflow.NewEngine(mockExecutor, mockLinear)
+	engine := workflow.NewEngine(mockExecutor)
 	engine.SetStateFile(stateFile)
 
 	// Run should return context canceled error
-	err := engine.Run(ctx, "TEST-003", false)
+	err := engine.Run(ctx, "Long running task", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "context canceled")
 
@@ -225,22 +194,12 @@ func TestStateFileCreationAndUpdates(t *testing.T) {
 	_, err := os.Stat(stateFile)
 	assert.True(t, os.IsNotExist(err))
 
-	mockLinear := &MockLinearClient{
-		issues: map[string]*workflow.LinearIssue{
-			"TEST-004": {
-				ID:          "TEST-004",
-				Title:       "Test state management",
-				Description: "Verify state file handling",
-			},
-		},
-	}
-
 	stateUpdates := []core.State{}
 	mockExecutor := &MockClaudeExecutor{
 		stateFile: stateFile,
 		executions: []mockExecution{
 			{
-				expectedPrompt: "/make_plan Test state management\n\nVerify state file handling",
+				expectedPrompt: "/make_plan Test state management",
 				responseState: &core.State{
 					CurrentStepDescription: "Planning phase",
 					NextStepPrompt:         "/next",
@@ -264,10 +223,10 @@ func TestStateFileCreationAndUpdates(t *testing.T) {
 		},
 	}
 
-	engine := workflow.NewEngine(mockExecutor, mockLinear)
+	engine := workflow.NewEngine(mockExecutor)
 	engine.SetStateFile(stateFile)
 
-	err = engine.Run(ctx, "TEST-004", false)
+	err = engine.Run(ctx, "Test state management", true)
 	require.NoError(t, err)
 
 	// Verify state file exists and contains final state
@@ -305,21 +264,11 @@ func TestCleanupBehavior(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	mockLinear := &MockLinearClient{
-		issues: map[string]*workflow.LinearIssue{
-			"TEST-005": {
-				ID:          "TEST-005",
-				Title:       "Test cleanup",
-				Description: "Verify cleanup behavior",
-			},
-		},
-	}
-
 	mockExecutor := &MockClaudeExecutor{
 		stateFile: stateFile,
 		executions: []mockExecution{
 			{
-				expectedPrompt: "/ralph Test cleanup\n\nVerify cleanup behavior",
+				expectedPrompt: "/ralph Test cleanup",
 				responseState: &core.State{
 					CurrentStepDescription: "Cleanup test complete",
 					NextStepPrompt:         "",
@@ -329,10 +278,10 @@ func TestCleanupBehavior(t *testing.T) {
 		},
 	}
 
-	engine := workflow.NewEngine(mockExecutor, mockLinear)
+	engine := workflow.NewEngine(mockExecutor)
 	engine.SetStateFile(stateFile)
 
-	err := engine.Run(ctx, "TEST-005", true)
+	err := engine.Run(ctx, "Test cleanup", false)
 	require.NoError(t, err)
 
 	// State file should still exist after completion
@@ -354,19 +303,6 @@ func TestOutputFormatting(t *testing.T) {
 	// This test would verify output formatting but requires capturing stdout
 	// For now, we'll skip the implementation but keep the test as a placeholder
 	t.Skip("Output formatting test requires stdout capture implementation")
-}
-
-// MockLinearClient is a mock implementation of the Linear client for testing
-type MockLinearClient struct {
-	issues map[string]*workflow.LinearIssue
-}
-
-func (m *MockLinearClient) FetchIssue(ctx context.Context, issueID string) (*workflow.LinearIssue, error) {
-	issue, ok := m.issues[issueID]
-	if !ok {
-		return nil, assert.AnError
-	}
-	return issue, nil
 }
 
 // MockClaudeExecutor is a mock implementation of the Claude executor for testing

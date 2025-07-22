@@ -40,10 +40,8 @@ func TestLongRunningWorkflowPerformance(t *testing.T) {
 		stateFile:  stateFile,
 	}
 	
-	mockLinear := &mockLinearClient{}
-	
 	// Create workflow engine
-	engine := workflow.NewEngine(mockExecutor, mockLinear)
+	engine := workflow.NewEngine(mockExecutor)
 	engine.SetStateFile(stateFile)
 	
 	// Measure performance over the workflow execution
@@ -55,7 +53,7 @@ func TestLongRunningWorkflowPerformance(t *testing.T) {
 	initialMemory, _ := measurer.MeasureMemoryUsage()
 	
 	// Run workflow
-	err := engine.Run(ctx, "TEST-123", true)
+	err := engine.Run(ctx, "Long-running performance test workflow", true)
 	if err != nil {
 		t.Fatalf("Workflow failed: %v", err)
 	}
@@ -103,13 +101,12 @@ func BenchmarkLongRunningWorkflow(b *testing.B) {
 			stateFile:  stateFile,
 		}
 		
-		mockLinear := &mockLinearClient{}
-		engine := workflow.NewEngine(mockExecutor, mockLinear)
+		engine := workflow.NewEngine(mockExecutor)
 		engine.SetStateFile(stateFile)
 		
 		b.StartTimer()
 		ctx := context.Background()
-		if err := engine.Run(ctx, "BENCH-123", true); err != nil {
+		if err := engine.Run(ctx, "Benchmark workflow test", true); err != nil {
 			b.Fatalf("Workflow failed: %v", err)
 		}
 		b.StopTimer()
@@ -152,16 +149,6 @@ func (m *mockLongRunningExecutor) Execute(ctx context.Context, config claude.Exe
 	return "Mock execution output", state.Save(m.stateFile)
 }
 
-// mockLinearClient simulates a Linear client
-type mockLinearClient struct{}
-
-func (m *mockLinearClient) FetchIssue(ctx context.Context, issueID string) (*workflow.LinearIssue, error) {
-	return &workflow.LinearIssue{
-		ID:          issueID,
-		Title:       "Test Issue",
-		Description: "Test issue for performance testing",
-	}, nil
-}
 
 // TestWorkflowMemoryStability tests memory stability during repeated workflows
 func TestWorkflowMemoryStability(t *testing.T) {
@@ -196,12 +183,11 @@ func TestWorkflowMemoryStability(t *testing.T) {
 			stateFile:  stateFile,
 		}
 		
-		mockLinear := &mockLinearClient{}
-		engine := workflow.NewEngine(mockExecutor, mockLinear)
+		engine := workflow.NewEngine(mockExecutor)
 		engine.SetStateFile(stateFile)
 		ctx := context.Background()
 		
-		if err := engine.Run(ctx, "MEM-TEST", true); err != nil {
+		if err := engine.Run(ctx, "Memory stability test workflow", true); err != nil {
 			t.Fatalf("Workflow failed: %v", err)
 		}
 		

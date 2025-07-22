@@ -24,7 +24,7 @@ test-integration:
 
 # Run integration tests with real services
 test-integration-full:
-	@echo "Running full integration tests (requires LINEAR_API_KEY and claude command)..."
+	@echo "Running full integration tests (requires claude command)..."
 	@RIVER_INTEGRATION_TESTS=true CLAUDE_INTEGRATION_TEST=true go test ./test/integration/... -v
 
 # Run tests with coverage
@@ -69,9 +69,6 @@ test-integration-workflow:
 	@echo "Running workflow integration tests..."
 	@go test ./test/integration/... -run TestFullWorkflow -v
 
-test-integration-linear:
-	@echo "Running Linear integration tests..."
-	@go test ./test/integration/... -run TestLinear -v
 
 test-integration-claude:
 	@echo "Running Claude integration tests..."
@@ -117,10 +114,8 @@ help:
 	@echo "Integration test targets:"
 	@echo "  make test-integration-full     - Run with real services"
 	@echo "  make test-integration-workflow - Run workflow tests only"
-	@echo "  make test-integration-linear   - Run Linear tests only"
 	@echo "  make test-integration-claude   - Run Claude tests only"
 	@echo ""
 	@echo "Environment variables:"
-	@echo "  LINEAR_API_KEY               - API key for Linear integration tests"
 	@echo "  CLAUDE_INTEGRATION_TEST=true - Enable real Claude command tests"
 	@echo "  RIVER_INTEGRATION_TESTS=true - Enable all integration tests"
