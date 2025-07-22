@@ -67,28 +67,28 @@ type GitConfig struct {
 - `TestBranchNameCollisionProducesUniqueNames` - Handles conflicts ✅
 - `TestErrorPropagation_gitFailure` - Error handling ✅
 
-### Phase 3: Engine Integration
+### Phase 3: Engine Integration ✅
 **Goal**: Wire worktree creation into workflow engine
-- [ ] Add `WorktreeManager` field to `Engine`
-- [ ] Implement `createWorktree()` helper method
-- [ ] Update `Run()` method to create worktree before workflow
-- [ ] Handle working directory changes
-- [ ] Update state file path to worktree location
+- [x] Add `WorktreeManager` field to `Engine`
+- [x] Implement `createWorktree()` helper method
+- [x] Update `Run()` method to create worktree before workflow
+- [x] Handle working directory changes
+- [x] Update state file path to worktree location
 
 **Tests**:
-- `TestEngineCreatesWorktree` - Worktree creation with mock manager
-- `TestEngineWorktreeDisabled` - Graceful fallback when disabled
-- `TestEngineStateFileInWorktree` - State file location
+- `TestEngineCreatesWorktree` - Worktree creation with mock manager ✅
+- `TestEngineWorktreeDisabled` - Graceful fallback when disabled ✅
+- `TestEngineStateFileInWorktree` - State file location ✅
 
-### Phase 4: CLI Integration
+### Phase 4: CLI Integration ✅
 **Goal**: Wire everything together at CLI level
-- [ ] Update `NewRealDependencies()` to create `WorktreeManager`
-- [ ] Add CLI flag: `--no-worktree`
-- [ ] Handle dependency injection
+- [x] Update `NewRealDependencies()` to create `WorktreeManager`
+- [x] Add CLI flag: `--no-worktree`
+- [x] Handle dependency injection
 
 **Tests**:
-- `TestCLIWorktreeFlags` - Flag parsing
-- `TestCLIWorktreeDisabled` - `--no-worktree` flag behavior
+- `TestCLIWorktreeFlags` - Flag parsing ✅
+- `TestCLIWorktreeDisabled` - `--no-worktree` flag behavior ✅
 
 ### Phase 5: Integration Testing
 **Goal**: End-to-end validation

@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/maxmcd/river/internal/claude"
+	"github.com/maxmcd/river/internal/config"
 	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/river/internal/gitx"
 	"github.com/maxmcd/river/internal/logger"
 	"github.com/maxmcd/river/internal/output"
 )
@@ -21,14 +23,20 @@ type ClaudeExecutor interface {
 // Engine orchestrates the workflow execution
 type Engine struct {
 	claudeExecutor ClaudeExecutor
+	wtMgr          gitx.WorktreeManager
+	cfg            *config.Config
 	stateFile      string
 	printer        *output.Printer
+	wt             *gitx.Worktree // Current worktree if created
+	originalDir    string          // Original directory to restore if needed
 }
 
 // NewEngine creates a new workflow engine
-func NewEngine(executor ClaudeExecutor) *Engine {
+func NewEngine(executor ClaudeExecutor, wtMgr gitx.WorktreeManager, cfg *config.Config) *Engine {
 	return &Engine{
 		claudeExecutor: executor,
+		wtMgr:          wtMgr,
+		cfg:            cfg,
 		stateFile:      "claude_state.json",
 		printer:        output.NewPrinter(),
 	}
@@ -42,6 +50,31 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 	if strings.TrimSpace(taskDescription) == "" {
 		return fmt.Errorf("task description cannot be empty")
 	}
+
+	// Create worktree if enabled
+	if err := e.createWorktree(ctx, taskDescription); err != nil {
+		logger.WithField("error", err).Error("Failed to create worktree")
+		return fmt.Errorf("failed to create worktree: %w", err)
+	}
+
+	// Setup cleanup
+	defer func() {
+		if e.wt != nil && e.cfg.Git.AutoCleanupWT {
+			logger.Debug("Cleaning up worktree")
+			if err := e.wtMgr.Cleanup(ctx, e.wt); err != nil {
+				logger.WithField("error", err).Error("Failed to cleanup worktree")
+				e.printer.Warning("Failed to cleanup worktree: %v", err)
+			} else {
+				e.printer.Info("Cleaned up worktree: %s", e.wt.Path)
+			}
+		}
+		// Restore original directory if we changed it
+		if e.originalDir != "" && e.wt != nil {
+			if err := os.Chdir(e.originalDir); err != nil {
+				logger.WithField("error", err).Error("Failed to restore original directory")
+			}
+		}
+	}()
 
 	// Initialize workflow
 	logger.WithField("generate_plan", generatePlan).Debug("Initializing workflow")
@@ -215,4 +248,41 @@ func (e *Engine) SetStateFile(path string) {
 // SetPrinter allows overriding the printer (mainly for testing)
 func (e *Engine) SetPrinter(printer *output.Printer) {
 	e.printer = printer
+}
+
+// createWorktree creates a worktree for the task if enabled
+func (e *Engine) createWorktree(ctx context.Context, taskDescription string) error {
+	if !e.cfg.Git.WorktreeEnabled || e.wtMgr == nil {
+		return nil
+	}
+
+	// Save original directory to restore later if needed
+	var err error
+	e.originalDir, err = os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	// Create worktree
+	logger.WithField("task", taskDescription).Debug("Creating worktree")
+	e.wt, err = e.wtMgr.Create(ctx, taskDescription)
+	if err != nil {
+		return fmt.Errorf("failed to create worktree: %w", err)
+	}
+	logger.WithFields(map[string]interface{}{
+		"path":   e.wt.Path,
+		"branch": e.wt.Branch,
+	}).Debug("Worktree created")
+
+	// Change to worktree directory
+	if err := os.Chdir(e.wt.Path); err != nil {
+		return fmt.Errorf("failed to change to worktree directory: %w", err)
+	}
+
+	// Update state file path to be in worktree
+	e.stateFile = "claude_state.json" // Now relative to worktree directory
+	logger.WithField("state_file", e.stateFile).Debug("Updated state file path")
+
+	e.printer.Info("Created worktree: %s (branch: %s)", e.wt.Path, e.wt.Branch)
+	return nil
 }

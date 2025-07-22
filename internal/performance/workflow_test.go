@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/maxmcd/river/internal/claude"
+	"github.com/maxmcd/river/internal/config"
 	"github.com/maxmcd/river/internal/core"
+	gitxmock "github.com/maxmcd/river/internal/gitx/mock"
 	"github.com/maxmcd/river/internal/workflow"
 )
 
@@ -40,8 +42,14 @@ func TestLongRunningWorkflowPerformance(t *testing.T) {
 		stateFile:  stateFile,
 	}
 	
-	// Create workflow engine
-	engine := workflow.NewEngine(mockExecutor)
+	// Create workflow engine with mock dependencies
+	mockWtMgr := &gitxmock.WorktreeManager{}
+	cfg := &config.Config{
+		Git: config.GitConfig{
+			WorktreeEnabled: false, // Disable worktree for performance tests
+		},
+	}
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
 	engine.SetStateFile(stateFile)
 	
 	// Measure performance over the workflow execution
@@ -101,7 +109,14 @@ func BenchmarkLongRunningWorkflow(b *testing.B) {
 			stateFile:  stateFile,
 		}
 		
-		engine := workflow.NewEngine(mockExecutor)
+		// Create engine with mock dependencies
+		mockWtMgr := &gitxmock.WorktreeManager{}
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled: false,
+			},
+		}
+		engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
 		engine.SetStateFile(stateFile)
 		
 		b.StartTimer()
@@ -183,7 +198,14 @@ func TestWorkflowMemoryStability(t *testing.T) {
 			stateFile:  stateFile,
 		}
 		
-		engine := workflow.NewEngine(mockExecutor)
+		// Create engine with mock dependencies
+		mockWtMgr := &gitxmock.WorktreeManager{}
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled: false,
+			},
+		}
+		engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
 		engine.SetStateFile(stateFile)
 		ctx := context.Background()
 		

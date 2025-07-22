@@ -128,7 +128,7 @@ func TestRunWorkflowWithTaskDescription(t *testing.T) {
 			tt.setupMocks(deps)
 
 			// Test the workflow execution with dependency injection
-			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, "", deps)
+			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, false, "", deps)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -235,7 +235,7 @@ func TestRunWorkflowWithFileInput(t *testing.T) {
 			tt.setupMocks(deps)
 
 			// This test will fail until we refactor runWorkflow to accept dependencies
-			err := runWorkflowWithDependencies(context.Background(), []string{}, tt.noPlan, tt.filename, deps)
+			err := runWorkflowWithDependencies(context.Background(), []string{}, tt.noPlan, false, tt.filename, deps)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -273,7 +273,7 @@ func TestSignalHandling(t *testing.T) {
 		// Start the workflow in a goroutine
 		errChan := make(chan error, 1)
 		go func() {
-			err := runWorkflowWithDependencies(context.Background(), []string{"Long task"}, false, "", deps)
+			err := runWorkflowWithDependencies(context.Background(), []string{"Long task"}, false, false, "", deps)
 			errChan <- err
 		}()
 

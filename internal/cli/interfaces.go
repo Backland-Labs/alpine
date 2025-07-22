@@ -6,6 +6,7 @@ import (
 
 	"github.com/maxmcd/river/internal/claude"
 	"github.com/maxmcd/river/internal/config"
+	"github.com/maxmcd/river/internal/gitx"
 	"github.com/maxmcd/river/internal/workflow"
 )
 
@@ -38,9 +39,9 @@ type RealWorkflowEngine struct {
 	engine *workflow.Engine
 }
 
-func NewRealWorkflowEngine() *RealWorkflowEngine {
+func NewRealWorkflowEngine(cfg *config.Config, wtMgr gitx.WorktreeManager) *RealWorkflowEngine {
 	executor := claude.NewExecutor()
-	engine := workflow.NewEngine(executor)
+	engine := workflow.NewEngine(executor, wtMgr, cfg)
 	return &RealWorkflowEngine{engine: engine}
 }
 
@@ -57,16 +58,44 @@ func (r *RealFileReader) ReadFile(filename string) ([]byte, error) {
 
 // NewRealDependencies creates production dependencies
 func NewRealDependencies() *Dependencies {
+	// Load config to get git settings
+	cfg, err := config.New()
+	if err != nil {
+		// If we can't load config, use defaults
+		cfg = &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled: true,
+				BaseBranch:      "main",
+				AutoCleanupWT:   true,
+			},
+		}
+	}
+
+	// Get current working directory for parent repo
+	cwd, err := os.Getwd()
+	if err != nil {
+		// If we can't get working directory, worktree manager will be nil
+		cwd = ""
+	}
+
+	// Create worktree manager
+	var wtMgr gitx.WorktreeManager
+	if cwd != "" {
+		wtMgr = gitx.NewCLIWorktreeManager(cwd, cfg.Git.BaseBranch)
+	}
+
 	return &Dependencies{
-		ConfigLoader:   &RealConfigLoader{},
-		WorkflowEngine: NewRealWorkflowEngine(),
-		FileReader:     &RealFileReader{},
+		ConfigLoader:     &RealConfigLoader{},
+		WorkflowEngine:   NewRealWorkflowEngine(cfg, wtMgr),
+		FileReader:       &RealFileReader{},
+		WorktreeManager:  wtMgr,
 	}
 }
 
 // Dependencies struct for injection (moved from test file for reuse)
 type Dependencies struct {
-	ConfigLoader   ConfigLoader
-	WorkflowEngine WorkflowEngine
-	FileReader     FileReader
+	ConfigLoader     ConfigLoader
+	WorkflowEngine   WorkflowEngine
+	FileReader       FileReader
+	WorktreeManager  gitx.WorktreeManager
 }

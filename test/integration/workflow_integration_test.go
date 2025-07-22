@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/maxmcd/river/internal/claude"
+	"github.com/maxmcd/river/internal/config"
 	"github.com/maxmcd/river/internal/core"
+	gitxmock "github.com/maxmcd/river/internal/gitx/mock"
 	"github.com/maxmcd/river/internal/workflow"
 )
 
@@ -69,8 +71,14 @@ func TestFullWorkflowWithMockClaude(t *testing.T) {
 		},
 	}
 
-	// Create workflow engine
-	engine := workflow.NewEngine(mockExecutor)
+	// Create workflow engine with mock dependencies
+	mockWtMgr := &gitxmock.WorktreeManager{}
+	cfg := &config.Config{
+		Git: config.GitConfig{
+			WorktreeEnabled: false, // Disable worktree for integration tests
+		},
+	}
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
 	engine.SetStateFile(stateFile)
 
 	// Run the workflow
@@ -114,7 +122,14 @@ func TestWorkflowWithNoPlanFlag(t *testing.T) {
 		},
 	}
 
-	engine := workflow.NewEngine(mockExecutor)
+	// Create engine with mock dependencies
+	mockWtMgr := &gitxmock.WorktreeManager{}
+	cfg := &config.Config{
+		Git: config.GitConfig{
+			WorktreeEnabled: false,
+		},
+	}
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
 	engine.SetStateFile(stateFile)
 
 	// Run with no-plan flag
@@ -164,7 +179,14 @@ func TestWorkflowInterruptHandling(t *testing.T) {
 		},
 	}
 
-	engine := workflow.NewEngine(mockExecutor)
+	// Create engine with mock dependencies
+	mockWtMgr := &gitxmock.WorktreeManager{}
+	cfg := &config.Config{
+		Git: config.GitConfig{
+			WorktreeEnabled: false,
+		},
+	}
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
 	engine.SetStateFile(stateFile)
 
 	// Run should return context canceled error
@@ -223,7 +245,14 @@ func TestStateFileCreationAndUpdates(t *testing.T) {
 		},
 	}
 
-	engine := workflow.NewEngine(mockExecutor)
+	// Create engine with mock dependencies
+	mockWtMgr := &gitxmock.WorktreeManager{}
+	cfg := &config.Config{
+		Git: config.GitConfig{
+			WorktreeEnabled: false,
+		},
+	}
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
 	engine.SetStateFile(stateFile)
 
 	err = engine.Run(ctx, "Test state management", true)
@@ -278,7 +307,14 @@ func TestCleanupBehavior(t *testing.T) {
 		},
 	}
 
-	engine := workflow.NewEngine(mockExecutor)
+	// Create engine with mock dependencies
+	mockWtMgr := &gitxmock.WorktreeManager{}
+	cfg := &config.Config{
+		Git: config.GitConfig{
+			WorktreeEnabled: false,
+		},
+	}
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
 	engine.SetStateFile(stateFile)
 
 	err := engine.Run(ctx, "Test cleanup", false)

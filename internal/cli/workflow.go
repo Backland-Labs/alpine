@@ -9,7 +9,7 @@ import (
 )
 
 // runWorkflowWithDependencies is the testable version of runWorkflow with dependency injection
-func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, fromFile string, deps *Dependencies) error {
+func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, noWorktree bool, fromFile string, deps *Dependencies) error {
 	var taskDescription string
 
 	// Get task description from file or command line
@@ -36,6 +36,11 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 	cfg, err := deps.ConfigLoader.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Override worktree setting if --no-worktree flag is used
+	if noWorktree {
+		cfg.Git.WorktreeEnabled = false
 	}
 
 	// Initialize logger based on configuration (for production use)

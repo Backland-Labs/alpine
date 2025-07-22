@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"os"
 	"testing"
 
+	"github.com/maxmcd/river/internal/config"
+	"github.com/maxmcd/river/internal/gitx"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -43,7 +46,23 @@ func TestRealFileReader(t *testing.T) {
 
 // TestNewRealWorkflowEngine tests creating a real workflow engine
 func TestNewRealWorkflowEngine(t *testing.T) {
-	engine := NewRealWorkflowEngine()
+	// Create a test config
+	cfg := &config.Config{
+		Git: config.GitConfig{
+			WorktreeEnabled: true,
+			BaseBranch:      "main",
+			AutoCleanupWT:   true,
+		},
+	}
+	
+	// Create worktree manager
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get working directory: %v", err)
+	}
+	wtMgr := gitx.NewCLIWorktreeManager(cwd, cfg.Git.BaseBranch)
+	
+	engine := NewRealWorkflowEngine(cfg, wtMgr)
 	
 	assert.NotNil(t, engine)
 	assert.NotNil(t, engine.engine)
