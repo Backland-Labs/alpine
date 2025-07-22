@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/maxmcd/river/internal/config"
+	"github.com/maxmcd/river/internal/logger"
 	"github.com/maxmcd/river/internal/validation"
 	"github.com/spf13/cobra"
 )
@@ -30,6 +32,16 @@ Linear issue ID and compares their behavior, including:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			issueID := args[0]
+
+			// Load configuration for logger initialization
+			cfg, err := config.New()
+			if err != nil {
+				return fmt.Errorf("failed to load config: %w", err)
+			}
+
+			// Initialize logger
+			logger.InitializeFromConfig(cfg)
+			logger.Debugf("Starting validation for issue %s", issueID)
 
 			// Validate Linear issue ID format
 			if !isValidLinearID(issueID) {
@@ -63,7 +75,7 @@ Linear issue ID and compares their behavior, including:
 			}
 
 			// Create parity config
-			config := &validation.ParityConfig{
+			parityConfig := &validation.ParityConfig{
 				PythonPath:    pythonPath,
 				GoPath:        goPath,
 				WorkDir:       workDir,
@@ -71,7 +83,7 @@ Linear issue ID and compares their behavior, including:
 			}
 
 			// Create and run parity runner
-			runner := validation.NewParityRunner(config)
+			runner := validation.NewParityRunner(parityConfig)
 			ctx := context.Background()
 
 			fmt.Fprintf(cmd.OutOrStdout(), "Running parity validation for issue %s...\n\n", issueID)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/maxmcd/river/internal/claude"
 	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/river/internal/logger"
 	"github.com/maxmcd/river/internal/output"
 )
 
@@ -48,57 +49,91 @@ func NewEngine(executor ClaudeExecutor, linear LinearClient) *Engine {
 
 // Run executes the main workflow loop
 func (e *Engine) Run(ctx context.Context, issueID string, noPlan bool) error {
+	logger.WithField("issue_id", issueID).Debug("Starting workflow run")
+	
 	// Validate input
 	if issueID == "" {
 		return fmt.Errorf("issue ID cannot be empty")
 	}
 
 	// Fetch issue from Linear
+	logger.Debug("Fetching issue from Linear")
 	issue, err := e.linearClient.FetchIssue(ctx, issueID)
 	if err != nil {
+		logger.WithField("error", err).Error("Failed to fetch Linear issue")
 		return fmt.Errorf("failed to fetch Linear issue: %w", err)
 	}
+	logger.WithFields(map[string]interface{}{
+		"issue_id": issue.ID,
+		"title": issue.Title,
+	}).Debug("Successfully fetched Linear issue")
 
 	// Initialize workflow
+	logger.WithField("no_plan", noPlan).Debug("Initializing workflow")
 	if err := e.initializeWorkflow(issue, noPlan); err != nil {
+		logger.WithField("error", err).Error("Failed to initialize workflow")
 		return fmt.Errorf("failed to initialize workflow: %w", err)
 	}
 
 	// Main execution loop
+	iteration := 0
 	for {
+		iteration++
+		logger.WithField("iteration", iteration).Debug("Starting workflow iteration")
+		
 		// Check context cancellation
 		select {
 		case <-ctx.Done():
+			logger.Debug("Workflow interrupted by context cancellation")
 			return fmt.Errorf("workflow interrupted: %w", ctx.Err())
 		default:
 		}
 
 		// Load current state
+		logger.Debug("Loading current state")
 		state, err := core.LoadState(e.stateFile)
 		if err != nil {
+			logger.WithField("error", err).Error("Failed to load state")
 			return fmt.Errorf("failed to load state: %w", err)
 		}
+		logger.WithFields(map[string]interface{}{
+			"status": state.Status,
+			"current_step": state.CurrentStepDescription,
+		}).Debug("State loaded successfully")
 
 		// Check if workflow is completed
 		if state.Status == "completed" {
+			logger.Info("Workflow completed successfully")
 			e.printer.Success("Workflow completed successfully")
 			return nil
 		}
 
 		// Execute Claude with the next prompt
 		e.printer.Step("Executing Claude with prompt: %s", state.NextStepPrompt)
+		logger.WithField("prompt", state.NextStepPrompt).Debug("Executing Claude")
+		
 		config := claude.ExecuteConfig{
 			Prompt:    state.NextStepPrompt,
 			StateFile: e.stateFile,
 		}
+		
+		startTime := time.Now()
 		if _, err := e.claudeExecutor.Execute(ctx, config); err != nil {
+			logger.WithFields(map[string]interface{}{
+				"error": err,
+				"duration": time.Since(startTime),
+			}).Error("Claude execution failed")
 			return fmt.Errorf("Claude execution failed: %w", err)
 		}
+		logger.WithField("duration", time.Since(startTime)).Debug("Claude execution completed")
 
 		// Wait for state file to be updated
+		logger.Debug("Waiting for state file update")
 		if err := e.waitForStateUpdate(ctx, state); err != nil {
+			logger.WithField("error", err).Error("Error waiting for state update")
 			return fmt.Errorf("error waiting for state update: %w", err)
 		}
+		logger.Debug("State file updated, continuing to next iteration")
 	}
 }
 

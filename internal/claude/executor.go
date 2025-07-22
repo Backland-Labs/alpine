@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/maxmcd/river/internal/logger"
 )
 
 // ExecuteConfig holds configuration for executing Claude
@@ -52,6 +54,8 @@ func NewExecutor() *Executor {
 
 // Execute runs Claude with the given configuration
 func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, error) {
+	logger.Debug("Starting Claude execution")
+	
 	// Validate required fields
 	if config.Prompt == "" {
 		return "", fmt.Errorf("prompt is required")
@@ -59,6 +63,13 @@ func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, e
 	if config.StateFile == "" {
 		return "", fmt.Errorf("state file is required")
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"state_file": config.StateFile,
+		"has_linear_issue": config.LinearIssue != "",
+		"mcp_servers": len(config.MCPServers),
+		"allowed_tools": len(config.AllowedTools),
+	}).Debug("Claude configuration validated")
 
 	// Use command runner (allows for mocking in tests)
 	if e.commandRunner != nil {
@@ -146,11 +157,17 @@ func (r *defaultCommandRunner) Run(ctx context.Context, config ExecuteConfig) (s
 	executor := &Executor{}
 	baseCmd := executor.buildCommand(config)
 
+	logger.WithFields(map[string]interface{}{
+		"command": baseCmd.Path,
+		"args": baseCmd.Args,
+	}).Debug("Preparing Claude command")
+
 	// Handle timeout
 	if config.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, config.Timeout)
 		defer cancel()
+		logger.WithField("timeout", config.Timeout).Debug("Setting execution timeout")
 	}
 
 	// Create command with context
@@ -158,10 +175,20 @@ func (r *defaultCommandRunner) Run(ctx context.Context, config ExecuteConfig) (s
 	cmd.Env = baseCmd.Env
 
 	// Run the command
+	startTime := time.Now()
+	logger.Debug("Executing Claude command")
 	output, err := cmd.CombinedOutput()
+	duration := time.Since(startTime)
+	
 	if err != nil {
+		logger.WithFields(map[string]interface{}{
+			"error": err,
+			"duration": duration,
+			"output": string(output),
+		}).Error("Claude execution failed")
 		return "", fmt.Errorf("claude execution failed: %w", err)
 	}
 
+	logger.WithField("duration", duration).Debug("Claude execution completed successfully")
 	return string(output), nil
 }

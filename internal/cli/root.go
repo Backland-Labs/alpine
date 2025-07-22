@@ -10,6 +10,7 @@ import (
 	"github.com/maxmcd/river/internal/claude"
 	"github.com/maxmcd/river/internal/config"
 	"github.com/maxmcd/river/internal/linear"
+	"github.com/maxmcd/river/internal/logger"
 	"github.com/maxmcd/river/internal/output"
 	"github.com/maxmcd/river/internal/workflow"
 	"github.com/spf13/cobra"
@@ -86,6 +87,10 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
+
+	// Initialize logger based on configuration
+	logger.InitializeFromConfig(cfg)
+	logger.Debugf("Starting River workflow for issue %s", issueID)
 
 	// Create Claude executor
 	executor := claude.NewExecutor()
