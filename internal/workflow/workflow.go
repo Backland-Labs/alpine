@@ -8,6 +8,7 @@ import (
 
 	"github.com/maxmcd/river/internal/claude"
 	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/river/internal/output"
 )
 
 // LinearIssue represents a Linear issue
@@ -32,6 +33,7 @@ type Engine struct {
 	claudeExecutor ClaudeExecutor
 	linearClient   LinearClient
 	stateFile      string
+	printer        *output.Printer
 }
 
 // NewEngine creates a new workflow engine
@@ -40,6 +42,7 @@ func NewEngine(executor ClaudeExecutor, linear LinearClient) *Engine {
 		claudeExecutor: executor,
 		linearClient:   linear,
 		stateFile:      "claude_state.json",
+		printer:        output.NewPrinter(),
 	}
 }
 
@@ -78,12 +81,12 @@ func (e *Engine) Run(ctx context.Context, issueID string, noPlan bool) error {
 
 		// Check if workflow is completed
 		if state.Status == "completed" {
-			fmt.Println("Workflow completed successfully")
+			e.printer.Success("Workflow completed successfully")
 			return nil
 		}
 
 		// Execute Claude with the next prompt
-		fmt.Printf("Executing Claude with prompt: %s\n", state.NextStepPrompt)
+		e.printer.Step("Executing Claude with prompt: %s", state.NextStepPrompt)
 		config := claude.ExecuteConfig{
 			Prompt:    state.NextStepPrompt,
 			StateFile: e.stateFile,
@@ -109,6 +112,8 @@ func (e *Engine) initializeWorkflow(issue *LinearIssue, noPlan bool) error {
 		prompt = "/make_plan " + prompt
 	}
 
+	e.printer.Info("Initializing workflow for Linear issue %s", issue.ID)
+	
 	state := &core.State{
 		CurrentStepDescription: fmt.Sprintf("Initializing workflow for Linear issue %s", issue.ID),
 		NextStepPrompt:         prompt,
@@ -179,4 +184,9 @@ func (e *Engine) waitForStateUpdate(ctx context.Context, previousState *core.Sta
 // SetStateFile allows overriding the state file path (mainly for testing)
 func (e *Engine) SetStateFile(path string) {
 	e.stateFile = path
+}
+
+// SetPrinter allows overriding the printer (mainly for testing)
+func (e *Engine) SetPrinter(printer *output.Printer) {
+	e.printer = printer
 }

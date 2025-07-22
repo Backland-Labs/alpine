@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/maxmcd/river/internal/claude"
 	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/river/internal/output"
 )
 
 // MockCommandRunner mocks the claude.CommandRunner interface
@@ -98,11 +100,8 @@ func TestEngine_Run_WithPlan(t *testing.T) {
 	}
 
 	// Create engine and run
-	engine := &Engine{
-		claudeExecutor: executor,
-		linearClient:   mockLinear,
-		stateFile:      stateFile,
-	}
+	engine := NewEngine(executor, mockLinear)
+	engine.SetStateFile(stateFile)
 
 	err := engine.Run(ctx, "TEST-123", false)
 
@@ -145,11 +144,8 @@ func TestEngine_Run_NoPlan(t *testing.T) {
 		},
 	}
 
-	engine := &Engine{
-		claudeExecutor: executor,
-		linearClient:   mockLinear,
-		stateFile:      stateFile,
-	}
+	engine := NewEngine(executor, mockLinear)
+	engine.SetStateFile(stateFile)
 
 	err := engine.Run(ctx, "TEST-456", true)
 
@@ -208,11 +204,8 @@ func TestEngine_Run_ClaudeExecutionError(t *testing.T) {
 	executor := newTestExecutor(t, stateFile)
 	executor.returnError = assert.AnError
 
-	engine := &Engine{
-		claudeExecutor: executor,
-		linearClient:   mockLinear,
-		stateFile:      stateFile,
-	}
+	engine := NewEngine(executor, mockLinear)
+	engine.SetStateFile(stateFile)
 
 	err := engine.Run(ctx, "TEST-999", false)
 
@@ -257,11 +250,8 @@ func TestEngine_Run_StateFileMonitoring(t *testing.T) {
 		},
 	}
 
-	engine := &Engine{
-		claudeExecutor: executor,
-		linearClient:   mockLinear,
-		stateFile:      stateFile,
-	}
+	engine := NewEngine(executor, mockLinear)
+	engine.SetStateFile(stateFile)
 
 	err := engine.Run(ctx, "TEST-MON", false)
 	assert.NoError(t, err)
@@ -288,11 +278,8 @@ func TestEngine_Run_ContextCancellation(t *testing.T) {
 	executor := newTestExecutor(t, stateFile)
 	executor.returnError = context.Canceled
 
-	engine := &Engine{
-		claudeExecutor: executor,
-		linearClient:   mockLinear,
-		stateFile:      stateFile,
-	}
+	engine := NewEngine(executor, mockLinear)
+	engine.SetStateFile(stateFile)
 
 	err := engine.Run(ctx, "TEST-CTX", false)
 
@@ -305,7 +292,11 @@ func TestEngine_initializeWorkflow(t *testing.T) {
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
 
-	engine := &Engine{stateFile: stateFile}
+	// Create engine with no-op printer for test
+	engine := &Engine{
+		stateFile: stateFile,
+		printer:   output.NewPrinterWithWriters(io.Discard, io.Discard, false),
+	}
 
 	issue := &LinearIssue{
 		ID:          "TEST-INIT",

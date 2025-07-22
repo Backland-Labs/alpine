@@ -10,6 +10,7 @@ import (
 	"github.com/maxmcd/river/internal/claude"
 	"github.com/maxmcd/river/internal/config"
 	"github.com/maxmcd/river/internal/linear"
+	"github.com/maxmcd/river/internal/output"
 	"github.com/maxmcd/river/internal/workflow"
 	"github.com/spf13/cobra"
 )
@@ -107,7 +108,8 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigChan
-		fmt.Fprintln(cmd.ErrOrStderr(), "\nInterrupt received, shutting down gracefully...")
+		printer := output.NewPrinter()
+		printer.Warning("\nInterrupt received, shutting down gracefully...")
 		cancel()
 	}()
 
