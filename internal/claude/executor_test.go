@@ -30,7 +30,6 @@ func TestExecutor_Execute(t *testing.T) {
 			config: ExecuteConfig{
 				Prompt:      "test prompt",
 				StateFile:   "/tmp/state.json",
-				LinearIssue: "ISSUE-123",
 			},
 			mockCommand: &mockCommand{
 				output: "Claude execution successful",
@@ -43,8 +42,7 @@ func TestExecutor_Execute(t *testing.T) {
 			config: ExecuteConfig{
 				Prompt:      "test prompt",
 				StateFile:   "/tmp/state.json",
-				LinearIssue: "ISSUE-123",
-				MCPServers:  []string{"playwright", "linear-server"},
+				MCPServers:  []string{"playwright", "context7"},
 			},
 			mockCommand: &mockCommand{
 				output: "Claude execution with MCP servers successful",
@@ -57,7 +55,6 @@ func TestExecutor_Execute(t *testing.T) {
 			config: ExecuteConfig{
 				Prompt:      "test prompt",
 				StateFile:   "/tmp/state.json",
-				LinearIssue: "ISSUE-123",
 			},
 			mockCommand: &mockCommand{
 				output: "",
@@ -169,19 +166,16 @@ func TestExecutor_buildCommand(t *testing.T) {
 			config: ExecuteConfig{
 				Prompt:      "test prompt",
 				StateFile:   "/tmp/state.json",
-				LinearIssue: "ISSUE-123",
 			},
 			expectedArgs: []string{
 				"--output-format", "text",
-				"--mcp-server", "linear-server",
 				"--allowedTools",
 				"--append-system-prompt",
 				"--project", "/tmp",
 				"-p", "test prompt",
 			},
 			expectedEnvSet: map[string]bool{
-				"RIVER_STATE_FILE":   true,
-				"RIVER_LINEAR_ISSUE": true,
+				"RIVER_STATE_FILE": true,
 			},
 		},
 		{

@@ -12,10 +12,9 @@
 //
 //	executor := claude.NewExecutor()
 //	config := claude.ExecuteConfig{
-//		Prompt:      "/make_plan ISSUE-123",
+//		Prompt:      "/make_plan Implement user authentication",
 //		StateFile:   "claude_state.json",
-//		LinearIssue: "ISSUE-123",
-//		MCPServers:  []string{"linear-server"},
+//		MCPServers:  []string{"context7"},
 //		Timeout:     5 * time.Minute,
 //	}
 //	output, err := executor.Execute(context.Background(), config)

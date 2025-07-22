@@ -18,14 +18,14 @@ type ClaudeExecutor interface {
 	Execute(ctx context.Context, config claude.ExecuteConfig) (string, error)
 }
 
-// Engine orchestrates the workflow execution without Linear dependency
+// Engine orchestrates the workflow execution
 type Engine struct {
 	claudeExecutor ClaudeExecutor
 	stateFile      string
 	printer        *output.Printer
 }
 
-// NewEngine creates a new workflow engine without Linear client
+// NewEngine creates a new workflow engine
 func NewEngine(executor ClaudeExecutor) *Engine {
 	return &Engine{
 		claudeExecutor: executor,

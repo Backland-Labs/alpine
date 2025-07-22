@@ -15,7 +15,7 @@ import (
 	"github.com/maxmcd/river/internal/workflow"
 )
 
-// TestFullWorkflowWithMockClaude tests the complete workflow from Linear issue to completion
+// TestFullWorkflowWithMockClaude tests the complete workflow from task description to completion
 // This test validates the integration between all components using a mock Claude executor
 func TestFullWorkflowWithMockClaude(t *testing.T) {
 	if testing.Short() {

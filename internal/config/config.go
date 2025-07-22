@@ -98,8 +98,6 @@ func New() (*Config, error) {
 	}
 	cfg.AutoCleanup = autoCleanup
 
-	// Note: LinearAPIKey is NOT loaded or required
-
 	return cfg, nil
 }
 

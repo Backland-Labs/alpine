@@ -166,6 +166,19 @@ func (v *commandValidator) ExtractComponents(cmd []string) CommandComponents {
 			} else {
 				i++
 			}
+		} else if arg == "--mcp-server" {
+			// Handle new format without specific server name
+			if i+1 < len(cmd) {
+				// If there's already a server, append with comma
+				if existing, ok := components.MCPServers[""]; ok {
+					components.MCPServers[""] = existing + "," + cmd[i+1]
+				} else {
+					components.MCPServers[""] = cmd[i+1]
+				}
+				i += 2
+			} else {
+				i++
+			}
 		} else if arg == "--tool-allowlist" {
 			if i+1 < len(cmd) {
 				components.ToolAllowlist = append(components.ToolAllowlist, cmd[i+1])

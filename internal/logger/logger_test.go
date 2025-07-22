@@ -180,11 +180,11 @@ func TestLoggerWithContext(t *testing.T) {
 	}
 
 	// Test WithField
-	contextLogger := logger.WithField("issue_id", "LINEAR-123")
-	contextLogger.Info("processing issue")
+	contextLogger := logger.WithField("task_id", "TASK-123")
+	contextLogger.Info("processing task")
 	output := buf.String()
 
-	if !strings.Contains(output, "issue_id=LINEAR-123") {
+	if !strings.Contains(output, "task_id=TASK-123") {
 		t.Error("WithField should add field to log output")
 	}
 

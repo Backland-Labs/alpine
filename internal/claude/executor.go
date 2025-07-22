@@ -19,8 +19,6 @@ type ExecuteConfig struct {
 	// StateFile is the path to the claude_state.json file
 	StateFile string
 
-	// LinearIssue is the Linear issue ID (optional)
-	LinearIssue string
 
 	// MCPServers is a list of MCP servers to enable (optional)
 	MCPServers []string
@@ -66,7 +64,6 @@ func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, e
 
 	logger.WithFields(map[string]interface{}{
 		"state_file": config.StateFile,
-		"has_linear_issue": config.LinearIssue != "",
 		"mcp_servers": len(config.MCPServers),
 		"allowed_tools": len(config.AllowedTools),
 	}).Debug("Claude configuration validated")
@@ -86,7 +83,6 @@ const DefaultSystemPrompt = "You are an expert software engineer with deep knowl
 
 // DefaultAllowedTools are the default tools allowed when none are specified
 var DefaultAllowedTools = []string{
-	"mcp__linear-server__*",
 	"mcp__context7__*",
 	"Bash",
 	"Read",
@@ -107,9 +103,6 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 		for _, server := range config.MCPServers {
 			args = append(args, "--mcp-server", server)
 		}
-	} else if config.LinearIssue != "" {
-		// Default to linear-server if Linear issue is provided
-		args = append(args, "--mcp-server", "linear-server")
 	}
 
 	// Add allowed tools restriction
@@ -142,9 +135,6 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 	// Set environment variables
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("RIVER_STATE_FILE=%s", config.StateFile))
-	if config.LinearIssue != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("RIVER_LINEAR_ISSUE=%s", config.LinearIssue))
-	}
 
 	return cmd
 }

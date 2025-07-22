@@ -34,7 +34,7 @@ func TestLongRunningWorkflowPerformance(t *testing.T) {
 		t.Fatalf("Failed to save initial state: %v", err)
 	}
 	
-	// Mock executor and linear client
+	// Mock executor
 	mockExecutor := &mockLongRunningExecutor{
 		iterations: 5,
 		stateFile:  stateFile,

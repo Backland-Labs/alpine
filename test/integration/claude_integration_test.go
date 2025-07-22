@@ -53,7 +53,7 @@ func TestClaudeCommandExecution(t *testing.T) {
 			config: claude.ExecuteConfig{
 				Prompt:     "/mcp-test Test with MCP servers",
 				StateFile:  stateFile,
-				MCPServers: []string{"linear-server", "web-search"},
+				MCPServers: []string{"context7", "web-search"},
 			},
 			initialState: &core.State{
 				CurrentStepDescription: "Testing MCP servers",

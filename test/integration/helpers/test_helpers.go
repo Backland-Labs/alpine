@@ -81,20 +81,6 @@ func SetupTestEnvironment(t *testing.T) func() {
 	}
 }
 
-// CreateTestLinearIssue creates a test Linear issue structure
-func CreateTestLinearIssue(id, title, description string) map[string]interface{} {
-	return map[string]interface{}{
-		"id":          id,
-		"title":       title,
-		"description": description,
-		"state": map[string]interface{}{
-			"name": "In Progress",
-		},
-		"assignee": map[string]interface{}{
-			"name": "Test User",
-		},
-	}
-}
 
 // AssertFileExists checks that a file exists
 func AssertFileExists(t *testing.T, path string) {

@@ -1,8 +1,29 @@
 #!/usr/bin/env -S uv run --script
 
+"""
+DEPRECATED: This Python implementation is deprecated as of v0.2.0.
+Please use the Go version instead. See DEPRECATED.md for migration instructions.
+
+To use the new Go version:
+  river "Your task description here"
+  river --file task.md
+  river "Your task" --no-plan
+"""
+
 import subprocess
 import json
 import os
+import sys
+import warnings
+
+# Show deprecation warning
+warnings.warn(
+    "This Python implementation is deprecated. Please use the Go version instead. "
+    "See DEPRECATED.md for migration instructions.",
+    DeprecationWarning,
+    stacklevel=2
+)
+print("\n⚠️  WARNING: This Python version is deprecated. Use the Go version instead.\n", file=sys.stderr)
 
 
 def run_claude_code(prompt):

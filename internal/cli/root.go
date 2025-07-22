@@ -21,12 +21,12 @@ const (
 
 const version = "0.2.0" // Bumped version for new implementation
 
-// Execute runs the CLI without Linear dependency
+// Execute runs the CLI
 func Execute() error {
 	return NewRootCommand().Execute()
 }
 
-// NewRootCommand creates the root command without Linear dependency
+// NewRootCommand creates the root command
 func NewRootCommand() *cobra.Command {
 	var showVersion bool
 	var noPlan bool
@@ -79,13 +79,12 @@ Examples:
 		return nil
 	}
 
-	// Add subcommands
-	// Note: validate command removed as it was Linear-specific
+	// Add subcommands (currently none)
 
 	return cmd
 }
 
-// runWorkflow executes the main workflow without Linear dependency
+// runWorkflow executes the main workflow
 func runWorkflow(cmd *cobra.Command, args []string) error {
 	// Get flags from context
 	fromFile, _ := cmd.Context().Value(fromFileKey).(string)
