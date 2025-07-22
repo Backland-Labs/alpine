@@ -90,15 +90,19 @@ type GitConfig struct {
 - `TestCLIWorktreeFlags` - Flag parsing ✅
 - `TestCLIWorktreeDisabled` - `--no-worktree` flag behavior ✅
 
-### Phase 5: Integration Testing
+### Phase 5: Integration Testing ✅
 **Goal**: End-to-end validation
-- [ ] Create test repository setup helpers
-- [ ] Write integration tests with real git operations
-- [ ] Test worktree isolation
+- [x] Create test repository setup helpers
+- [x] Write integration tests with real git operations
+- [x] Test worktree isolation
 
 **Tests** (build tag `e2e`):
-- `TestRiverCreatesWorktree` - Complete workflow in isolated worktree
-- `TestRiverWorktreeCleanup` - Proper cleanup after completion/failure
+- `TestRiverCreatesWorktree` - Complete workflow in isolated worktree ✅
+- `TestRiverWorktreeCleanup` - Proper cleanup after completion/failure ✅
+- `TestRiverWorktreeDisabled` - `--no-worktree` flag behavior ✅
+- `TestRiverWorktreeIsolation` - Proper isolation between worktrees ✅
+- `TestRiverWorktreeBranchNaming` - Branch name sanitization ✅
+- `TestRiverWorktreeEnvironmentVariables` - Environment variable configuration ✅
 
 ## Test Strategy
 
