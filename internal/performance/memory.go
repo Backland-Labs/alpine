@@ -75,7 +75,9 @@ except ImportError:
 	if err := os.WriteFile(tmpFile, []byte(testScript), 0755); err != nil {
 		return 0, err
 	}
-	defer os.Remove(tmpFile)
+	defer func() {
+		_ = os.Remove(tmpFile)
+	}()
 	
 	// Run the script and capture output
 	cmd := exec.Command("python3", tmpFile)

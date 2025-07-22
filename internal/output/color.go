@@ -47,9 +47,9 @@ func NewPrinterWithWriters(out, err io.Writer, useColor bool) *Printer {
 func (p *Printer) Success(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	if p.useColor {
-		fmt.Fprintf(p.out, "%s%s✓ %s%s\n", colorBold, colorGreen, message, colorReset)
+		_, _ = fmt.Fprintf(p.out, "%s%s✓ %s%s\n", colorBold, colorGreen, message, colorReset)
 	} else {
-		fmt.Fprintf(p.out, "✓ %s\n", message)
+		_, _ = fmt.Fprintf(p.out, "✓ %s\n", message)
 	}
 }
 
@@ -57,9 +57,9 @@ func (p *Printer) Success(format string, args ...interface{}) {
 func (p *Printer) Error(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	if p.useColor {
-		fmt.Fprintf(p.err, "%s%s✗ %s%s\n", colorBold, colorRed, message, colorReset)
+		_, _ = fmt.Fprintf(p.err, "%s%s✗ %s%s\n", colorBold, colorRed, message, colorReset)
 	} else {
-		fmt.Fprintf(p.err, "✗ %s\n", message)
+		_, _ = fmt.Fprintf(p.err, "✗ %s\n", message)
 	}
 }
 
@@ -67,9 +67,9 @@ func (p *Printer) Error(format string, args ...interface{}) {
 func (p *Printer) Warning(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	if p.useColor {
-		fmt.Fprintf(p.err, "%s%s⚠ %s%s\n", colorBold, colorYellow, message, colorReset)
+		_, _ = fmt.Fprintf(p.err, "%s%s⚠ %s%s\n", colorBold, colorYellow, message, colorReset)
 	} else {
-		fmt.Fprintf(p.err, "⚠ %s\n", message)
+		_, _ = fmt.Fprintf(p.err, "⚠ %s\n", message)
 	}
 }
 
@@ -77,9 +77,9 @@ func (p *Printer) Warning(format string, args ...interface{}) {
 func (p *Printer) Info(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	if p.useColor {
-		fmt.Fprintf(p.out, "%s%s→ %s%s\n", colorBold, colorCyan, message, colorReset)
+		_, _ = fmt.Fprintf(p.out, "%s%s→ %s%s\n", colorBold, colorCyan, message, colorReset)
 	} else {
-		fmt.Fprintf(p.out, "→ %s\n", message)
+		_, _ = fmt.Fprintf(p.out, "→ %s\n", message)
 	}
 }
 
@@ -87,9 +87,9 @@ func (p *Printer) Info(format string, args ...interface{}) {
 func (p *Printer) Step(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	if p.useColor {
-		fmt.Fprintf(p.out, "%s%s▶ %s%s\n", colorBold, colorBlue, message, colorReset)
+		_, _ = fmt.Fprintf(p.out, "%s%s▶ %s%s\n", colorBold, colorBlue, message, colorReset)
 	} else {
-		fmt.Fprintf(p.out, "▶ %s\n", message)
+		_, _ = fmt.Fprintf(p.out, "▶ %s\n", message)
 	}
 }
 
@@ -97,20 +97,20 @@ func (p *Printer) Step(format string, args ...interface{}) {
 func (p *Printer) Detail(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	if p.useColor {
-		fmt.Fprintf(p.out, "%s  %s%s\n", colorGray, message, colorReset)
+		_, _ = fmt.Fprintf(p.out, "%s  %s%s\n", colorGray, message, colorReset)
 	} else {
-		fmt.Fprintf(p.out, "  %s\n", message)
+		_, _ = fmt.Fprintf(p.out, "  %s\n", message)
 	}
 }
 
 // Print prints a plain message without color
 func (p *Printer) Print(format string, args ...interface{}) {
-	fmt.Fprintf(p.out, format, args...)
+	_, _ = fmt.Fprintf(p.out, format, args...)
 }
 
 // Println prints a plain message with newline
 func (p *Printer) Println(args ...interface{}) {
-	fmt.Fprintln(p.out, args...)
+	_, _ = fmt.Fprintln(p.out, args...)
 }
 
 // isTerminal checks if stdout is a terminal

@@ -33,6 +33,7 @@ Key specifications are located in the `specs/` directory:
 - [state-management.md](specs/state-management.md): JSON state file format and transitions
 - [error-handling.md](specs/error-handling.md): Go error handling patterns
 - [configuration.md](specs/configuration.md): Environment variable configuration
+- [code-quality.md](specs/code-quality.md): Linting standards and code quality requirements
 
 ## Development Commands
 

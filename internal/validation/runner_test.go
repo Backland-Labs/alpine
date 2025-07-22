@@ -98,7 +98,9 @@ if len(sys.argv) > 1 and sys.argv[1] == "ISSUE-456":
 			// Create temp directory
 			tmpDir, err := os.MkdirTemp("", "parity-test-*")
 			require.NoError(t, err)
-			defer os.RemoveAll(tmpDir)
+			defer func() {
+				_ = os.RemoveAll(tmpDir)
+			}()
 
 			// Setup mocks
 			tt.setupMocks(t, tmpDir)

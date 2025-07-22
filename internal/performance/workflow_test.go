@@ -112,7 +112,7 @@ func BenchmarkLongRunningWorkflow(b *testing.B) {
 		b.StopTimer()
 		
 		// Clean up
-		os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir)
 	}
 }
 
@@ -192,7 +192,7 @@ func TestWorkflowMemoryStability(t *testing.T) {
 		}
 		
 		// Clean up
-		os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir)
 	}
 	
 	// Force GC and measure final memory

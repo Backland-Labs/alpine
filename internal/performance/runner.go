@@ -77,19 +77,25 @@ func (r *Runner) Run() (*Results, error) {
 	}
 
 	// Measure startup time
-	fmt.Fprintln(r.output, "Measuring startup time...")
+	if _, err := fmt.Fprintln(r.output, "Measuring startup time..."); err != nil {
+		return nil, fmt.Errorf("failed to write output: %w", err)
+	}
 	if err := r.measureStartupTime(results); err != nil {
 		return nil, fmt.Errorf("failed to measure startup time: %w", err)
 	}
 
 	// Measure memory usage
-	fmt.Fprintln(r.output, "Measuring memory usage...")
+	if _, err := fmt.Fprintln(r.output, "Measuring memory usage..."); err != nil {
+		return nil, fmt.Errorf("failed to write output: %w", err)
+	}
 	if err := r.measureMemoryUsage(results); err != nil {
 		return nil, fmt.Errorf("failed to measure memory usage: %w", err)
 	}
 
 	// Measure workflow performance
-	fmt.Fprintln(r.output, "Measuring workflow performance...")
+	if _, err := fmt.Fprintln(r.output, "Measuring workflow performance..."); err != nil {
+		return nil, fmt.Errorf("failed to write output: %w", err)
+	}
 	if err := r.measureWorkflowPerformance(results); err != nil {
 		return nil, fmt.Errorf("failed to measure workflow performance: %w", err)
 	}
@@ -190,29 +196,69 @@ func (r *Runner) WriteJSON(results *Results, w io.Writer) error {
 
 // WriteSummary writes a human-readable summary
 func (r *Runner) WriteSummary(results *Results, w io.Writer) error {
-	fmt.Fprintf(w, "\n=== River Performance Report ===\n")
-	fmt.Fprintf(w, "Platform: %s/%s, Go %s, %d CPUs\n", 
-		results.Platform.OS, results.Platform.Arch, 
-		results.Platform.GoVersion, results.Platform.NumCPU)
-	fmt.Fprintf(w, "Timestamp: %s\n\n", results.Timestamp.Format(time.RFC3339))
-	
-	fmt.Fprintf(w, "Startup Time:\n")
-	fmt.Fprintf(w, "  Go:     %.2f ms\n", results.StartupTime.GoStartupTimeMs)
-	if results.StartupTime.PythonStartupTimeMs > 0 {
-		fmt.Fprintf(w, "  Python: %.2f ms\n", results.StartupTime.PythonStartupTimeMs)
-		fmt.Fprintf(w, "  Improvement: %.1f%%\n", results.StartupTime.Improvement)
+	// Helper to write output with error checking
+	writeOutput := func(format string, args ...interface{}) error {
+		if _, err := fmt.Fprintf(w, format, args...); err != nil {
+			return fmt.Errorf("failed to write output: %w", err)
+		}
+		return nil
 	}
 	
-	fmt.Fprintf(w, "\nMemory Usage:\n")
-	fmt.Fprintf(w, "  Heap:  %.2f MB\n", results.MemoryUsage.HeapAllocMB)
-	fmt.Fprintf(w, "  Total: %.2f MB\n", results.MemoryUsage.TotalAllocMB)
-	fmt.Fprintf(w, "  Sys:   %.2f MB\n", results.MemoryUsage.SysMB)
-	fmt.Fprintf(w, "  GC Cycles: %d\n", results.MemoryUsage.NumGC)
+	if err := writeOutput("\n=== River Performance Report ===\n"); err != nil {
+		return err
+	}
+	if err := writeOutput("Platform: %s/%s, Go %s, %d CPUs\n", 
+		results.Platform.OS, results.Platform.Arch, 
+		results.Platform.GoVersion, results.Platform.NumCPU); err != nil {
+		return err
+	}
+	if err := writeOutput("Timestamp: %s\n\n", results.Timestamp.Format(time.RFC3339)); err != nil {
+		return err
+	}
 	
-	fmt.Fprintf(w, "\nWorkflow Performance:\n")
-	fmt.Fprintf(w, "  Avg Iteration: %.2f ms\n", results.WorkflowPerf.IterationTimeMs)
-	fmt.Fprintf(w, "  Memory Growth: %.2f KB\n", results.WorkflowPerf.MemoryGrowthKB)
-	fmt.Fprintf(w, "  Throughput: %.2f workflows/sec\n", results.WorkflowPerf.WorkflowsPerSecond)
+	if err := writeOutput("Startup Time:\n"); err != nil {
+		return err
+	}
+	if err := writeOutput("  Go:     %.2f ms\n", results.StartupTime.GoStartupTimeMs); err != nil {
+		return err
+	}
+	if results.StartupTime.PythonStartupTimeMs > 0 {
+		if err := writeOutput("  Python: %.2f ms\n", results.StartupTime.PythonStartupTimeMs); err != nil {
+			return err
+		}
+		if err := writeOutput("  Improvement: %.1f%%\n", results.StartupTime.Improvement); err != nil {
+			return err
+		}
+	}
+	
+	if err := writeOutput("\nMemory Usage:\n"); err != nil {
+		return err
+	}
+	if err := writeOutput("  Heap:  %.2f MB\n", results.MemoryUsage.HeapAllocMB); err != nil {
+		return err
+	}
+	if err := writeOutput("  Total: %.2f MB\n", results.MemoryUsage.TotalAllocMB); err != nil {
+		return err
+	}
+	if err := writeOutput("  Sys:   %.2f MB\n", results.MemoryUsage.SysMB); err != nil {
+		return err
+	}
+	if err := writeOutput("  GC Cycles: %d\n", results.MemoryUsage.NumGC); err != nil {
+		return err
+	}
+	
+	if err := writeOutput("\nWorkflow Performance:\n"); err != nil {
+		return err
+	}
+	if err := writeOutput("  Avg Iteration: %.2f ms\n", results.WorkflowPerf.IterationTimeMs); err != nil {
+		return err
+	}
+	if err := writeOutput("  Memory Growth: %.2f KB\n", results.WorkflowPerf.MemoryGrowthKB); err != nil {
+		return err
+	}
+	if err := writeOutput("  Throughput: %.2f workflows/sec\n", results.WorkflowPerf.WorkflowsPerSecond); err != nil {
+		return err
+	}
 	
 	return nil
 }

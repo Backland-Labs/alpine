@@ -110,7 +110,7 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 				"error": claudeErr,
 				"duration": time.Since(startTime),
 			}).Error("Claude execution failed")
-			return fmt.Errorf("Claude execution failed: %w", claudeErr)
+			return fmt.Errorf("claude execution failed: %w", claudeErr)
 		}
 		logger.WithField("duration", time.Since(startTime)).Debug("Claude execution completed")
 

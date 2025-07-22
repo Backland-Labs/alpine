@@ -127,7 +127,7 @@ func (l *Logger) log(level Level, levelStr string, format string, args ...interf
 	}
 
 	// Write to output
-	fmt.Fprintln(l.output, logLine)
+	_, _ = fmt.Fprintln(l.output, logLine)
 }
 
 // Debug logs a debug message

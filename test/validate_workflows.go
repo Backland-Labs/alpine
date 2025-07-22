@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -40,7 +39,7 @@ func TestWorkflowsExist() error {
 
 // TestCIWorkflow validates the CI workflow configuration
 func TestCIWorkflow() error {
-	data, err := ioutil.ReadFile(".github/workflows/ci.yml")
+	data, err := os.ReadFile(".github/workflows/ci.yml")
 	if err != nil {
 		return fmt.Errorf("failed to read CI workflow: %w", err)
 	}
@@ -73,7 +72,7 @@ func TestCIWorkflow() error {
 
 // TestReleaseWorkflow validates the release workflow configuration
 func TestReleaseWorkflow() error {
-	data, err := ioutil.ReadFile(".github/workflows/release.yml")
+	data, err := os.ReadFile(".github/workflows/release.yml")
 	if err != nil {
 		return fmt.Errorf("failed to read Release workflow: %w", err)
 	}
@@ -85,18 +84,18 @@ func TestReleaseWorkflow() error {
 
 	// Test: Workflow has a name
 	if workflow.Name == "" {
-		return fmt.Errorf("Release workflow must have a name")
+		return fmt.Errorf("release workflow must have a name")
 	}
 
 	// Test: Workflow triggers on tags
 	triggerStr := fmt.Sprintf("%v", workflow.On)
 	if !strings.Contains(triggerStr, "tags") {
-		return fmt.Errorf("Release workflow must trigger on tags")
+		return fmt.Errorf("release workflow must trigger on tags")
 	}
 
 	// Test: Workflow has build job
 	if _, exists := workflow.Jobs["build"]; !exists {
-		return fmt.Errorf("Release workflow missing build job")
+		return fmt.Errorf("release workflow missing build job")
 	}
 
 	return nil

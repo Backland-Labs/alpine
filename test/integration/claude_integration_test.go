@@ -117,7 +117,7 @@ func TestClaudeCommandExecution(t *testing.T) {
 			}
 
 			// Clean up state file for next test
-			os.Remove(stateFile)
+			_ = os.Remove(stateFile)
 		})
 	}
 }

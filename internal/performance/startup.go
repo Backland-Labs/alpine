@@ -68,7 +68,9 @@ print("startup time:", time.time() - start)
 	if err := os.WriteFile(tmpFile, []byte(testScript), 0755); err != nil {
 		return 0, err
 	}
-	defer os.Remove(tmpFile)
+	defer func() {
+		_ = os.Remove(tmpFile)
+	}()
 	
 	// Measure time to run the minimal script
 	start := time.Now()

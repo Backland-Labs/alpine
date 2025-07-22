@@ -34,7 +34,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error creating output file: %v\n", err)
 			os.Exit(1)
 		}
-		defer f.Close()
+		defer func() {
+			if closeErr := f.Close(); closeErr != nil {
+				fmt.Fprintf(os.Stderr, "Error closing output file: %v\n", closeErr)
+			}
+		}()
 		output = f
 	}
 	
@@ -52,7 +56,9 @@ func main() {
 		
 		// If writing to file, also print summary to stdout
 		if *outputFile != "" {
-			runner.WriteSummary(results, os.Stdout)
+			if err := runner.WriteSummary(results, os.Stdout); err != nil {
+				fmt.Fprintf(os.Stderr, "Error writing summary to stdout: %v\n", err)
+			}
 		}
 	}
 	

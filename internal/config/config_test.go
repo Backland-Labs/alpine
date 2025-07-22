@@ -17,7 +17,7 @@ func TestNewConfig(t *testing.T) {
 		"RIVER_AUTO_CLEANUP",
 	}
 	for _, env := range envVars {
-		os.Unsetenv(env)
+		_ = os.Unsetenv(env)
 	}
 
 	cfg, err := New()
@@ -53,19 +53,19 @@ func TestNewConfig(t *testing.T) {
 func TestConfigFromEnvironment(t *testing.T) {
 	// Set up test environment
 	testWorkDir := "/test/work/dir"
-	os.Setenv("RIVER_WORKDIR", testWorkDir)
-	os.Setenv("RIVER_VERBOSITY", "debug")
-	os.Setenv("RIVER_SHOW_OUTPUT", "false")
-	os.Setenv("RIVER_STATE_FILE", "/custom/state.json")
-	os.Setenv("RIVER_AUTO_CLEANUP", "false")
+	_ = os.Setenv("RIVER_WORKDIR", testWorkDir)
+	_ = os.Setenv("RIVER_VERBOSITY", "debug")
+	_ = os.Setenv("RIVER_SHOW_OUTPUT", "false")
+	_ = os.Setenv("RIVER_STATE_FILE", "/custom/state.json")
+	_ = os.Setenv("RIVER_AUTO_CLEANUP", "false")
 
 	defer func() {
 		// Clean up
-		os.Unsetenv("RIVER_WORKDIR")
-		os.Unsetenv("RIVER_VERBOSITY")
-		os.Unsetenv("RIVER_SHOW_OUTPUT")
-		os.Unsetenv("RIVER_STATE_FILE")
-		os.Unsetenv("RIVER_AUTO_CLEANUP")
+		_ = os.Unsetenv("RIVER_WORKDIR")
+		_ = os.Unsetenv("RIVER_VERBOSITY")
+		_ = os.Unsetenv("RIVER_SHOW_OUTPUT")
+		_ = os.Unsetenv("RIVER_STATE_FILE")
+		_ = os.Unsetenv("RIVER_AUTO_CLEANUP")
 	}()
 
 	cfg, err := New()
@@ -120,9 +120,9 @@ func TestValidateWorkDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("RIVER_WORKDIR", tt.workDir)
+			_ = os.Setenv("RIVER_WORKDIR", tt.workDir)
 			defer func() {
-				os.Unsetenv("RIVER_WORKDIR")
+				_ = os.Unsetenv("RIVER_WORKDIR")
 			}()
 
 			_, err := New()
@@ -169,9 +169,9 @@ func TestValidateVerbosity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("RIVER_VERBOSITY", tt.verbosity)
+			_ = os.Setenv("RIVER_VERBOSITY", tt.verbosity)
 			defer func() {
-				os.Unsetenv("RIVER_VERBOSITY")
+				_ = os.Unsetenv("RIVER_VERBOSITY")
 			}()
 
 			cfg, err := New()
@@ -234,9 +234,9 @@ func TestValidateBooleanFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv(tt.envVar, tt.value)
+			_ = os.Setenv(tt.envVar, tt.value)
 			defer func() {
-				os.Unsetenv(tt.envVar)
+				_ = os.Unsetenv(tt.envVar)
 			}()
 
 			cfg, err := New()
@@ -288,9 +288,9 @@ func TestStateFilePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("RIVER_STATE_FILE", tt.stateFile)
+			_ = os.Setenv("RIVER_STATE_FILE", tt.stateFile)
 			defer func() {
-				os.Unsetenv("RIVER_STATE_FILE")
+				_ = os.Unsetenv("RIVER_STATE_FILE")
 			}()
 
 			cfg, err := New()

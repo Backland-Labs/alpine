@@ -41,7 +41,7 @@ func CaptureOutput(fn func()) string {
 	fn()
 	
 	// Close writer and restore stdout
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 	
 	// Read captured output
@@ -67,7 +67,7 @@ func SetupTestEnvironment(t *testing.T) func() {
 	}
 	
 	// Set test-specific environment variables
-	os.Setenv("RIVER_TEST_MODE", "true")
+	_ = os.Setenv("RIVER_TEST_MODE", "true")
 	
 	// Return cleanup function
 	return func() {
@@ -76,7 +76,7 @@ func SetupTestEnvironment(t *testing.T) func() {
 		
 		// Restore original environment
 		for key, value := range envMap {
-			os.Setenv(key, value)
+			_ = os.Setenv(key, value)
 		}
 	}
 }

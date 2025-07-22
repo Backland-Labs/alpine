@@ -46,8 +46,12 @@ func (r *parityRunner) Run(ctx context.Context, issueID string) (*ParityResults,
 
 	// Cleanup if configured
 	if r.config.CleanupOnExit {
-		defer os.RemoveAll(pythonDir)
-		defer os.RemoveAll(goDir)
+		defer func() {
+			_ = os.RemoveAll(pythonDir)
+		}()
+		defer func() {
+			_ = os.RemoveAll(goDir)
+		}()
 	}
 
 	// Run Python implementation

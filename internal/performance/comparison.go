@@ -185,22 +185,52 @@ func generateSummary(goResults, pythonResults VersionResults) Summary {
 
 // WriteComparisonReport writes a formatted comparison report
 func WriteComparisonReport(report *ComparisonReport, w io.Writer) error {
-	fmt.Fprintf(w, "\n=== Performance Comparison Report ===\n\n")
-	
-	fmt.Fprintf(w, "Go Version:\n")
-	fmt.Fprintf(w, "  Startup Time: %.2f ms\n", report.GoResults.StartupTimeMs)
-	fmt.Fprintf(w, "  Memory Usage: %.2f MB\n", report.GoResults.MemoryUsageMB)
-	
-	if report.PythonResults.StartupTimeMs > 0 {
-		fmt.Fprintf(w, "\nPython Version:\n")
-		fmt.Fprintf(w, "  Startup Time: %.2f ms\n", report.PythonResults.StartupTimeMs)
-		fmt.Fprintf(w, "  Memory Usage: %.2f MB\n", report.PythonResults.MemoryUsageMB)
+	// Helper function to write with error checking
+	writeOutput := func(format string, args ...interface{}) error {
+		if _, err := fmt.Fprintf(w, format, args...); err != nil {
+			return fmt.Errorf("failed to write output: %w", err)
+		}
+		return nil
 	}
 	
-	fmt.Fprintf(w, "\nSummary:\n")
-	fmt.Fprintf(w, "  Startup: %s\n", report.Summary.StartupImprovement)
-	fmt.Fprintf(w, "  Memory:  %s\n", report.Summary.MemoryImprovement)
-	fmt.Fprintf(w, "  Overall: %s\n", report.Summary.OverallAssessment)
+	if err := writeOutput("\n=== Performance Comparison Report ===\n\n"); err != nil {
+		return err
+	}
+	
+	if err := writeOutput("Go Version:\n"); err != nil {
+		return err
+	}
+	if err := writeOutput("  Startup Time: %.2f ms\n", report.GoResults.StartupTimeMs); err != nil {
+		return err
+	}
+	if err := writeOutput("  Memory Usage: %.2f MB\n", report.GoResults.MemoryUsageMB); err != nil {
+		return err
+	}
+	
+	if report.PythonResults.StartupTimeMs > 0 {
+		if err := writeOutput("\nPython Version:\n"); err != nil {
+			return err
+		}
+		if err := writeOutput("  Startup Time: %.2f ms\n", report.PythonResults.StartupTimeMs); err != nil {
+			return err
+		}
+		if err := writeOutput("  Memory Usage: %.2f MB\n", report.PythonResults.MemoryUsageMB); err != nil {
+			return err
+		}
+	}
+	
+	if err := writeOutput("\nSummary:\n"); err != nil {
+		return err
+	}
+	if err := writeOutput("  Startup: %s\n", report.Summary.StartupImprovement); err != nil {
+		return err
+	}
+	if err := writeOutput("  Memory:  %s\n", report.Summary.MemoryImprovement); err != nil {
+		return err
+	}
+	if err := writeOutput("  Overall: %s\n", report.Summary.OverallAssessment); err != nil {
+		return err
+	}
 	
 	return nil
 }

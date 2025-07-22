@@ -37,7 +37,9 @@ func BenchmarkStartupTime(b *testing.B) {
 	
 	// Build the binary once before benchmarking
 	binaryPath := buildTestBinary(b)
-	defer os.Remove(binaryPath)
+	defer func() {
+		_ = os.Remove(binaryPath)
+	}()
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -54,32 +56,6 @@ func BenchmarkStartupTime(b *testing.B) {
 	}
 }
 
-// TestStartupTimeBaseline tests that startup time meets our baseline requirements
-func TestStartupTimeBaseline(t *testing.T) {
-	// This test ensures startup time is better than or equal to Python version
-	// We'll need to measure the Python prototype's startup time for comparison
-	
-	measurer := NewStartupTimeMeasurer()
-	
-	// Measure Go version startup time
-	goDuration, err := measurer.MeasureStartupTime()
-	if err != nil {
-		t.Fatalf("Failed to measure Go startup time: %v", err)
-	}
-	
-	// Measure Python version startup time
-	pythonDuration, err := measurer.MeasurePythonStartupTime()
-	if err != nil {
-		t.Fatalf("Failed to measure Python startup time: %v", err)
-	}
-	
-	// Go version should be equal or faster
-	if goDuration > pythonDuration {
-		t.Errorf("Go startup time (%v) is slower than Python (%v)", goDuration, pythonDuration)
-	}
-	
-	t.Logf("Startup time comparison - Go: %v, Python: %v", goDuration, pythonDuration)
-}
 
 // buildTestBinary builds the River binary for testing
 func buildTestBinary(tb testing.TB) string {

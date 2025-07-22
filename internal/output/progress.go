@@ -84,7 +84,7 @@ func (p *Progress) Stop() {
 	p.wg.Wait()
 	
 	// Clear the line
-	fmt.Fprintf(p.printer.out, "\r\033[K")
+	_, _ = fmt.Fprintf(p.printer.out, "\r\033[K")
 }
 
 // animate runs the spinner animation in a goroutine
@@ -149,7 +149,7 @@ func (p *Progress) render(spinnerIndex int) {
 	}
 	
 	// Clear to end of line and print
-	fmt.Fprintf(p.printer.out, "%s\033[K", line)
+	_, _ = fmt.Fprintf(p.printer.out, "%s\033[K", line)
 }
 
 // formatDuration formats a duration for display
