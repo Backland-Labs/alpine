@@ -340,7 +340,10 @@ Add GitHub Actions workflow for:
   - Respects NO_COLOR environment variable
   - Different colors/symbols for success/error/warning/info/step messages
   - Integrated into workflow engine and CLI commands
-- Add progress indicators - NOT IMPLEMENTED
+- Add progress indicators - IMPLEMENTED (2025-01-22)
+  - Shows spinner animation during long operations
+  - Displays elapsed time and iteration counter
+  - Integrated into Claude execution, Linear API calls, and state monitoring
 - Improve error messages with suggestions - NOT IMPLEMENTED
 - Add debug logging with timestamps - IMPLEMENTED (2025-01-22)
   - Created logger package with timestamp support

@@ -58,7 +58,10 @@ func (e *Engine) Run(ctx context.Context, issueID string, noPlan bool) error {
 
 	// Fetch issue from Linear
 	logger.Debug("Fetching issue from Linear")
+	progress := e.printer.StartProgress("Fetching issue from Linear")
 	issue, err := e.linearClient.FetchIssue(ctx, issueID)
+	progress.Stop()
+	
 	if err != nil {
 		logger.WithField("error", err).Error("Failed to fetch Linear issue")
 		return fmt.Errorf("failed to fetch Linear issue: %w", err)
@@ -112,18 +115,30 @@ func (e *Engine) Run(ctx context.Context, issueID string, noPlan bool) error {
 		e.printer.Step("Executing Claude with prompt: %s", state.NextStepPrompt)
 		logger.WithField("prompt", state.NextStepPrompt).Debug("Executing Claude")
 		
+		// Show progress indicator during Claude execution
+		progress := e.printer.StartProgressWithIteration("Executing Claude", iteration)
+		
 		config := claude.ExecuteConfig{
 			Prompt:    state.NextStepPrompt,
 			StateFile: e.stateFile,
 		}
 		
 		startTime := time.Now()
-		if _, err := e.claudeExecutor.Execute(ctx, config); err != nil {
+		claudeErr := func() error {
+			if _, err := e.claudeExecutor.Execute(ctx, config); err != nil {
+				return err
+			}
+			return nil
+		}()
+		
+		progress.Stop()
+		
+		if claudeErr != nil {
 			logger.WithFields(map[string]interface{}{
-				"error": err,
+				"error": claudeErr,
 				"duration": time.Since(startTime),
 			}).Error("Claude execution failed")
-			return fmt.Errorf("Claude execution failed: %w", err)
+			return fmt.Errorf("Claude execution failed: %w", claudeErr)
 		}
 		logger.WithField("duration", time.Since(startTime)).Debug("Claude execution completed")
 
@@ -174,6 +189,10 @@ func (e *Engine) waitForStateUpdate(ctx context.Context, previousState *core.Sta
 		return fmt.Errorf("failed to stat state file: %w", err)
 	}
 	initialModTime := initialStat.ModTime()
+
+	// Show progress indicator while waiting
+	progress := e.printer.StartProgress("Waiting for state file update")
+	defer progress.Stop()
 
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
