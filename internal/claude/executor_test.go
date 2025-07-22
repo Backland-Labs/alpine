@@ -2,445 +2,307 @@ package claude
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
 
-// TestExecutor_Execute tests the Execute method of the Claude executor
+func TestNewExecutor(t *testing.T) {
+	t.Run("creates executor with valid configuration", func(t *testing.T) {
+		// Test that NewExecutor creates a valid executor instance
+		exec := NewExecutor()
+		if exec == nil {
+			t.Fatal("expected executor to be created")
+		}
+	})
+}
+
 func TestExecutor_Execute(t *testing.T) {
 	tests := []struct {
 		name          string
-		command       Command
-		opts          CommandOptions
-		setupMock     func(t *testing.T) (cleanup func())
-		expectedResp  *Response
-		expectedError string
-		skipOnCI      bool
+		config        ExecuteConfig
+		mockCommand   *mockCommand
+		expectedError bool
+		errorContains string
 	}{
 		{
-			name: "Execute plan command successfully",
-			command: Command{
-				Type:         CommandTypePlan,
-				Prompt:       "Create a TODO application",
-				OutputFormat: "json",
+			name: "successful execution with basic prompt",
+			config: ExecuteConfig{
+				Prompt:      "test prompt",
+				StateFile:   "/tmp/state.json",
 			},
-			opts: CommandOptions{
-				Stream:  false,
-				Timeout: 30,
+			mockCommand: &mockCommand{
+				output: "Claude execution successful",
+				err:    nil,
 			},
-			setupMock: func(t *testing.T) func() {
-				// Create a mock claude executable that returns success
-				return createMockClaude(t, 0, `{"content": "I'll create a TODO app", "continue": false}`, "")
-			},
-			expectedResp: &Response{
-				Content:      "I'll create a TODO app",
-				ContinueFlag: false,
-			},
+			expectedError: false,
 		},
 		{
-			name: "Execute continue command successfully",
-			command: Command{
-				Type:         CommandTypeContinue,
-				Prompt:       "Continue",
-				OutputFormat: "json",
+			name: "successful execution with MCP servers",
+			config: ExecuteConfig{
+				Prompt:      "test prompt",
+				StateFile:   "/tmp/state.json",
+				MCPServers:  []string{"playwright", "context7"},
 			},
-			opts: CommandOptions{
-				Stream:  false,
-				Timeout: 30,
+			mockCommand: &mockCommand{
+				output: "Claude execution with MCP servers successful",
+				err:    nil,
 			},
-			setupMock: func(t *testing.T) func() {
-				return createMockClaude(t, 0, `{"content": "Continuing the task...", "continue": true}`, "")
-			},
-			expectedResp: &Response{
-				Content:      "Continuing the task...",
-				ContinueFlag: true,
-			},
+			expectedError: false,
 		},
 		{
-			name: "Handle command not found error",
-			command: Command{
-				Type:         CommandTypePlan,
-				Prompt:       "Test",
-				OutputFormat: "json",
+			name: "handles command execution failure",
+			config: ExecuteConfig{
+				Prompt:      "test prompt",
+				StateFile:   "/tmp/state.json",
 			},
-			opts: CommandOptions{
-				Stream:  false,
-				Timeout: 30,
+			mockCommand: &mockCommand{
+				output: "",
+				err:    &mockError{msg: "command failed"},
 			},
-			setupMock: func(t *testing.T) func() {
-				// Remove claude from PATH to simulate command not found
-				oldPath := os.Getenv("PATH")
-				os.Setenv("PATH", "")
-				return func() {
-					os.Setenv("PATH", oldPath)
-				}
-			},
-			expectedError: "claude command not found",
-			skipOnCI:      true, // Skip on CI as it might have different PATH handling
+			expectedError: true,
+			errorContains: "command failed",
 		},
 		{
-			name: "Handle command timeout",
-			command: Command{
-				Type:         CommandTypePlan,
-				Prompt:       "Long running task",
-				OutputFormat: "json",
+			name: "validates required fields",
+			config: ExecuteConfig{
+				Prompt:    "",
+				StateFile: "/tmp/state.json",
 			},
-			opts: CommandOptions{
-				Stream:  false,
-				Timeout: 1, // 1 second timeout
-			},
-			setupMock: func(t *testing.T) func() {
-				// Create a mock that sleeps longer than timeout
-				return createMockClaude(t, 0, "", "sleep 3")
-			},
-			expectedError: "command timed out",
+			mockCommand:   nil,
+			expectedError: true,
+			errorContains: "prompt is required",
 		},
 		{
-			name: "Handle non-zero exit code",
-			command: Command{
-				Type:         CommandTypePlan,
-				Prompt:       "Invalid request",
-				OutputFormat: "json",
+			name: "validates state file path",
+			config: ExecuteConfig{
+				Prompt:    "test prompt",
+				StateFile: "",
 			},
-			opts: CommandOptions{
-				Stream:  false,
-				Timeout: 30,
-			},
-			setupMock: func(t *testing.T) func() {
-				return createMockClaude(t, 1, "", "Error: Invalid API key")
-			},
-			expectedError: "command failed with exit code 1",
+			mockCommand:   nil,
+			expectedError: true,
+			errorContains: "state file is required",
 		},
 		{
-			name: "Execute with custom working directory",
-			command: Command{
-				Type:         CommandTypePlan,
-				Prompt:       "Test in different directory",
-				OutputFormat: "json",
+			name: "includes custom system prompt when provided",
+			config: ExecuteConfig{
+				Prompt:       "test prompt",
+				StateFile:    "/tmp/state.json",
+				SystemPrompt: "Custom system prompt for testing",
 			},
-			opts: CommandOptions{
-				Stream:     false,
-				Timeout:    30,
-				WorkingDir: os.TempDir(),
+			mockCommand: &mockCommand{
+				output: "Execution with custom system prompt",
+				err:    nil,
 			},
-			setupMock: func(t *testing.T) func() {
-				return createMockClaude(t, 0, `{"content": "Working in temp dir", "continue": false}`, "")
-			},
-			expectedResp: &Response{
-				Content:      "Working in temp dir",
-				ContinueFlag: false,
-			},
+			expectedError: false,
 		},
 		{
-			name: "Handle invalid working directory",
-			command: Command{
-				Type:         CommandTypePlan,
-				Prompt:       "Test",
-				OutputFormat: "json",
+			name: "respects timeout configuration",
+			config: ExecuteConfig{
+				Prompt:    "test prompt",
+				StateFile: "/tmp/state.json",
+				Timeout:   5 * time.Second,
 			},
-			opts: CommandOptions{
-				Stream:     false,
-				Timeout:    30,
-				WorkingDir: "/nonexistent/directory",
+			mockCommand: &mockCommand{
+				output:   "Timed execution",
+				err:      nil,
+				duration: 100 * time.Millisecond,
 			},
-			setupMock: func(t *testing.T) func() {
-				return func() {} // No mock needed
-			},
-			expectedError: "invalid working directory",
+			expectedError: false,
 		},
 		{
-			name: "Handle malformed JSON output",
-			command: Command{
-				Type:         CommandTypePlan,
-				Prompt:       "Test malformed output",
-				OutputFormat: "json",
+			name: "handles timeout exceeded",
+			config: ExecuteConfig{
+				Prompt:    "test prompt",
+				StateFile: "/tmp/state.json",
+				Timeout:   100 * time.Millisecond,
 			},
-			opts: CommandOptions{
-				Stream:  false,
-				Timeout: 30,
+			mockCommand: &mockCommand{
+				output:   "",
+				err:      context.DeadlineExceeded,
+				duration: 200 * time.Millisecond,
 			},
-			setupMock: func(t *testing.T) func() {
-				return createMockClaude(t, 0, "This is not JSON", "")
-			},
-			expectedError: "failed to parse response",
-		},
-		{
-			name: "Handle empty output",
-			command: Command{
-				Type:         CommandTypePlan,
-				Prompt:       "Test empty output",
-				OutputFormat: "json",
-			},
-			opts: CommandOptions{
-				Stream:  false,
-				Timeout: 30,
-			},
-			setupMock: func(t *testing.T) func() {
-				return createMockClaude(t, 0, "", "")
-			},
-			expectedResp: &Response{
-				Content:      "",
-				ContinueFlag: false,
-			},
-		},
-		{
-			name: "Context cancellation is respected",
-			command: Command{
-				Type:         CommandTypePlan,
-				Prompt:       "Test context cancellation",
-				OutputFormat: "json",
-			},
-			opts: CommandOptions{
-				Stream:  false,
-				Timeout: 30,
-			},
-			setupMock: func(t *testing.T) func() {
-				return createMockClaude(t, 0, "", "sleep 10")
-			},
-			expectedError: "context canceled",
-		},
-		{
-			name: "Handle empty prompt",
-			command: Command{
-				Type:         CommandTypePlan,
-				Prompt:       "",
-				OutputFormat: "json",
-			},
-			opts: CommandOptions{
-				Stream:  false,
-				Timeout: 30,
-			},
-			setupMock: func(t *testing.T) func() {
-				return createMockClaude(t, 0, `{"content": "Empty prompt handled", "continue": false}`, "")
-			},
-			expectedError: "prompt cannot be empty",
+			expectedError: true,
+			errorContains: "deadline exceeded",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.skipOnCI && os.Getenv("CI") == "true" {
-				t.Skip("Skipping test on CI")
+			exec := &Executor{
+				commandRunner: tt.mockCommand,
 			}
 
-			cleanup := tt.setupMock(t)
-			defer cleanup()
+			output, err := exec.Execute(context.Background(), tt.config)
 
-			claude := New()
-			ctx := context.Background()
-
-			// Special handling for context cancellation test
-			if tt.name == "Context cancellation is respected" {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithCancel(ctx)
-				go func() {
-					time.Sleep(100 * time.Millisecond)
-					cancel()
-				}()
-			}
-
-			resp, err := claude.Execute(ctx, tt.command, tt.opts)
-
-			if tt.expectedError != "" {
+			if tt.expectedError {
 				if err == nil {
-					t.Errorf("Expected error containing '%s', but got nil", tt.expectedError)
-				} else if !strings.Contains(err.Error(), tt.expectedError) {
-					t.Errorf("Expected error containing '%s', but got '%s'", tt.expectedError, err.Error())
+					t.Fatal("expected error but got none")
+				}
+				if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
+					t.Errorf("expected error to contain %q, got %q", tt.errorContains, err.Error())
 				}
 			} else {
 				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
+					t.Fatalf("unexpected error: %v", err)
 				}
-				if resp == nil {
-					t.Error("Expected response, but got nil")
-				} else {
-					if resp.Content != tt.expectedResp.Content {
-						t.Errorf("Expected content '%s', but got '%s'", tt.expectedResp.Content, resp.Content)
-					}
-					if resp.ContinueFlag != tt.expectedResp.ContinueFlag {
-						t.Errorf("Expected continue flag %v, but got %v", tt.expectedResp.ContinueFlag, resp.ContinueFlag)
-					}
+				if output != tt.mockCommand.output {
+					t.Errorf("expected output %q, got %q", tt.mockCommand.output, output)
 				}
 			}
 		})
 	}
 }
 
-// TestExecutor_StreamingOutput tests streaming functionality
-func TestExecutor_StreamingOutput(t *testing.T) {
-	// This test verifies that streaming option is properly handled
-	// For now, we'll just verify the option is passed correctly
-	// Actual streaming implementation can be tested with integration tests
-
-	cleanup := createMockClaude(t, 0, `{"content": "Streaming response", "continue": false}`, "")
-	defer cleanup()
-
-	claude := New()
-	ctx := context.Background()
-
-	resp, err := claude.Execute(ctx, Command{
-		Type:         CommandTypePlan,
-		Prompt:       "Test streaming",
-		OutputFormat: "json",
-	}, CommandOptions{
-		Stream:  true,
-		Timeout: 30,
-	})
-
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if resp == nil {
-		t.Error("Expected response, but got nil")
-	}
-}
-
-// createMockClaude creates a temporary executable that mimics claude behavior
-func createMockClaude(t *testing.T, exitCode int, stdout, stderr string) func() {
-	t.Helper()
-
-	// Create a temporary directory for our mock
-	tmpDir, err := os.MkdirTemp("", "claude-mock-")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-
-	// Create the mock script
-	var mockScript string
-	var mockPath string
-
-	if runtime.GOOS == "windows" {
-		mockPath = filepath.Join(tmpDir, "claude.bat")
-		mockScript = "@echo off\n"
-		if stderr != "" {
-			if strings.HasPrefix(stderr, "sleep ") {
-				sleepTime := strings.TrimPrefix(stderr, "sleep ")
-				mockScript += "timeout /t " + sleepTime + " /nobreak >nul\n"
-			} else {
-				mockScript += "echo " + stderr + " 1>&2\n"
-			}
-		}
-		if stdout != "" {
-			mockScript += "echo " + strings.ReplaceAll(stdout, "\"", "\"\"") + "\n"
-		}
-		mockScript += "exit /b " + string(rune(exitCode)) + "\n"
-	} else {
-		mockPath = filepath.Join(tmpDir, "claude")
-		mockScript = "#!/bin/sh\n"
-		if stderr != "" {
-			if strings.HasPrefix(stderr, "sleep ") {
-				mockScript += stderr + "\n"
-			} else {
-				mockScript += "echo '" + stderr + "' >&2\n"
-			}
-		}
-		if stdout != "" {
-			// Escape single quotes in stdout for shell
-			escapedStdout := strings.ReplaceAll(stdout, "'", "'\"'\"'")
-			mockScript += "echo '" + escapedStdout + "'\n"
-		}
-		mockScript += fmt.Sprintf("exit %d\n", exitCode)
-	}
-
-	err = os.WriteFile(mockPath, []byte(mockScript), 0755)
-	if err != nil {
-		t.Fatalf("Failed to create mock script: %v", err)
-	}
-
-	// Add the temp directory to PATH
-	oldPath := os.Getenv("PATH")
-	newPath := tmpDir + string(os.PathListSeparator) + oldPath
-	os.Setenv("PATH", newPath)
-
-	// Return cleanup function
-	return func() {
-		os.Setenv("PATH", oldPath)
-		os.RemoveAll(tmpDir)
-	}
-}
-
-// TestExecutor_ParseResponse tests the response parsing functionality
-func TestExecutor_ParseResponse(t *testing.T) {
+func TestExecutor_buildCommand(t *testing.T) {
 	tests := []struct {
-		name         string
-		output       string
-		expectedResp *Response
-		expectedErr  bool
+		name           string
+		config         ExecuteConfig
+		expectedArgs   []string
+		expectedEnvSet map[string]bool
 	}{
 		{
-			name:   "Parse valid JSON response",
-			output: `{"content": "Task completed", "continue": false}`,
-			expectedResp: &Response{
-				Content:      "Task completed",
-				ContinueFlag: false,
+			name: "basic command construction",
+			config: ExecuteConfig{
+				Prompt:      "test prompt",
+				StateFile:   "/tmp/state.json",
 			},
-			expectedErr: false,
+			expectedArgs: []string{
+				"--output-format", "text",
+				"--allowedTools",
+				"--append-system-prompt",
+				"-p", "test prompt",
+			},
+			expectedEnvSet: map[string]bool{
+				"RIVER_STATE_FILE": true,
+			},
 		},
 		{
-			name:   "Parse response with continue flag true",
-			output: `{"content": "Still working...", "continue": true}`,
-			expectedResp: &Response{
-				Content:      "Still working...",
-				ContinueFlag: true,
+			name: "command with multiple MCP servers",
+			config: ExecuteConfig{
+				Prompt:     "test prompt",
+				StateFile:  "/tmp/state.json",
+				MCPServers: []string{"playwright", "web-mrkdwn"},
 			},
-			expectedErr: false,
+			expectedArgs: []string{
+				"--output-format", "text",
+				"--mcp-server", "playwright",
+				"--mcp-server", "web-mrkdwn",
+				"--allowedTools",
+				"--append-system-prompt",
+				"-p", "test prompt",
+			},
+			expectedEnvSet: map[string]bool{
+				"RIVER_STATE_FILE": true,
+			},
 		},
 		{
-			name:         "Parse invalid JSON",
-			output:       "Not a JSON response",
-			expectedResp: nil,
-			expectedErr:  true,
+			name: "command with custom system prompt",
+			config: ExecuteConfig{
+				Prompt:       "test prompt",
+				StateFile:    "/tmp/state.json",
+				SystemPrompt: "Custom system prompt",
+			},
+			expectedArgs: []string{
+				"--output-format", "text",
+				"--allowedTools",
+				"--append-system-prompt", "Custom system prompt",
+				"-p", "test prompt",
+			},
+			expectedEnvSet: map[string]bool{
+				"RIVER_STATE_FILE": true,
+			},
 		},
 		{
-			name:   "Parse empty JSON object",
-			output: "{}",
-			expectedResp: &Response{
-				Content:      "",
-				ContinueFlag: false,
+			name: "command with tools restriction",
+			config: ExecuteConfig{
+				Prompt:       "test prompt",
+				StateFile:    "/tmp/state.json",
+				AllowedTools: []string{"Read", "Write", "Edit"},
 			},
-			expectedErr: false,
-		},
-		{
-			name:   "Parse response with extra fields",
-			output: `{"content": "Done", "continue": false, "extra": "ignored"}`,
-			expectedResp: &Response{
-				Content:      "Done",
-				ContinueFlag: false,
+			expectedArgs: []string{
+				"--output-format", "text",
+				"--allowedTools", "Read", "Write", "Edit",
+				"--append-system-prompt",
+				"-p", "test prompt",
 			},
-			expectedErr: false,
+			expectedEnvSet: map[string]bool{
+				"RIVER_STATE_FILE": true,
+			},
 		},
 	}
 
-	ctx := context.Background()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			claude := New()
-			resp, err := claude.ParseResponse(ctx, tt.output)
+			exec := &Executor{}
+			cmd := exec.buildCommand(tt.config)
 
-			if tt.expectedErr {
-				if err == nil {
-					t.Error("Expected error, but got nil")
+			// Check that the base command is correct
+			if cmd.Path != "claude" && !strings.HasSuffix(cmd.Path, "/claude") {
+				t.Errorf("expected command path to be 'claude', got %q", cmd.Path)
+			}
+
+			// Check expected arguments are present
+			args := strings.Join(cmd.Args[1:], " ")
+			for _, expectedArg := range tt.expectedArgs {
+				if !strings.Contains(args, expectedArg) {
+					t.Errorf("expected argument %q not found in command args: %v", expectedArg, cmd.Args)
 				}
-			} else {
-				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
+			}
+
+			// Check environment variables
+			envMap := make(map[string]string)
+			for _, env := range cmd.Env {
+				parts := strings.SplitN(env, "=", 2)
+				if len(parts) == 2 {
+					envMap[parts[0]] = parts[1]
 				}
-				if resp == nil {
-					t.Error("Expected response, but got nil")
-				} else {
-					if resp.Content != tt.expectedResp.Content {
-						t.Errorf("Expected content '%s', but got '%s'", tt.expectedResp.Content, resp.Content)
-					}
-					if resp.ContinueFlag != tt.expectedResp.ContinueFlag {
-						t.Errorf("Expected continue flag %v, but got %v", tt.expectedResp.ContinueFlag, resp.ContinueFlag)
-					}
+			}
+
+			for envKey, shouldBeSet := range tt.expectedEnvSet {
+				_, exists := envMap[envKey]
+				if shouldBeSet && !exists {
+					t.Errorf("expected environment variable %s to be set", envKey)
 				}
+			}
+
+			// Check that prompt is passed with -p flag
+			foundPrompt := false
+			for i := 0; i < len(cmd.Args)-1; i++ {
+				if cmd.Args[i] == "-p" && cmd.Args[i+1] == tt.config.Prompt {
+					foundPrompt = true
+					break
+				}
+			}
+			if !foundPrompt {
+				t.Errorf("expected prompt %q to be passed with -p flag", tt.config.Prompt)
 			}
 		})
 	}
+}
+
+// Mock implementations for testing
+type mockCommand struct {
+	output   string
+	err      error
+	duration time.Duration
+}
+
+func (m *mockCommand) Run(ctx context.Context, config ExecuteConfig) (string, error) {
+	if m.duration > 0 {
+		select {
+		case <-time.After(m.duration):
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
+	return m.output, m.err
+}
+
+type mockError struct {
+	msg string
+}
+
+func (e *mockError) Error() string {
+	return e.msg
 }

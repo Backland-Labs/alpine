@@ -1,148 +1,183 @@
 package claude
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"time"
+
+	"github.com/maxmcd/river/internal/logger"
 )
 
-const (
-	// defaultTimeout is the default command timeout in seconds if not specified
-	defaultTimeout = 120
-)
+// ExecuteConfig holds configuration for executing Claude
+type ExecuteConfig struct {
+	// Prompt is the input prompt to send to Claude
+	Prompt string
 
-// Execute runs a Claude command with the given options and returns the response
-func (c *commandBuilder) Execute(ctx context.Context, cmd Command, opts CommandOptions) (*Response, error) {
-	// Validate working directory if specified
-	if opts.WorkingDir != "" {
-		if _, err := os.Stat(opts.WorkingDir); err != nil {
-			return nil, fmt.Errorf("invalid working directory: %w", err)
-		}
-	}
+	// StateFile is the path to the claude_state.json file
+	StateFile string
 
-	// Build the command arguments
-	args, err := c.BuildCommand(ctx, cmd)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build command: %w", err)
-	}
 
-	// Remove the binary name from args since exec.Command expects it separately
-	if len(args) > 0 && args[0] == "claude" {
-		args = args[1:]
-	}
+	// MCPServers is a list of MCP servers to enable (optional)
+	MCPServers []string
 
-	// Create the command
-	execCmd := exec.CommandContext(ctx, "claude", args...)
+	// AllowedTools restricts which tools Claude can use (optional)
+	AllowedTools []string
 
-	// Set working directory if specified
-	if opts.WorkingDir != "" {
-		execCmd.Dir = opts.WorkingDir
-	}
+	// SystemPrompt overrides the default system prompt (optional)
+	SystemPrompt string
 
-	// Set up output buffers
-	var stdout, stderr bytes.Buffer
-	execCmd.Stdout = &stdout
-	execCmd.Stderr = &stderr
-
-	// Create a channel to signal completion
-	done := make(chan error, 1)
-
-	// Start the command
-	err = execCmd.Start()
-	if err != nil {
-		// Check if the command was not found
-		if errors.Is(err, exec.ErrNotFound) {
-			return nil, fmt.Errorf("claude command not found: %w", err)
-		}
-		return nil, fmt.Errorf("failed to start command: %w", err)
-	}
-
-	// Wait for command completion in a goroutine
-	go func() {
-		done <- execCmd.Wait()
-	}()
-
-	// Create a timer for timeout
-	timeout := opts.Timeout
-	if timeout <= 0 {
-		timeout = defaultTimeout
-	}
-	timer := time.NewTimer(time.Duration(timeout) * time.Second)
-	defer timer.Stop()
-
-	// Wait for completion, timeout, or context cancellation
-	select {
-	case <-ctx.Done():
-		// Context was cancelled
-		if killErr := execCmd.Process.Kill(); killErr != nil {
-			// Log kill error but return context error
-			fmt.Fprintf(os.Stderr, "failed to kill process: %v\n", killErr)
-		}
-		return nil, ctx.Err()
-
-	case <-timer.C:
-		// Command timed out
-		if killErr := execCmd.Process.Kill(); killErr != nil {
-			fmt.Fprintf(os.Stderr, "failed to kill process: %v\n", killErr)
-		}
-		return nil, fmt.Errorf("command timed out after %d seconds", timeout)
-
-	case err := <-done:
-		// Command completed
-		if err != nil {
-			// Check if it's an exit error
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				return nil, fmt.Errorf("command failed with exit code %d: %s", exitErr.ExitCode(), stderr.String())
-			}
-			return nil, fmt.Errorf("command failed: %w", err)
-		}
-	}
-
-	// Parse the response
-	output := stdout.String()
-	resp, err := c.ParseResponse(ctx, output)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	// If there was stderr output, add it to the response error
-	if stderrStr := stderr.String(); stderrStr != "" {
-		resp.Error = strings.TrimSpace(stderrStr)
-	}
-
-	return resp, nil
+	// Timeout for the Claude execution (optional, defaults to no timeout)
+	Timeout time.Duration
 }
 
-// ParseResponse parses the Claude command output into a Response struct
-func (c *commandBuilder) ParseResponse(ctx context.Context, output string) (*Response, error) {
-	// Handle empty output
-	if output == "" {
-		return &Response{
-			Content:      "",
-			ContinueFlag: false,
-		}, nil
+// Executor handles execution of Claude commands
+type Executor struct {
+	commandRunner CommandRunner
+}
+
+// CommandRunner interface for testing
+type CommandRunner interface {
+	Run(ctx context.Context, config ExecuteConfig) (string, error)
+}
+
+// NewExecutor creates a new Claude executor
+func NewExecutor() *Executor {
+	return &Executor{
+		commandRunner: &defaultCommandRunner{},
+	}
+}
+
+// Execute runs Claude with the given configuration
+func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, error) {
+	logger.Debug("Starting Claude execution")
+	
+	// Validate required fields
+	if config.Prompt == "" {
+		return "", fmt.Errorf("prompt is required")
+	}
+	if config.StateFile == "" {
+		return "", fmt.Errorf("state file is required")
 	}
 
-	// Try to parse as JSON
-	var jsonResp struct {
-		Content  string `json:"content"`
-		Continue bool   `json:"continue"`
+	logger.WithFields(map[string]interface{}{
+		"state_file": config.StateFile,
+		"mcp_servers": len(config.MCPServers),
+		"allowed_tools": len(config.AllowedTools),
+	}).Debug("Claude configuration validated")
+
+	// Use command runner (allows for mocking in tests)
+	if e.commandRunner != nil {
+		return e.commandRunner.Run(ctx, config)
 	}
 
-	if err := json.Unmarshal([]byte(output), &jsonResp); err != nil {
-		// If it's not valid JSON, treat the entire output as content
-		// This is for backwards compatibility and debugging
-		return nil, fmt.Errorf("invalid JSON: %w", err)
+	// Default implementation
+	runner := &defaultCommandRunner{}
+	return runner.Run(ctx, config)
+}
+
+// DefaultSystemPrompt is the default system prompt used when none is provided
+const DefaultSystemPrompt = "You are an expert software engineer with deep knowledge of TDD, Python, Typescript. Execute the following tasks with surgical precision while taking care not to overengineer solutions."
+
+// DefaultAllowedTools are the default tools allowed when none are specified
+var DefaultAllowedTools = []string{
+	"mcp__context7__*",
+	"Bash",
+	"Read",
+	"Write",
+	"Edit",
+	"Remove",
+}
+
+// buildCommand constructs the exec.Cmd for Claude
+func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
+	args := []string{}
+
+	// Add output format
+	args = append(args, "--output-format", "text")
+
+	// Add MCP servers
+	if len(config.MCPServers) > 0 {
+		for _, server := range config.MCPServers {
+			args = append(args, "--mcp-server", server)
+		}
 	}
 
-	return &Response{
-		Content:      jsonResp.Content,
-		ContinueFlag: jsonResp.Continue,
-	}, nil
+	// Add allowed tools restriction
+	allowedTools := config.AllowedTools
+	if len(allowedTools) == 0 {
+		allowedTools = DefaultAllowedTools
+	}
+	if len(allowedTools) > 0 {
+		args = append(args, "--allowedTools")
+		args = append(args, allowedTools...)
+	}
+
+	// Add system prompt
+	systemPrompt := config.SystemPrompt
+	if systemPrompt == "" {
+		systemPrompt = DefaultSystemPrompt
+	}
+	args = append(args, "--append-system-prompt", systemPrompt)
+
+	// Note: Claude CLI doesn't have a --project flag
+	// It uses the current working directory by default
+	// TODO: Consider using --add-dir flag or changing working directory
+
+	// Add the prompt with -p flag
+	args = append(args, "-p", config.Prompt)
+
+	// Create command
+	cmd := exec.Command("claude", args...)
+
+	// Set environment variables
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, fmt.Sprintf("RIVER_STATE_FILE=%s", config.StateFile))
+
+	return cmd
+}
+
+// defaultCommandRunner is the actual implementation
+type defaultCommandRunner struct{}
+
+func (r *defaultCommandRunner) Run(ctx context.Context, config ExecuteConfig) (string, error) {
+	// Create executor to access buildCommand
+	executor := &Executor{}
+	baseCmd := executor.buildCommand(config)
+
+	logger.WithFields(map[string]interface{}{
+		"command": baseCmd.Path,
+		"args": baseCmd.Args,
+	}).Debug("Preparing Claude command")
+
+	// Handle timeout
+	if config.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, config.Timeout)
+		defer cancel()
+		logger.WithField("timeout", config.Timeout).Debug("Setting execution timeout")
+	}
+
+	// Create command with context
+	cmd := exec.CommandContext(ctx, baseCmd.Path, baseCmd.Args[1:]...)
+	cmd.Env = baseCmd.Env
+
+	// Run the command
+	startTime := time.Now()
+	logger.Debug("Executing Claude command")
+	output, err := cmd.CombinedOutput()
+	duration := time.Since(startTime)
+	
+	if err != nil {
+		logger.WithFields(map[string]interface{}{
+			"error": err,
+			"duration": duration,
+			"output": string(output),
+		}).Error("Claude execution failed")
+		return "", fmt.Errorf("claude execution failed: %w", err)
+	}
+
+	logger.WithField("duration", duration).Debug("Claude execution completed successfully")
+	return string(output), nil
 }

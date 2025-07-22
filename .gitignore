@@ -5,6 +5,7 @@
 /build/
 /river
 *.exe
+internal/performance/river
 
 # Go workspace files
 go.work

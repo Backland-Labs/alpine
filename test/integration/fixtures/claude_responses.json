@@ -1,0 +1,81 @@
+{
+  "responses": {
+    "make_plan": {
+      "prompt": "/make_plan",
+      "output": "I'll create a comprehensive plan for this task.\n\n## Plan Overview\n\n1. **Analysis Phase**\n   - Review requirements\n   - Identify dependencies\n   - Design architecture\n\n2. **Implementation Phase**\n   - Set up project structure\n   - Implement core functionality\n   - Add error handling\n\n3. **Testing Phase**\n   - Write unit tests\n   - Create integration tests\n   - Perform manual testing\n\n4. **Documentation Phase**\n   - Update README\n   - Add inline documentation\n   - Create usage examples",
+      "stateUpdate": {
+        "currentStepDescription": "Created comprehensive plan",
+        "nextStepPrompt": "/implement project-structure",
+        "status": "running"
+      }
+    },
+    "ralph": {
+      "prompt": "/ralph",
+      "output": "Executing direct implementation without planning phase.\n\nAnalyzing the task requirements...\nImplementing solution...\nAdding tests...\nTask completed successfully.",
+      "stateUpdate": {
+        "currentStepDescription": "Direct implementation completed",
+        "nextStepPrompt": "",
+        "status": "completed"
+      }
+    },
+    "implement": {
+      "prompt": "/implement",
+      "output": "Implementing the requested feature...\n\nCreated necessary files:\n- src/feature.go\n- src/feature_test.go\n\nAll tests passing.",
+      "stateUpdate": {
+        "currentStepDescription": "Feature implementation complete",
+        "nextStepPrompt": "/test integration",
+        "status": "running"
+      }
+    },
+    "test": {
+      "prompt": "/test",
+      "output": "Running comprehensive test suite...\n\n✓ Unit tests: 15/15 passed\n✓ Integration tests: 8/8 passed\n✓ Coverage: 94.3%\n\nAll tests passed successfully.",
+      "stateUpdate": {
+        "currentStepDescription": "All tests passing",
+        "nextStepPrompt": "",
+        "status": "completed"
+      }
+    }
+  },
+  "errors": {
+    "command_not_found": {
+      "output": "Error: 'claude' command not found. Please ensure Claude Code is installed and in your PATH.",
+      "exitCode": 127
+    },
+    "timeout": {
+      "output": "Error: Command execution timed out after 30 seconds",
+      "exitCode": 124
+    },
+    "interrupted": {
+      "output": "Error: Command execution was interrupted",
+      "exitCode": 130
+    }
+  },
+  "states": {
+    "initial": {
+      "currentStepDescription": "Initializing workflow",
+      "nextStepPrompt": "/make_plan",
+      "status": "running"
+    },
+    "planning": {
+      "currentStepDescription": "Creating implementation plan",
+      "nextStepPrompt": "/implement step1",
+      "status": "running"
+    },
+    "implementing": {
+      "currentStepDescription": "Implementing features",
+      "nextStepPrompt": "/test",
+      "status": "running"
+    },
+    "testing": {
+      "currentStepDescription": "Running tests",
+      "nextStepPrompt": "/deploy",
+      "status": "running"
+    },
+    "completed": {
+      "currentStepDescription": "Workflow completed successfully",
+      "nextStepPrompt": "",
+      "status": "completed"
+    }
+  }
+}
