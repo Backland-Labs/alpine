@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"io"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -12,7 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/maxmcd/river/internal/claude"
+	"github.com/maxmcd/river/internal/config"
 	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/river/internal/gitx"
+	gitxmock "github.com/maxmcd/river/internal/gitx/mock"
 	"github.com/maxmcd/river/internal/output"
 )
 
@@ -26,14 +30,34 @@ func (m *MockCommandRunner) Run(ctx context.Context, config claude.ExecuteConfig
 	return args.String(0), args.Error(1)
 }
 
+// testConfig creates a test configuration with worktree disabled by default
+func testConfig(workTreeEnabled bool) *config.Config {
+	return &config.Config{
+		WorkDir:     "",
+		Verbosity:   config.VerbosityNormal,
+		ShowOutput:  false,
+		StateFile:   "claude_state.json",
+		AutoCleanup: true,
+		Git: config.GitConfig{
+			WorktreeEnabled: workTreeEnabled,
+			BaseBranch:      "main",
+			AutoCleanupWT:   true,
+		},
+	}
+}
+
 func TestNewEngine(t *testing.T) {
 	// Test that NewEngine creates a valid workflow engine
 	executor := claude.NewExecutor()
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
 
-	engine := NewEngine(executor)
+	engine := NewEngine(executor, wtMgr, cfg)
 
 	assert.NotNil(t, engine)
 	assert.Equal(t, executor, engine.claudeExecutor)
+	assert.Equal(t, wtMgr, engine.wtMgr)
+	assert.Equal(t, cfg, engine.cfg)
 	assert.Equal(t, "claude_state.json", engine.stateFile)
 }
 
@@ -64,7 +88,9 @@ func TestEngine_Run_WithPlan(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(executor)
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
 	engine.SetStateFile(stateFile)
 
 	// Suppress output during tests
@@ -102,7 +128,9 @@ func TestEngine_Run_NoPlan(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(executor)
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
 	engine.SetStateFile(stateFile)
 
 	// Suppress output during tests
@@ -120,7 +148,9 @@ func TestEngine_Run_EmptyTaskDescription(t *testing.T) {
 	// Test validation of empty task description
 	ctx := context.Background()
 	executor := claude.NewExecutor()
-	engine := NewEngine(executor)
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
 
 	// Test empty string
 	err := engine.Run(ctx, "", true)
@@ -164,7 +194,9 @@ func TestEngine_Run_ContextCancellation(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(executor)
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
 	engine.SetStateFile(stateFile)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
@@ -203,7 +235,9 @@ func TestEngine_Run_StateFileUpdate(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(executor)
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
 	engine.SetStateFile(stateFile)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
@@ -265,7 +299,12 @@ func (e *testExecutor) Execute(ctx context.Context, config claude.ExecuteConfig)
 
 	// Update state file if requested
 	if execution.stateUpdate != nil {
-		err := execution.stateUpdate.Save(e.stateFile)
+		// Use the state file from config if provided, otherwise use the executor's state file
+		stateFile := config.StateFile
+		if stateFile == "" {
+			stateFile = e.stateFile
+		}
+		err := execution.stateUpdate.Save(stateFile)
 		require.NoError(e.t, err)
 	}
 
@@ -293,4 +332,167 @@ func (e *delayedExecutor) Execute(ctx context.Context, config claude.ExecuteConf
 	}()
 
 	return "Started", nil
+}
+
+func TestEngineCreatesWorktree(t *testing.T) {
+	// Test that engine creates worktree when enabled
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	worktreeDir := filepath.Join(tempDir, "test-worktree")
+	
+	// Save current directory to restore later
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+	
+	// Mock worktree manager
+	mockWT := &gitx.Worktree{
+		Path:       worktreeDir,
+		Branch:     "river/test-task",
+		ParentRepo: tempDir,
+	}
+	
+	// Create a simple test executor that saves state relative to current directory
+	executor := &testExecutor{
+		t: t,
+		executions: []testExecution{
+			{
+				expectedPrompt: "/ralph test task",
+				beforeExecution: func() {
+					// At this point we should be in the worktree directory
+					cwd, err := os.Getwd()
+					require.NoError(t, err)
+					// Resolve symlinks for comparison (macOS has /var -> /private/var)
+					resolvedCwd, err := filepath.EvalSymlinks(cwd)
+					require.NoError(t, err)
+					resolvedWorktreeDir, err := filepath.EvalSymlinks(worktreeDir)
+					require.NoError(t, err)
+					assert.Equal(t, resolvedWorktreeDir, resolvedCwd)
+				},
+				stateUpdate: &core.State{
+					CurrentStepDescription: "Task completed",
+					NextStepPrompt:         "",
+					Status:                 "completed",
+				},
+			},
+		},
+	}
+	
+	wtMgr := &gitxmock.WorktreeManager{
+		CreateFunc: func(ctx context.Context, taskName string) (*gitx.Worktree, error) {
+			assert.Equal(t, "test task", taskName)
+			// Create the worktree directory
+			require.NoError(t, os.MkdirAll(mockWT.Path, 0755))
+			return mockWT, nil
+		},
+	}
+	
+	// Enable worktree in config
+	cfg := testConfig(true)
+	
+	engine := NewEngine(executor, wtMgr, cfg)
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+	
+	// Run workflow
+	err = engine.Run(ctx, "test task", false)
+	require.NoError(t, err)
+	
+	// Verify worktree was created
+	assert.Len(t, wtMgr.CreateCalls, 1)
+	assert.Equal(t, "test task", wtMgr.CreateCalls[0].TaskName)
+	
+	// Verify cleanup was called (auto cleanup is enabled)
+	assert.Len(t, wtMgr.CleanupCalls, 1)
+	assert.Equal(t, mockWT, wtMgr.CleanupCalls[0].WT)
+}
+
+func TestEngineWorktreeDisabled(t *testing.T) {
+	// Test that engine doesn't create worktree when disabled
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	stateFile := filepath.Join(tempDir, "claude_state.json")
+	
+	// Create a test executor that marks workflow as completed immediately
+	executor := newTestExecutor(t, stateFile)
+	executor.executions = []testExecution{
+		{
+			expectedPrompt: "/ralph test task",
+			stateUpdate: &core.State{
+				CurrentStepDescription: "Task completed",
+				NextStepPrompt:         "",
+				Status:                 "completed",
+			},
+		},
+	}
+	
+	// Mock worktree manager
+	wtMgr := &gitxmock.WorktreeManager{}
+	
+	// Disable worktree in config
+	cfg := testConfig(false)
+	
+	engine := NewEngine(executor, wtMgr, cfg)
+	engine.SetStateFile(stateFile)
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+	
+	// Run workflow
+	err := engine.Run(ctx, "test task", false)
+	require.NoError(t, err)
+	
+	// Verify worktree was NOT created
+	assert.Len(t, wtMgr.CreateCalls, 0)
+	assert.Len(t, wtMgr.CleanupCalls, 0)
+}
+
+func TestEngineStateFileInWorktree(t *testing.T) {
+	// Test that state file is created in worktree when worktree is enabled
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	worktreeDir := filepath.Join(tempDir, "test-worktree")
+	
+	// Mock worktree manager
+	mockWT := &gitx.Worktree{
+		Path:       worktreeDir,
+		Branch:     "river/test-task",
+		ParentRepo: tempDir,
+	}
+	
+	wtMgr := &gitxmock.WorktreeManager{
+		CreateFunc: func(ctx context.Context, taskName string) (*gitx.Worktree, error) {
+			// Create the worktree directory
+			require.NoError(t, os.MkdirAll(mockWT.Path, 0755))
+			return mockWT, nil
+		},
+	}
+	
+	// Create a test executor that verifies state file location
+	executor := &testExecutor{
+		t: t,
+		executions: []testExecution{
+			{
+				expectedPrompt: "/ralph test task",
+				stateUpdate: &core.State{
+					CurrentStepDescription: "Task completed",
+					NextStepPrompt:         "",
+					Status:                 "completed",
+				},
+			},
+		},
+	}
+	
+	// Enable worktree in config
+	cfg := testConfig(true)
+	
+	engine := NewEngine(executor, wtMgr, cfg)
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+	
+	// Run workflow
+	err := engine.Run(ctx, "test task", false)
+	require.NoError(t, err)
+	
+	// Verify state file was created in worktree
+	expectedStateFile := filepath.Join(worktreeDir, "claude_state.json")
+	assert.FileExists(t, expectedStateFile)
 }

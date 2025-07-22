@@ -9,7 +9,7 @@ import (
 )
 
 // runWorkflowWithDependencies is the testable version of runWorkflow with dependency injection
-func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, fromFile string, deps *Dependencies) error {
+func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, noWorktree bool, fromFile string, deps *Dependencies) error {
 	var taskDescription string
 
 	// Get task description from file or command line
@@ -38,9 +38,21 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Override worktree setting if --no-worktree flag is used
+	if noWorktree {
+		cfg.Git.WorktreeEnabled = false
+	}
+
 	// Initialize logger based on configuration (for production use)
 	logger.InitializeFromConfig(cfg)
 	logger.Debugf("Starting River workflow for task: %s", taskDescription)
+
+	// Create workflow engine with finalized config if not already created
+	if deps.WorkflowEngine == nil {
+		engine, wtMgr := CreateWorkflowEngine(cfg)
+		deps.WorkflowEngine = engine
+		deps.WorktreeManager = wtMgr
+	}
 
 	// Run the workflow (generatePlan is opposite of noPlan)
 	generatePlan := !noPlan

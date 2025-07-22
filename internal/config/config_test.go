@@ -15,6 +15,9 @@ func TestNewConfig(t *testing.T) {
 		"RIVER_SHOW_OUTPUT",
 		"RIVER_STATE_FILE",
 		"RIVER_AUTO_CLEANUP",
+		"RIVER_GIT_ENABLED",
+		"RIVER_GIT_BASE_BRANCH",
+		"RIVER_GIT_AUTO_CLEANUP",
 	}
 	for _, env := range envVars {
 		_ = os.Unsetenv(env)
@@ -47,6 +50,19 @@ func TestNewConfig(t *testing.T) {
 	if !cfg.AutoCleanup {
 		t.Error("AutoCleanup = false, want true")
 	}
+
+	// Test Git defaults
+	if !cfg.Git.WorktreeEnabled {
+		t.Error("Git.WorktreeEnabled = false, want true")
+	}
+
+	if cfg.Git.BaseBranch != "main" {
+		t.Errorf("Git.BaseBranch = %q, want %q", cfg.Git.BaseBranch, "main")
+	}
+
+	if !cfg.Git.AutoCleanupWT {
+		t.Error("Git.AutoCleanupWT = false, want true")
+	}
 }
 
 // TestConfigFromEnvironment tests loading configuration from environment variables
@@ -58,6 +74,9 @@ func TestConfigFromEnvironment(t *testing.T) {
 	_ = os.Setenv("RIVER_SHOW_OUTPUT", "false")
 	_ = os.Setenv("RIVER_STATE_FILE", "/custom/state.json")
 	_ = os.Setenv("RIVER_AUTO_CLEANUP", "false")
+	_ = os.Setenv("RIVER_GIT_ENABLED", "false")
+	_ = os.Setenv("RIVER_GIT_BASE_BRANCH", "develop")
+	_ = os.Setenv("RIVER_GIT_AUTO_CLEANUP", "false")
 
 	defer func() {
 		// Clean up
@@ -66,6 +85,9 @@ func TestConfigFromEnvironment(t *testing.T) {
 		_ = os.Unsetenv("RIVER_SHOW_OUTPUT")
 		_ = os.Unsetenv("RIVER_STATE_FILE")
 		_ = os.Unsetenv("RIVER_AUTO_CLEANUP")
+		_ = os.Unsetenv("RIVER_GIT_ENABLED")
+		_ = os.Unsetenv("RIVER_GIT_BASE_BRANCH")
+		_ = os.Unsetenv("RIVER_GIT_AUTO_CLEANUP")
 	}()
 
 	cfg, err := New()
@@ -91,6 +113,19 @@ func TestConfigFromEnvironment(t *testing.T) {
 
 	if cfg.AutoCleanup {
 		t.Error("AutoCleanup = true, want false")
+	}
+
+	// Test Git configuration
+	if cfg.Git.WorktreeEnabled {
+		t.Error("Git.WorktreeEnabled = true, want false")
+	}
+
+	if cfg.Git.BaseBranch != "develop" {
+		t.Errorf("Git.BaseBranch = %q, want %q", cfg.Git.BaseBranch, "develop")
+	}
+
+	if cfg.Git.AutoCleanupWT {
+		t.Error("Git.AutoCleanupWT = true, want false")
 	}
 }
 
@@ -343,4 +378,126 @@ func TestConfigMethods(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestConfigGitDefaults tests default values for Git configuration
+func TestConfigGitDefaults(t *testing.T) {
+	// Clear all Git-related environment variables
+	_ = os.Unsetenv("RIVER_GIT_ENABLED")
+	_ = os.Unsetenv("RIVER_GIT_BASE_BRANCH")
+	_ = os.Unsetenv("RIVER_GIT_AUTO_CLEANUP")
+
+	cfg, err := New()
+	if err != nil {
+		t.Fatalf("New() returned unexpected error: %v", err)
+	}
+
+	// Test Git defaults
+	if !cfg.Git.WorktreeEnabled {
+		t.Error("Git.WorktreeEnabled = false, want true (default)")
+	}
+
+	if cfg.Git.BaseBranch != "main" {
+		t.Errorf("Git.BaseBranch = %q, want %q (default)", cfg.Git.BaseBranch, "main")
+	}
+
+	if !cfg.Git.AutoCleanupWT {
+		t.Error("Git.AutoCleanupWT = false, want true (default)")
+	}
+}
+
+// TestConfigGitEnvironmentVariables tests Git configuration from environment variables
+func TestConfigGitEnvironmentVariables(t *testing.T) {
+	tests := []struct {
+		name   string
+		envVars map[string]string
+		want   GitConfig
+		wantErr bool
+	}{
+		{
+			name: "all false",
+			envVars: map[string]string{
+				"RIVER_GIT_ENABLED":      "false",
+				"RIVER_GIT_BASE_BRANCH":  "master",
+				"RIVER_GIT_AUTO_CLEANUP": "false",
+			},
+			want: GitConfig{
+				WorktreeEnabled: false,
+				BaseBranch:      "master",
+				AutoCleanupWT:   false,
+			},
+		},
+		{
+			name: "mixed values",
+			envVars: map[string]string{
+				"RIVER_GIT_ENABLED":      "true",
+				"RIVER_GIT_BASE_BRANCH":  "develop",
+				"RIVER_GIT_AUTO_CLEANUP": "false",
+			},
+			want: GitConfig{
+				WorktreeEnabled: true,
+				BaseBranch:      "develop",
+				AutoCleanupWT:   false,
+			},
+		},
+		{
+			name: "invalid boolean for enabled",
+			envVars: map[string]string{
+				"RIVER_GIT_ENABLED": "yes",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid boolean for auto cleanup",
+			envVars: map[string]string{
+				"RIVER_GIT_AUTO_CLEANUP": "1",
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty base branch uses default",
+			envVars: map[string]string{
+				"RIVER_GIT_BASE_BRANCH": "",
+			},
+			want: GitConfig{
+				WorktreeEnabled: true,  // default
+				BaseBranch:      "main", // default when empty
+				AutoCleanupWT:   true,  // default
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variables
+			for k, v := range tt.envVars {
+				_ = os.Setenv(k, v)
+			}
+			
+			// Clean up after test
+			defer func() {
+				for k := range tt.envVars {
+					_ = os.Unsetenv(k)
+				}
+			}()
+
+			cfg, err := New()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err == nil {
+				if cfg.Git.WorktreeEnabled != tt.want.WorktreeEnabled {
+					t.Errorf("Git.WorktreeEnabled = %v, want %v", cfg.Git.WorktreeEnabled, tt.want.WorktreeEnabled)
+				}
+				if cfg.Git.BaseBranch != tt.want.BaseBranch {
+					t.Errorf("Git.BaseBranch = %q, want %q", cfg.Git.BaseBranch, tt.want.BaseBranch)
+				}
+				if cfg.Git.AutoCleanupWT != tt.want.AutoCleanupWT {
+					t.Errorf("Git.AutoCleanupWT = %v, want %v", cfg.Git.AutoCleanupWT, tt.want.AutoCleanupWT)
+				}
+			}
+		})
+	}
 }

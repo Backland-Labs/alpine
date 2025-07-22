@@ -1,4 +1,4 @@
-.PHONY: all build test test-unit test-integration test-coverage clean install lint fmt help
+.PHONY: all build test test-unit test-integration test-e2e test-coverage clean install lint fmt help
 
 # Default target
 all: build
@@ -27,6 +27,14 @@ test-integration:
 test-integration-full:
 	@echo "Running full integration tests (requires claude command)..."
 	@RIVER_INTEGRATION_TESTS=true CLAUDE_INTEGRATION_TEST=true go test ./test/integration/... -v
+
+# Run end-to-end tests (requires git)
+test-e2e:
+	@echo "Running end-to-end tests..."
+	@go test -tags=e2e ./test/e2e/... -v
+
+# Run all tests including e2e
+test-all: test-unit test-integration test-e2e
 
 # Run tests with coverage
 test-coverage:
@@ -103,6 +111,8 @@ help:
 	@echo "  make test               - Run all tests (unit + integration)"
 	@echo "  make test-unit          - Run unit tests only (fast)"
 	@echo "  make test-integration   - Run integration tests"
+	@echo "  make test-e2e           - Run end-to-end tests (requires git)"
+	@echo "  make test-all           - Run all tests including e2e"
 	@echo "  make test-coverage      - Run tests with coverage report"
 	@echo "  make clean              - Remove build artifacts"
 	@echo "  make install            - Install River to GOPATH/bin"

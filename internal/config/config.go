@@ -20,6 +20,18 @@ const (
 	VerbosityDebug Verbosity = "debug"
 )
 
+// GitConfig holds git-related configuration
+type GitConfig struct {
+	// WorktreeEnabled controls whether to create git worktrees for tasks
+	WorktreeEnabled bool
+
+	// BaseBranch is the branch to base new worktrees on
+	BaseBranch string
+
+	// AutoCleanupWT controls whether to clean up worktrees after completion
+	AutoCleanupWT bool
+}
+
 // Config holds all configuration for the River CLI
 type Config struct {
 	// WorkDir is the working directory for Claude execution
@@ -36,6 +48,9 @@ type Config struct {
 
 	// AutoCleanup controls whether state file is deleted on success
 	AutoCleanup bool
+
+	// Git holds git-related configuration
+	Git GitConfig
 }
 
 // New creates a new Config instance from environment variables
@@ -97,6 +112,31 @@ func New() (*Config, error) {
 		return nil, err
 	}
 	cfg.AutoCleanup = autoCleanup
+
+	// Load Git configuration
+	cfg.Git = GitConfig{}
+
+	// Load WorktreeEnabled - defaults to true
+	worktreeEnabled, err := parseBoolEnv("RIVER_GIT_ENABLED", true)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Git.WorktreeEnabled = worktreeEnabled
+
+	// Load BaseBranch - defaults to "main"
+	baseBranch := os.Getenv("RIVER_GIT_BASE_BRANCH")
+	if baseBranch == "" {
+		cfg.Git.BaseBranch = "main"
+	} else {
+		cfg.Git.BaseBranch = baseBranch
+	}
+
+	// Load AutoCleanupWT - defaults to true
+	autoCleanupWT, err := parseBoolEnv("RIVER_GIT_AUTO_CLEANUP", true)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Git.AutoCleanupWT = autoCleanupWT
 
 	return cfg, nil
 }

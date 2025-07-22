@@ -6,6 +6,7 @@ import (
 
 	"github.com/maxmcd/river/internal/claude"
 	"github.com/maxmcd/river/internal/config"
+	"github.com/maxmcd/river/internal/gitx"
 	"github.com/maxmcd/river/internal/workflow"
 )
 
@@ -38,9 +39,9 @@ type RealWorkflowEngine struct {
 	engine *workflow.Engine
 }
 
-func NewRealWorkflowEngine() *RealWorkflowEngine {
+func NewRealWorkflowEngine(cfg *config.Config, wtMgr gitx.WorktreeManager) *RealWorkflowEngine {
 	executor := claude.NewExecutor()
-	engine := workflow.NewEngine(executor)
+	engine := workflow.NewEngine(executor, wtMgr, cfg)
 	return &RealWorkflowEngine{engine: engine}
 }
 
@@ -58,15 +59,38 @@ func (r *RealFileReader) ReadFile(filename string) ([]byte, error) {
 // NewRealDependencies creates production dependencies
 func NewRealDependencies() *Dependencies {
 	return &Dependencies{
-		ConfigLoader:   &RealConfigLoader{},
-		WorkflowEngine: NewRealWorkflowEngine(),
-		FileReader:     &RealFileReader{},
+		ConfigLoader:     &RealConfigLoader{},
+		WorkflowEngine:   nil, // Will be created after config is finalized
+		FileReader:       &RealFileReader{},
+		WorktreeManager:  nil, // Will be created after config is finalized
 	}
+}
+
+// CreateWorkflowEngine creates the workflow engine with finalized config
+func CreateWorkflowEngine(cfg *config.Config) (WorkflowEngine, gitx.WorktreeManager) {
+	// Get current working directory for parent repo
+	cwd, err := os.Getwd()
+	if err != nil {
+		// If we can't get working directory, worktree manager will be nil
+		cwd = ""
+	}
+
+	// Create worktree manager
+	var wtMgr gitx.WorktreeManager
+	if cwd != "" && cfg.Git.WorktreeEnabled {
+		wtMgr = gitx.NewCLIWorktreeManager(cwd, cfg.Git.BaseBranch)
+	}
+
+	// Create workflow engine
+	engine := NewRealWorkflowEngine(cfg, wtMgr)
+	
+	return engine, wtMgr
 }
 
 // Dependencies struct for injection (moved from test file for reuse)
 type Dependencies struct {
-	ConfigLoader   ConfigLoader
-	WorkflowEngine WorkflowEngine
-	FileReader     FileReader
+	ConfigLoader     ConfigLoader
+	WorkflowEngine   WorkflowEngine
+	FileReader       FileReader
+	WorktreeManager  gitx.WorktreeManager
 }

@@ -15,8 +15,9 @@ import (
 type contextKey string
 
 const (
-	noPlanKey  contextKey = "noPlan"
-	fromFileKey contextKey = "fromFile"
+	noPlanKey     contextKey = "noPlan"
+	fromFileKey   contextKey = "fromFile"
+	noWorktreeKey contextKey = "noWorktree"
 )
 
 const version = "0.2.0" // Bumped version for new implementation
@@ -30,6 +31,7 @@ func Execute() error {
 func NewRootCommand() *cobra.Command {
 	var showVersion bool
 	var noPlan bool
+	var noWorktree bool
 	var fromFile string
 
 	cmd := &cobra.Command{
@@ -69,12 +71,14 @@ Examples:
 
 	cmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Show version information")
 	cmd.Flags().BoolVar(&noPlan, "no-plan", false, "Skip plan generation and execute directly")
+	cmd.Flags().BoolVar(&noWorktree, "no-worktree", false, "Disable git worktree creation")
 	cmd.Flags().StringVar(&fromFile, "file", "", "Read task description from a file")
 
 	// Store flags in command context for runWorkflow
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		ctx := context.WithValue(cmd.Context(), noPlanKey, noPlan)
 		ctx = context.WithValue(ctx, fromFileKey, fromFile)
+		ctx = context.WithValue(ctx, noWorktreeKey, noWorktree)
 		cmd.SetContext(ctx)
 		return nil
 	}
@@ -89,6 +93,7 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 	// Get flags from context
 	fromFile, _ := cmd.Context().Value(fromFileKey).(string)
 	noPlan, _ := cmd.Context().Value(noPlanKey).(bool)
+	noWorktree, _ := cmd.Context().Value(noWorktreeKey).(bool)
 
 	// Create real dependencies for production use
 	deps := NewRealDependencies()
@@ -108,5 +113,5 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Use the testable workflow function (includes logger initialization)
-	return runWorkflowWithDependencies(ctx, args, noPlan, fromFile, deps)
+	return runWorkflowWithDependencies(ctx, args, noPlan, noWorktree, fromFile, deps)
 }
