@@ -40,6 +40,7 @@ jobs:
           additional_permissions: |
             actions: read
 
+
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
           # model: "claude-opus-4-20250514"
 
@@ -57,7 +58,8 @@ jobs:
           #   Follow our coding standards
           #   Ensure all new code has tests
           #   Use TypeScript for new files
-
+          
           # Optional: Custom environment variables for Claude
           # claude_env: |
           #   NODE_ENV: test
+
