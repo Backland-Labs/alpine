@@ -6,8 +6,9 @@ all: build
 # Build the River binary
 build:
 	@echo "Building River..."
-	@go build -o river cmd/river/main.go
-	@echo "Build complete: ./river"
+	@mkdir -p build
+	@go build -o build/river cmd/river/main.go
+	@echo "Build complete: ./build/river"
 
 # Run all tests (unit + integration)
 test: test-unit test-integration
@@ -37,7 +38,7 @@ test-coverage:
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -f river
+	@rm -rf build
 	@rm -f coverage.out coverage.html
 	@rm -f claude_state.json
 	@echo "Clean complete"
@@ -77,7 +78,7 @@ test-integration-claude:
 # Development helpers
 run: build
 	@echo "Running River..."
-	@./river
+	@./build/river
 
 # Watch for changes and rebuild (requires entr)
 watch:
@@ -98,7 +99,7 @@ help:
 	@echo "River - CLI orchestrator for Claude Code"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make build              - Build the River binary"
+	@echo "  make build              - Build the River binary to ./build/"
 	@echo "  make test               - Run all tests (unit + integration)"
 	@echo "  make test-unit          - Run unit tests only (fast)"
 	@echo "  make test-integration   - Run integration tests"
