@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/maxmcd/river/internal/claude"
@@ -12,68 +13,39 @@ import (
 	"github.com/maxmcd/river/internal/output"
 )
 
-// LinearIssue represents a Linear issue
-type LinearIssue struct {
-	ID          string
-	Title       string
-	Description string
-}
-
-// LinearClient interface for fetching Linear issues
-type LinearClient interface {
-	FetchIssue(ctx context.Context, issueID string) (*LinearIssue, error)
-}
-
 // ClaudeExecutor interface for executing Claude commands
 type ClaudeExecutor interface {
 	Execute(ctx context.Context, config claude.ExecuteConfig) (string, error)
 }
 
-// Engine orchestrates the workflow execution
+// Engine orchestrates the workflow execution without Linear dependency
 type Engine struct {
 	claudeExecutor ClaudeExecutor
-	linearClient   LinearClient
 	stateFile      string
 	printer        *output.Printer
 }
 
-// NewEngine creates a new workflow engine
-func NewEngine(executor ClaudeExecutor, linear LinearClient) *Engine {
+// NewEngine creates a new workflow engine without Linear client
+func NewEngine(executor ClaudeExecutor) *Engine {
 	return &Engine{
 		claudeExecutor: executor,
-		linearClient:   linear,
 		stateFile:      "claude_state.json",
 		printer:        output.NewPrinter(),
 	}
 }
 
-// Run executes the main workflow loop
-func (e *Engine) Run(ctx context.Context, issueID string, noPlan bool) error {
-	logger.WithField("issue_id", issueID).Debug("Starting workflow run")
+// Run executes the main workflow loop with a task description
+func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan bool) error {
+	logger.WithField("task_description", taskDescription).Debug("Starting workflow run")
 	
 	// Validate input
-	if issueID == "" {
-		return fmt.Errorf("issue ID cannot be empty")
+	if strings.TrimSpace(taskDescription) == "" {
+		return fmt.Errorf("task description cannot be empty")
 	}
-
-	// Fetch issue from Linear
-	logger.Debug("Fetching issue from Linear")
-	progress := e.printer.StartProgress("Fetching issue from Linear")
-	issue, err := e.linearClient.FetchIssue(ctx, issueID)
-	progress.Stop()
-	
-	if err != nil {
-		logger.WithField("error", err).Error("Failed to fetch Linear issue")
-		return fmt.Errorf("failed to fetch Linear issue: %w", err)
-	}
-	logger.WithFields(map[string]interface{}{
-		"issue_id": issue.ID,
-		"title": issue.Title,
-	}).Debug("Successfully fetched Linear issue")
 
 	// Initialize workflow
-	logger.WithField("no_plan", noPlan).Debug("Initializing workflow")
-	if err := e.initializeWorkflow(issue, noPlan); err != nil {
+	logger.WithField("generate_plan", generatePlan).Debug("Initializing workflow")
+	if err := e.initializeWorkflow(taskDescription, generatePlan); err != nil {
 		logger.WithField("error", err).Error("Failed to initialize workflow")
 		return fmt.Errorf("failed to initialize workflow: %w", err)
 	}
@@ -153,19 +125,19 @@ func (e *Engine) Run(ctx context.Context, issueID string, noPlan bool) error {
 }
 
 // initializeWorkflow creates the initial state file
-func (e *Engine) initializeWorkflow(issue *LinearIssue, noPlan bool) error {
-	prompt := fmt.Sprintf("%s\n\n%s", issue.Title, issue.Description)
-
-	if noPlan {
-		prompt = "/ralph " + prompt
+func (e *Engine) initializeWorkflow(taskDescription string, generatePlan bool) error {
+	var prompt string
+	
+	if generatePlan {
+		prompt = "/make_plan " + taskDescription
 	} else {
-		prompt = "/make_plan " + prompt
+		prompt = "/ralph " + taskDescription
 	}
 
-	e.printer.Info("Initializing workflow for Linear issue %s", issue.ID)
+	e.printer.Info("Initializing workflow for task: %s", taskDescription)
 	
 	state := &core.State{
-		CurrentStepDescription: fmt.Sprintf("Initializing workflow for Linear issue %s", issue.ID),
+		CurrentStepDescription: "Initializing workflow for task",
 		NextStepPrompt:         prompt,
 		Status:                 "running",
 	}

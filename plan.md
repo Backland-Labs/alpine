@@ -357,6 +357,79 @@ Add GitHub Actions workflow for:
 - Add troubleshooting guide - NOT IMPLEMENTED
 - Create migration guide for users - NOT IMPLEMENTED
 
+## Phase 12: Remove Linear API Dependencies
+
+### 12.1 Simplify CLI Interface
+The current implementation has extensive Linear API integration that is not needed. Replace with a simpler input mechanism:
+
+**Files to Delete Completely:**
+- `internal/linear/` (entire directory with client.go, adapter.go, doc.go, tests)
+- `test/integration/linear_integration_test.go`
+- `internal/config/linear_api_key_test.go`
+
+**Core Changes Required:**
+1. **CLI Command Structure** (`internal/cli/` package):
+   - Replace `<linear-issue-id>` parameter with `<task-description>` or `<issue-title>`
+   - Remove `isValidLinearID()` function from `run.go`
+   - Update help text and error messages to remove Linear references
+   - Remove Linear client creation and injection
+
+2. **Configuration System** (`internal/config/` package):
+   - Remove `LinearAPIKey` field from Config struct
+   - Remove Linear API key environment variable loading
+   - Update validation logic to remove Linear-specific checks
+
+3. **Workflow Engine** (`internal/workflow/` package):
+   - Remove `LinearIssue` struct and `LinearClient` interface
+   - Replace Linear issue fetching with direct CLI input
+   - Update workflow initialization to use CLI-provided task description
+   - Remove Linear client dependency injection
+
+4. **Test Suite Updates**:
+   - Remove all `MockLinearClient` implementations
+   - Update integration tests to remove Linear scenarios
+   - Simplify test fixtures to remove Linear response mocks
+
+### 12.2 Updated CLI Usage
+**Before:**
+```bash
+river ABC-123                    # Requires Linear API key
+river ABC-123 --no-plan         # Fetches from Linear
+```
+
+**After:**
+```bash
+river "Implement user authentication"       # Direct task description
+river "Implement user authentication" --no-plan
+river --file task.md                        # Read from file
+```
+
+### 12.3 Specification Updates
+Update documentation to reflect simplified architecture:
+- `specs/cli-commands.md` - Replace Linear issue ID with task description
+- `CLAUDE.md` - Remove Linear integration references  
+- `plan.md` - Update project overview to remove Linear dependency
+- `Makefile` - Remove Linear-specific test targets
+
+### 12.4 Benefits of Removal
+1. **Simplified Dependencies**: No external API dependencies
+2. **Faster Startup**: No API key validation or network calls
+3. **Better Privacy**: No data sent to Linear API
+4. **Easier Testing**: No need to mock Linear API responses
+5. **More Flexible**: Works with any task description, not just Linear issues
+
+**Status**: ✅ IMPLEMENTED (2025-01-22)
+**Implementation Notes**:
+- Completely removed Linear API dependency from the codebase
+- CLI now accepts task descriptions directly as command line arguments
+- Added support for reading task descriptions from files with --file flag
+- Removed all Linear-related packages, tests, and validation logic
+- Updated configuration to no longer require RIVER_LINEAR_API_KEY
+- Simplified workflow engine to work with direct task descriptions
+- Maintained all existing functionality except Linear integration
+- All tests passing with full TDD methodology
+- Version bumped to 0.2.0 to reflect major architectural change
+
 ## Testing Strategy Summary
 
 ### Unit Test Coverage Goals

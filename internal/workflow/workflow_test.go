@@ -3,7 +3,6 @@ package workflow
 import (
 	"context"
 	"io"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -27,37 +26,14 @@ func (m *MockCommandRunner) Run(ctx context.Context, config claude.ExecuteConfig
 	return args.String(0), args.Error(1)
 }
 
-// MockLinearClient mocks the Linear API client
-type MockLinearClient struct {
-	mock.Mock
-}
-
-func (m *MockLinearClient) FetchIssue(ctx context.Context, issueID string) (*LinearIssue, error) {
-	args := m.Called(ctx, issueID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*LinearIssue), args.Error(1)
-}
-
-// createMockExecutor creates a claude.Executor with a mock command runner
-func createMockExecutor(mockRunner claude.CommandRunner) *claude.Executor {
-	executor := claude.NewExecutor()
-	// Use reflection to set the private commandRunner field
-	// In a real scenario, we'd have a setter or constructor parameter
-	return executor
-}
-
 func TestNewEngine(t *testing.T) {
 	// Test that NewEngine creates a valid workflow engine
 	executor := claude.NewExecutor()
-	mockLinear := &MockLinearClient{}
 
-	engine := NewEngine(executor, mockLinear)
+	engine := NewEngine(executor)
 
 	assert.NotNil(t, engine)
 	assert.Equal(t, executor, engine.claudeExecutor)
-	assert.Equal(t, mockLinear, engine.linearClient)
 	assert.Equal(t, "claude_state.json", engine.stateFile)
 }
 
@@ -67,24 +43,13 @@ func TestEngine_Run_WithPlan(t *testing.T) {
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
 
-	// Set up mocks
-	mockLinear := &MockLinearClient{}
-
-	// Mock Linear issue fetch
-	issue := &LinearIssue{
-		ID:          "TEST-123",
-		Title:       "Test Issue",
-		Description: "Test description",
-	}
-	mockLinear.On("FetchIssue", ctx, "TEST-123").Return(issue, nil)
-
 	// Create a test executor that simulates Claude behavior
 	executor := newTestExecutor(t, stateFile)
 	executor.executions = []testExecution{
 		{
-			expectedPrompt: "/make_plan Test Issue\n\nTest description",
+			expectedPrompt: "/make_plan Implement user authentication",
 			stateUpdate: &core.State{
-				CurrentStepDescription: "Generated plan for Test Issue",
+				CurrentStepDescription: "Generated plan for user authentication",
 				NextStepPrompt:         "/implement step1",
 				Status:                 "running",
 			},
@@ -99,287 +64,233 @@ func TestEngine_Run_WithPlan(t *testing.T) {
 		},
 	}
 
-	// Create engine and run
-	engine := NewEngine(executor, mockLinear)
+	engine := NewEngine(executor)
 	engine.SetStateFile(stateFile)
 
-	err := engine.Run(ctx, "TEST-123", false)
+	// Suppress output during tests
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
-	assert.NoError(t, err)
-	mockLinear.AssertExpectations(t)
-	assert.Equal(t, 2, executor.callCount)
+	// Run the workflow
+	err := engine.Run(ctx, "Implement user authentication", true)
+	require.NoError(t, err)
+
+	// Verify all executions were performed
+	assert.Equal(t, 2, executor.executionCount)
 
 	// Verify final state
 	finalState, err := core.LoadState(stateFile)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "completed", finalState.Status)
 }
 
 func TestEngine_Run_NoPlan(t *testing.T) {
-	// Test the workflow with --no-plan flag
+	// Test direct execution without plan generation
 	ctx := context.Background()
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
 
-	mockLinear := &MockLinearClient{}
-
-	// Mock Linear issue fetch
-	issue := &LinearIssue{
-		ID:          "TEST-456",
-		Title:       "Another Test Issue",
-		Description: "Another test description",
-	}
-	mockLinear.On("FetchIssue", ctx, "TEST-456").Return(issue, nil)
-
-	// Create test executor
+	// Create a test executor that simulates Claude behavior
 	executor := newTestExecutor(t, stateFile)
 	executor.executions = []testExecution{
 		{
-			expectedPrompt: "/ralph Another Test Issue\n\nAnother test description",
+			expectedPrompt: "/ralph Fix bug in payment processing",
 			stateUpdate: &core.State{
-				CurrentStepDescription: "Executed ralph command",
+				CurrentStepDescription: "Fixed bug directly",
 				NextStepPrompt:         "",
 				Status:                 "completed",
 			},
 		},
 	}
 
-	engine := NewEngine(executor, mockLinear)
+	engine := NewEngine(executor)
 	engine.SetStateFile(stateFile)
 
-	err := engine.Run(ctx, "TEST-456", true)
+	// Suppress output during tests
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
-	assert.NoError(t, err)
-	mockLinear.AssertExpectations(t)
+	// Run the workflow without plan
+	err := engine.Run(ctx, "Fix bug in payment processing", false)
+	require.NoError(t, err)
+
+	// Verify only one execution was performed
+	assert.Equal(t, 1, executor.executionCount)
 }
 
-func TestEngine_Run_InvalidIssueID(t *testing.T) {
-	// Test that invalid issue IDs are rejected
+func TestEngine_Run_EmptyTaskDescription(t *testing.T) {
+	// Test validation of empty task description
 	ctx := context.Background()
-
 	executor := claude.NewExecutor()
-	mockLinear := &MockLinearClient{}
+	engine := NewEngine(executor)
 
-	engine := NewEngine(executor, mockLinear)
-
-	err := engine.Run(ctx, "", false)
-
+	// Test empty string
+	err := engine.Run(ctx, "", true)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "issue ID cannot be empty")
-}
+	assert.Contains(t, err.Error(), "task description cannot be empty")
 
-func TestEngine_Run_LinearFetchError(t *testing.T) {
-	// Test error handling when Linear fetch fails
-	ctx := context.Background()
-
-	executor := claude.NewExecutor()
-	mockLinear := &MockLinearClient{}
-
-	mockLinear.On("FetchIssue", ctx, "TEST-789").Return(nil, assert.AnError)
-
-	engine := NewEngine(executor, mockLinear)
-
-	err := engine.Run(ctx, "TEST-789", false)
-
+	// Test whitespace only
+	err = engine.Run(ctx, "   ", true)
 	assert.Error(t, err)
-	mockLinear.AssertExpectations(t)
-}
-
-func TestEngine_Run_ClaudeExecutionError(t *testing.T) {
-	// Test error handling when Claude execution fails
-	ctx := context.Background()
-	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
-
-	mockLinear := &MockLinearClient{}
-
-	issue := &LinearIssue{
-		ID:          "TEST-999",
-		Title:       "Error Test Issue",
-		Description: "This will fail",
-	}
-	mockLinear.On("FetchIssue", ctx, "TEST-999").Return(issue, nil)
-
-	// Create executor that returns error
-	executor := newTestExecutor(t, stateFile)
-	executor.returnError = assert.AnError
-
-	engine := NewEngine(executor, mockLinear)
-	engine.SetStateFile(stateFile)
-
-	err := engine.Run(ctx, "TEST-999", false)
-
-	assert.Error(t, err)
-	mockLinear.AssertExpectations(t)
-}
-
-func TestEngine_Run_StateFileMonitoring(t *testing.T) {
-	// Test that the engine properly monitors state file changes
-	ctx := context.Background()
-	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
-
-	mockLinear := &MockLinearClient{}
-
-	issue := &LinearIssue{
-		ID:          "TEST-MON",
-		Title:       "Monitor Test",
-		Description: "Test state monitoring",
-	}
-	mockLinear.On("FetchIssue", ctx, "TEST-MON").Return(issue, nil)
-
-	// Create executor with delayed state updates
-	executor := newTestExecutor(t, stateFile)
-	executor.executions = []testExecution{
-		{
-			expectedPrompt: "/make_plan Monitor Test\n\nTest state monitoring",
-			stateUpdate: &core.State{
-				CurrentStepDescription: "Plan created",
-				NextStepPrompt:         "/next",
-				Status:                 "running",
-			},
-			delay: 100 * time.Millisecond,
-		},
-		{
-			expectedPrompt: "/next",
-			stateUpdate: &core.State{
-				CurrentStepDescription: "Completed",
-				NextStepPrompt:         "",
-				Status:                 "completed",
-			},
-		},
-	}
-
-	engine := NewEngine(executor, mockLinear)
-	engine.SetStateFile(stateFile)
-
-	err := engine.Run(ctx, "TEST-MON", false)
-	assert.NoError(t, err)
-
-	mockLinear.AssertExpectations(t)
+	assert.Contains(t, err.Error(), "task description cannot be empty")
 }
 
 func TestEngine_Run_ContextCancellation(t *testing.T) {
-	// Test that the engine respects context cancellation
+	// Test that context cancellation stops the workflow
+	ctx, cancel := context.WithCancel(context.Background())
+	tempDir := t.TempDir()
+	stateFile := filepath.Join(tempDir, "claude_state.json")
+
+	executor := newTestExecutor(t, stateFile)
+	executor.executions = []testExecution{
+		{
+			expectedPrompt: "/make_plan Test task",
+			stateUpdate: &core.State{
+				CurrentStepDescription: "Started",
+				NextStepPrompt:         "/continue",
+				Status:                 "running",
+			},
+			beforeExecution: func() {
+				// Cancel context during first execution
+				cancel()
+			},
+		},
+		{
+			// This should not be reached
+			expectedPrompt: "/continue",
+			stateUpdate: &core.State{
+				CurrentStepDescription: "Should not reach here",
+				NextStepPrompt:         "",
+				Status:                 "completed",
+			},
+		},
+	}
+
+	engine := NewEngine(executor)
+	engine.SetStateFile(stateFile)
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+
+	err := engine.Run(ctx, "Test task", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "context canceled")
+	
+	// Verify only first execution happened
+	assert.Equal(t, 1, executor.executionCount)
+}
+
+func TestEngine_Run_StateFileUpdate(t *testing.T) {
+	// Test waiting for state file updates
 	ctx := context.Background()
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
 
-	mockLinear := &MockLinearClient{}
-
-	issue := &LinearIssue{
-		ID:          "TEST-CTX",
-		Title:       "Context Test",
-		Description: "Test context cancellation",
+	// Create initial state
+	initialState := &core.State{
+		CurrentStepDescription: "Initial",
+		NextStepPrompt:         "/start",
+		Status:                 "running",
 	}
-	mockLinear.On("FetchIssue", ctx, "TEST-CTX").Return(issue, nil)
+	err := initialState.Save(stateFile)
+	require.NoError(t, err)
 
-	// Create executor that cancels context during execution
-	executor := newTestExecutor(t, stateFile)
-	executor.returnError = context.Canceled
-
-	engine := NewEngine(executor, mockLinear)
-	engine.SetStateFile(stateFile)
-
-	err := engine.Run(ctx, "TEST-CTX", false)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "context canceled")
-}
-
-func TestEngine_initializeWorkflow(t *testing.T) {
-	// Test workflow initialization creates correct initial state
-	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
-
-	// Create engine with no-op printer for test
-	engine := &Engine{
+	// Create a delayed executor that updates state after a delay
+	executor := &delayedExecutor{
+		t:         t,
 		stateFile: stateFile,
-		printer:   output.NewPrinterWithWriters(io.Discard, io.Discard, false),
+		delay:     100 * time.Millisecond,
+		newState: &core.State{
+			CurrentStepDescription: "Updated",
+			NextStepPrompt:         "",
+			Status:                 "completed",
+		},
 	}
 
-	issue := &LinearIssue{
-		ID:          "TEST-INIT",
-		Title:       "Init Test Issue",
-		Description: "Test initialization",
-	}
+	engine := NewEngine(executor)
+	engine.SetStateFile(stateFile)
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
-	// Test with plan
-	err := engine.initializeWorkflow(issue, false)
-	assert.NoError(t, err)
+	// Run should wait for state update and complete
+	err = engine.Run(ctx, "Test task", false)
+	require.NoError(t, err)
 
-	state, err := core.LoadState(stateFile)
-	assert.NoError(t, err)
-	assert.Equal(t, "Initializing workflow for Linear issue TEST-INIT", state.CurrentStepDescription)
-	assert.Equal(t, "/make_plan Init Test Issue\n\nTest initialization", state.NextStepPrompt)
-	assert.Equal(t, "running", state.Status)
-
-	// Clean up for next test
-	os.Remove(stateFile)
-
-	// Test without plan
-	err = engine.initializeWorkflow(issue, true)
-	assert.NoError(t, err)
-
-	state, err = core.LoadState(stateFile)
-	assert.NoError(t, err)
-	assert.Equal(t, "/ralph Init Test Issue\n\nTest initialization", state.NextStepPrompt)
+	// Verify state was updated
+	finalState, err := core.LoadState(stateFile)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", finalState.Status)
 }
 
-// testExecutor wraps claude.Executor for testing
+// Helper types for testing
+
 type testExecutor struct {
-	*claude.Executor
-	t           *testing.T
-	stateFile   string
-	executions  []testExecution
-	callCount   int
-	returnError error
-	onExecute   func()
+	t              *testing.T
+	stateFile      string
+	executions     []testExecution
+	executionCount int
 }
 
 type testExecution struct {
-	expectedPrompt string
-	stateUpdate    *core.State
-	delay          time.Duration
+	expectedPrompt  string
+	stateUpdate     *core.State
+	error           error
+	beforeExecution func()
 }
 
-// newTestExecutor creates a new test executor
 func newTestExecutor(t *testing.T, stateFile string) *testExecutor {
 	return &testExecutor{
-		Executor:  claude.NewExecutor(),
 		t:         t,
 		stateFile: stateFile,
 	}
 }
 
 func (e *testExecutor) Execute(ctx context.Context, config claude.ExecuteConfig) (string, error) {
-	if e.onExecute != nil {
-		e.onExecute()
+	if e.executionCount >= len(e.executions) {
+		e.t.Fatalf("Unexpected execution call #%d", e.executionCount+1)
 	}
 
-	if e.returnError != nil {
-		return "", e.returnError
+	execution := e.executions[e.executionCount]
+	e.executionCount++
+
+	// Run any pre-execution function
+	if execution.beforeExecution != nil {
+		execution.beforeExecution()
 	}
 
-	if e.callCount >= len(e.executions) {
-		e.t.Fatalf("Unexpected execution call %d", e.callCount)
+	// Check if context is cancelled
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	default:
 	}
 
-	exec := e.executions[e.callCount]
-	e.callCount++
+	// Verify the prompt matches expected
+	assert.Equal(e.t, execution.expectedPrompt, config.Prompt)
 
-	// Verify the prompt matches
-	assert.Equal(e.t, exec.expectedPrompt, config.Prompt)
-	assert.Equal(e.t, e.stateFile, config.StateFile)
-
-	// Simulate Claude updating the state file
-	if exec.stateUpdate != nil {
-		if exec.delay > 0 {
-			time.Sleep(exec.delay)
-		}
-		err := exec.stateUpdate.Save(e.stateFile)
+	// Update state file if requested
+	if execution.stateUpdate != nil {
+		err := execution.stateUpdate.Save(e.stateFile)
 		require.NoError(e.t, err)
 	}
 
-	return "Mock execution output", nil
+	if execution.error != nil {
+		return "", execution.error
+	}
+
+	return "Mock execution completed", nil
+}
+
+// delayedExecutor simulates an executor that updates state after a delay
+type delayedExecutor struct {
+	t         *testing.T
+	stateFile string
+	delay     time.Duration
+	newState  *core.State
+}
+
+func (e *delayedExecutor) Execute(ctx context.Context, config claude.ExecuteConfig) (string, error) {
+	// Update state after delay in a goroutine
+	go func() {
+		time.Sleep(e.delay)
+		err := e.newState.Save(e.stateFile)
+		require.NoError(e.t, err)
+	}()
+
+	return "Started", nil
 }

@@ -9,38 +9,47 @@ import (
 
 	"github.com/maxmcd/river/internal/claude"
 	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/linear"
 	"github.com/maxmcd/river/internal/logger"
 	"github.com/maxmcd/river/internal/output"
 	"github.com/maxmcd/river/internal/workflow"
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.0"
+const version = "0.2.0" // Bumped version for new implementation
 
-// Execute runs the CLI
+// Execute runs the CLI without Linear dependency
 func Execute() error {
 	return NewRootCommand().Execute()
 }
 
-// NewRootCommand creates the root command
+// NewRootCommand creates the root command without Linear dependency
 func NewRootCommand() *cobra.Command {
 	var showVersion bool
 	var noPlan bool
+	var fromFile string
 
 	cmd := &cobra.Command{
-		Use:   "river <issue-id>",
+		Use:   "river <task-description>",
 		Short: "River - CLI orchestrator for Claude Code",
 		Long: `River - CLI orchestrator for Claude Code
 
-River automates iterative AI-assisted development workflows by fetching
-Linear issues and running Claude Code in a loop based on a state-driven workflow.`,
+River automates iterative AI-assisted development workflows by running
+Claude Code in a loop based on a state-driven workflow with your task description.
+
+Examples:
+  river "Implement user authentication"
+  river "Fix bug in payment processing" --no-plan
+  river --file task.md`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if showVersion {
 				return nil
 			}
+			// If --file is provided, we don't need args
+			if fromFile != "" {
+				return nil
+			}
 			if len(args) < 1 {
-				return fmt.Errorf("requires a Linear issue ID")
+				return fmt.Errorf("requires a task description (use quotes for multi-word descriptions)")
 			}
 			return nil
 		},
@@ -49,40 +58,54 @@ Linear issues and running Claude Code in a loop based on a state-driven workflow
 				fmt.Fprintln(cmd.OutOrStdout(), "river version "+version)
 				return nil
 			}
-			// Delegate to run command when we have arguments
-			if len(args) > 0 {
-				return runWorkflow(cmd, args)
-			}
-			return fmt.Errorf("requires a Linear issue ID")
+			// Delegate to run workflow
+			return runWorkflow(cmd, args)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Show version information")
 	cmd.Flags().BoolVar(&noPlan, "no-plan", false, "Skip plan generation and execute directly")
+	cmd.Flags().StringVar(&fromFile, "file", "", "Read task description from a file")
 
-	// Store noPlan flag in command context for runWorkflow
+	// Store flags in command context for runWorkflow
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		ctx := context.WithValue(cmd.Context(), "noPlan", noPlan)
+		ctx = context.WithValue(ctx, "fromFile", fromFile)
 		cmd.SetContext(ctx)
 		return nil
 	}
 
 	// Add subcommands
-	cmd.AddCommand(NewValidateCommand())
+	// Note: validate command removed as it was Linear-specific
 
 	return cmd
 }
 
-// runWorkflow executes the main workflow
+// runWorkflow executes the main workflow without Linear dependency
 func runWorkflow(cmd *cobra.Command, args []string) error {
-	issueID := args[0]
+	var taskDescription string
 
-	// Validate Linear issue ID format
-	if !isValidLinearID(issueID) {
-		return fmt.Errorf("invalid Linear issue ID format: %s", issueID)
+	// Get task description from file or command line
+	fromFile, _ := cmd.Context().Value("fromFile").(string)
+	if fromFile != "" {
+		content, err := os.ReadFile(fromFile)
+		if err != nil {
+			return fmt.Errorf("failed to read task file: %w", err)
+		}
+		taskDescription = string(content)
+	} else {
+		if len(args) == 0 {
+			return fmt.Errorf("task description is required")
+		}
+		taskDescription = args[0]
 	}
 
-	// Load configuration
+	// Validate task description
+	if taskDescription == "" {
+		return fmt.Errorf("task description cannot be empty")
+	}
+
+	// Load configuration (without Linear API key requirement)
 	cfg, err := config.New()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -90,19 +113,13 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 
 	// Initialize logger based on configuration
 	logger.InitializeFromConfig(cfg)
-	logger.Debugf("Starting River workflow for issue %s", issueID)
+	logger.Debugf("Starting River workflow for task: %s", taskDescription)
 
 	// Create Claude executor
 	executor := claude.NewExecutor()
 
-	// Create Linear client
-	linearClient, err := linear.NewWorkflowAdapter(cfg.LinearAPIKey)
-	if err != nil {
-		return fmt.Errorf("failed to create Linear client: %w", err)
-	}
-
-	// Create workflow engine
-	engine := workflow.NewEngine(executor, linearClient)
+	// Create workflow engine without Linear client
+	engine := workflow.NewEngine(executor)
 
 	// Set up context with cancellation
 	ctx, cancel := context.WithCancel(cmd.Context())
@@ -122,6 +139,5 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 	noPlan, _ := ctx.Value("noPlan").(bool)
 
 	// Run the workflow
-	return engine.Run(ctx, issueID, noPlan)
+	return engine.Run(ctx, taskDescription, !noPlan)
 }
-
