@@ -21,15 +21,25 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 		taskDescription = string(content)
 	} else {
 		if len(args) == 0 {
-			return fmt.Errorf("task description is required")
+			// Check if we're in bare mode (both flags set)
+			if !(noPlan && noWorktree) {
+				return fmt.Errorf("task description is required")
+			}
+			// In bare mode, empty args is allowed
+			taskDescription = ""
+		} else {
+			taskDescription = args[0]
 		}
-		taskDescription = args[0]
 	}
 
 	// Validate task description (trim whitespace)
 	taskDescription = strings.TrimSpace(taskDescription)
 	if taskDescription == "" {
-		return fmt.Errorf("task description cannot be empty")
+		// Check if we're in bare mode (both flags set)
+		if !(noPlan && noWorktree) {
+			return fmt.Errorf("task description cannot be empty")
+		}
+		// In bare mode, empty task description is allowed
 	}
 
 	// Load configuration
