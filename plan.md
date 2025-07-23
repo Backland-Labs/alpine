@@ -116,13 +116,13 @@ func TestExecutor_CommandRunner_PreservesDirectory(t *testing.T) {
 3. Add test for command runner directory preservation
 4. Update existing tests if needed
 
-### P1-2: Integration Test for Worktree Execution
-**File**: `test/e2e/worktree_test.go` or new file
+### P1-2: Integration Test for Worktree Execution ✅ IMPLEMENTED
+**File**: `test/e2e/worktree_test.go`
 
 **Acceptance Criteria**:
-- End-to-end test verifies Claude executes in worktree
-- Test confirms file operations happen in correct directory
-- Test validates state file is in worktree
+- End-to-end test verifies Claude executes in worktree ✅
+- Test confirms file operations happen in correct directory ✅
+- Test validates state file is in worktree ✅
 
 **Test Cases**:
 ```go
@@ -136,10 +136,16 @@ func TestWorktree_FileOperationsIsolated(t *testing.T) {
 ```
 
 **Implementation Steps**:
-1. Extend existing worktree test or create new test file
-2. Add test that creates a worktree and runs a Claude command
-3. Verify Claude operations happen in worktree directory
-4. Add assertions for file isolation
+1. Extended existing worktree test file ✅
+2. Added test that creates a worktree and runs a Claude command ✅
+3. Verified Claude operations happen in worktree directory ✅
+4. Added assertions for file isolation ✅
+
+**Implementation Notes**:
+- Created custom mock Claude scripts that record working directory and perform file operations
+- Tests use `RIVER_GIT_AUTO_CLEANUP=false` to preserve worktrees for inspection
+- Both tests verify complete isolation between main repo and worktree
+- All e2e tests pass, confirming the fix works correctly
 
 ### P2-1: Error Handling for Working Directory
 **File**: `internal/claude/executor.go`
@@ -203,13 +209,13 @@ func TestExecutor_ValidatesWorkingDirectory(t *testing.T)
 
 ## Success Criteria
 
-- [ ] Claude commands execute in worktree directory when worktrees are enabled
-- [ ] File operations by Claude are isolated to the worktree
-- [ ] State file management works correctly in worktree context  
-- [ ] Backward compatibility maintained for `--no-worktree` usage
-- [ ] All existing tests pass
-- [ ] New tests verify the fix works correctly
-- [ ] `golangci-lint` passes without new warnings
+- [x] Claude commands execute in worktree directory when worktrees are enabled
+- [x] File operations by Claude are isolated to the worktree
+- [x] State file management works correctly in worktree context  
+- [x] Backward compatibility maintained for `--no-worktree` usage
+- [x] All existing tests pass
+- [x] New tests verify the fix works correctly
+- [x] `golangci-lint` passes without new warnings
 
 ## Risk Assessment
 
