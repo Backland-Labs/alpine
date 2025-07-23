@@ -114,7 +114,7 @@ func (e *Executor) generateClaudeSettings(settingsPath, hookScriptPath string) e
 		Hooks: map[string]interface{}{
 			"PostToolUse": []toolMatcher{
 				{
-					Matcher: "TodoWrite",
+					Matcher: "",
 					Hooks: []map[string]interface{}{
 						{
 							"type":    "command",

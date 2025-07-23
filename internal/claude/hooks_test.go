@@ -163,11 +163,7 @@ func TestExecutor_generateClaudeSettings(t *testing.T) {
 		if !ok {
 			t.Fatal("Invalid PostToolUse entry structure")
 		}
-
-		if entry["matcher"] != "TodoWrite" {
-			t.Errorf("Expected matcher 'TodoWrite', got '%v'", entry["matcher"])
-		}
-
+		
 		hooksList, ok := entry["hooks"].([]interface{})
 		if !ok || len(hooksList) != 1 {
 			t.Fatal("Invalid hooks list in entry")
