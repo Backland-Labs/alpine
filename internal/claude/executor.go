@@ -106,7 +106,11 @@ func (e *Executor) executeWithTodoMonitoring(ctx context.Context, config Execute
 		logger.WithField("error", err).Info("Failed to setup TODO hook, falling back to normal execution")
 		return e.executeWithoutMonitoring(ctx, config)
 	}
-	defer cleanup()
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
 
 	// Start monitoring
 	monitor := NewTodoMonitor(todoFile)
