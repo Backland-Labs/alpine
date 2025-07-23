@@ -58,9 +58,17 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 		return "", nil, fmt.Errorf("failed to make hook script executable: %w", err)
 	}
 
+	// Convert hook script path to absolute path
+	absHookScriptPath, err := filepath.Abs(hookScriptPath)
+	if err != nil {
+		_ = os.Remove(todoFilePath)
+		_ = os.Remove(hookScriptPath)
+		return "", nil, fmt.Errorf("failed to get absolute path of hook script: %w", err)
+	}
+
 	// Generate Claude settings
 	settingsPath := filepath.Join(claudeDir, "settings.local.json")
-	if err := e.generateClaudeSettings(settingsPath, hookScriptPath); err != nil {
+	if err := e.generateClaudeSettings(settingsPath, absHookScriptPath); err != nil {
 		_ = os.Remove(todoFilePath)
 		_ = os.Remove(hookScriptPath)
 		return "", nil, fmt.Errorf("failed to generate Claude settings: %w", err)
@@ -68,7 +76,7 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 
 	logger.WithFields(map[string]interface{}{
 		"todo_file":     todoFilePath,
-		"hook_script":   hookScriptPath,
+		"hook_script":   absHookScriptPath,
 		"settings_file": settingsPath,
 	}).Debug("TodoWrite hook setup completed")
 

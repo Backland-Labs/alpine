@@ -49,6 +49,36 @@ func TestExecutor_setupTodoHook(t *testing.T) {
 			t.Error("Hook script is not executable")
 		}
 
+		// Verify settings file contains absolute path
+		settingsData, err := os.ReadFile(settingsFile)
+		if err != nil {
+			t.Fatalf("Failed to read settings file: %v", err)
+		}
+
+		var settings map[string]interface{}
+		if err := json.Unmarshal(settingsData, &settings); err != nil {
+			t.Fatalf("Failed to unmarshal settings: %v", err)
+		}
+
+		// Navigate through the JSON structure to find the command path
+		if hooks, ok := settings["hooks"].(map[string]interface{}); ok {
+			if postToolUse, ok := hooks["PostToolUse"].([]interface{}); ok && len(postToolUse) > 0 {
+				if matcher, ok := postToolUse[0].(map[string]interface{}); ok {
+					if hooksList, ok := matcher["hooks"].([]interface{}); ok && len(hooksList) > 0 {
+						if hook, ok := hooksList[0].(map[string]interface{}); ok {
+							if command, ok := hook["command"].(string); ok {
+								if !filepath.IsAbs(command) {
+									t.Errorf("Hook command path is not absolute: %s", command)
+								}
+							} else {
+								t.Error("Command field not found or not a string")
+							}
+						}
+					}
+				}
+			}
+		}
+
 		// Test cleanup
 		cleanup()
 
