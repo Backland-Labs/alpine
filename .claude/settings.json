@@ -16,51 +16,5 @@
       "mcp__linear-server__*"
     ],
     "deny": ["rm:*"]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run /Users/max/code/river/.claude/hooks/logfire_hook.py"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run /Users/max/code/river/.claude/hooks/logfire_hook.py"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run /Users/max/code/river/.claude/hooks/logfire_hook.py"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run /Users/max/code/river/.claude/hooks/logfire_hook.py"
-          }
-        ]
-      }
-    ]
   }
 }

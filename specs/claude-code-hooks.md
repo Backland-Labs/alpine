@@ -141,10 +141,6 @@ Claude Code hooks are configured through Claude's settings files, which follow a
    - Used for developer-specific customizations
    - Takes precedence over project settings
 
-4. **Enterprise Policy Settings**
-   - Managed by enterprise administrators
-   - Cannot be overridden by user or project settings
-
 ### Hook Script Storage
 
 Hook scripts referenced in configuration should be stored in:
