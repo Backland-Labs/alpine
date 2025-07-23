@@ -70,7 +70,7 @@ import sys
 if len(sys.argv) > 1 and sys.argv[1] == "ISSUE-456":
     state = {
         "current_step_description": "Python implementation",
-        "next_step_prompt": "/verify",
+        "next_step_prompt": "/verify_plan",
         "status": "completed"
     }
     with open("claude_state.json", "w") as f:

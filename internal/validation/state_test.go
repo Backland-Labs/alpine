@@ -59,7 +59,7 @@ func TestCompareStates(t *testing.T) {
 			name: "different next step prompts",
 			pythonState: &core.State{
 				CurrentStepDescription: "Completed implementation",
-				NextStepPrompt:         "/verify",
+				NextStepPrompt:         "/verify_plan",
 				Status:                 "running",
 			},
 			goState: &core.State{
@@ -72,7 +72,7 @@ func TestCompareStates(t *testing.T) {
 				Differences: []Difference{
 					{
 						Type:        "next_step_prompt",
-						PythonValue: "/verify",
+						PythonValue: "/verify_plan",
 						GoValue:     "/run_implementation_loop",
 						Description: "Next step prompt mismatch",
 					},
@@ -112,7 +112,7 @@ func TestCompareStates(t *testing.T) {
 			},
 			goState: &core.State{
 				CurrentStepDescription: "Step 2",
-				NextStepPrompt:         "/verify",
+				NextStepPrompt:         "/verify_plan",
 				Status:                 "completed",
 			},
 			expectedResult: ComparisonResult{
@@ -127,7 +127,7 @@ func TestCompareStates(t *testing.T) {
 					{
 						Type:        "next_step_prompt",
 						PythonValue: "/run_implementation_loop",
-						GoValue:     "/verify",
+						GoValue:     "/verify_plan",
 						Description: "Next step prompt mismatch",
 					},
 					{

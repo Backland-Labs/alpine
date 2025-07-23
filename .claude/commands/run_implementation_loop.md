@@ -29,7 +29,7 @@ USE UP TO 5 SUBAGENTS FOR THIS TASK!
   - Technical complexity considerations
 
 ### 2. Implementation Phase (TDD Approach)
-- Only select features from `plan.md`. If its all implemented return the `/verify_plan` command in `claude_state.json`
+- Only select features from `plan.md`. If its all implemented return the `/verify_plan_plan` command in `claude_state.json`
 - RED: Write failing tests FIRST for the selected feature. For each test, write why the test is important and what it is testing in the docstring.
 - GREEN: Implement minimal code to make tests pass
 - REFACTOR: Refactor while keeping tests green
@@ -85,4 +85,4 @@ Here are the options for each key:
 }
 ```
 
-You cannot mark status as "completed" if you also mark next_step_prompt as "/verify" or "/run_implementation_loop".
+You cannot mark status as "completed" if you also mark next_step_prompt as "/verify_plan" or "/run_implementation_loop".
