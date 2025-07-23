@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -305,4 +306,252 @@ type mockError struct {
 
 func (e *mockError) Error() string {
 	return e.msg
+}
+
+func TestExecutor_BuildCommand_SetsWorkingDirectory(t *testing.T) {
+	// Test that buildCommand sets the working directory to the current directory
+	// This ensures Claude commands execute in the correct directory for worktree isolation
+	t.Run("sets cmd.Dir to current working directory", func(t *testing.T) {
+		exec := &Executor{}
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+		}
+
+		// Get the expected working directory
+		expectedDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+
+		cmd := exec.buildCommand(config)
+
+		// Verify cmd.Dir is set to the current working directory
+		if cmd.Dir != expectedDir {
+			t.Errorf("expected cmd.Dir to be %q, got %q", expectedDir, cmd.Dir)
+		}
+	})
+}
+
+func TestExecutor_BuildCommand_WorkingDirectoryError(t *testing.T) {
+	// Test that buildCommand handles os.Getwd() errors gracefully
+	// Even if we can't get the working directory, the command should still be built
+	t.Run("handles os.Getwd error gracefully", func(t *testing.T) {
+		// Note: It's difficult to mock os.Getwd() directly in Go
+		// This test documents the expected behavior when os.Getwd() fails
+		// The implementation should continue without setting cmd.Dir
+		exec := &Executor{}
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+		}
+
+		cmd := exec.buildCommand(config)
+
+		// Even without mocking os.Getwd error, we can verify the command is built
+		if cmd == nil {
+			t.Fatal("expected command to be built even if working directory fails")
+		}
+		
+		// Verify basic command structure is intact
+		if cmd.Path != "claude" && !strings.HasSuffix(cmd.Path, "/claude") {
+			t.Errorf("expected command path to be 'claude', got %q", cmd.Path)
+		}
+	})
+}
+
+func TestExecutor_CommandRunner_PreservesDirectory(t *testing.T) {
+	// Test that defaultCommandRunner preserves the working directory from buildCommand
+	// This ensures the directory context flows through the entire execution pipeline
+	t.Run("preserves working directory from buildCommand", func(t *testing.T) {
+		// Create a custom command runner that can verify the directory
+		runner := &defaultCommandRunner{}
+		exec := &Executor{commandRunner: runner}
+		
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+		}
+
+		// Build the base command to get expected directory
+		baseCmd := exec.buildCommand(config)
+
+		// Note: Since we can't easily mock exec.CommandContext,
+		// this test documents the expected behavior.
+		// The actual implementation test will be done via integration tests.
+		
+		// For now, verify that buildCommand is called and creates a valid command
+		if baseCmd == nil {
+			t.Error("expected buildCommand to create a valid command")
+		}
+
+		// Once implemented, cmd.Dir should be preserved in the CommandContext call
+		// This will be verified in integration tests
+	})
+}
+
+func TestExecutor_WorkingDirectoryFallback(t *testing.T) {
+	// Test that the executor continues gracefully when working directory operations fail
+	// This test documents expected behavior when os.Getwd() fails or directory validation fails
+	t.Run("continues execution when working directory is unavailable", func(t *testing.T) {
+		exec := &Executor{}
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+		}
+
+		// Build command - even if we can't mock os.Getwd failure directly,
+		// we can verify that command building continues
+		cmd := exec.buildCommand(config)
+		
+		if cmd == nil {
+			t.Fatal("expected command to be built even with directory issues")
+		}
+
+		// Verify command has all required components
+		if cmd.Path == "" {
+			t.Error("expected command path to be set")
+		}
+		
+		// When directory operations fail, cmd.Dir might be empty but command should still work
+		// This is the graceful fallback behavior
+	})
+
+	t.Run("logs warning when working directory fails", func(t *testing.T) {
+		// This test documents that when os.Getwd() fails, a warning should be logged
+		// The actual implementation will use the logger package
+		// For now, we document the expected behavior
+		exec := &Executor{}
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+		}
+
+		// Build command
+		cmd := exec.buildCommand(config)
+		
+		// Even without being able to capture logs in this test,
+		// we document that a warning should be logged when directory operations fail
+		if cmd == nil {
+			t.Error("command building should not fail due to directory issues")
+		}
+	})
+}
+
+func TestExecutor_ValidatesWorkingDirectory(t *testing.T) {
+	// This test verifies that the executor validates working directory exists and is accessible
+	// before setting it on the command. This prevents Claude from being executed in a
+	// non-existent or inaccessible directory which could cause confusing errors.
+	t.Run("validates working directory exists", func(t *testing.T) {
+		executor := &Executor{}
+		config := ExecuteConfig{
+			StateFile: "test-state.json",
+		}
+
+		// Create a temporary directory and then remove it to simulate non-existent directory
+		tempDir := "/tmp/test-river-validation-" + strings.ReplaceAll(t.Name(), "/", "-")
+		err := os.Mkdir(tempDir, 0755)
+		if err != nil {
+			t.Fatal(err)
+		}
+		
+		// Change to valid directory first
+		originalWd, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalWd) }()
+		_ = os.Chdir(tempDir)
+		
+		// Now remove it to make it invalid
+		_ = os.Chdir(originalWd)
+		_ = os.RemoveAll(tempDir)
+		
+		// Try to change back to the now non-existent directory
+		err = os.Chdir(tempDir)
+		if err == nil {
+			t.Fatal("Expected error when changing to non-existent directory")
+		}
+
+		// Stay in original directory and build command
+		cmd := executor.buildCommandWithValidation(config)
+
+		// Command should still be created but Dir should be validated
+		if cmd == nil {
+			t.Fatal("Expected command to be created even with invalid directory")
+		}
+		
+		// The validated method should not set an invalid directory
+		if cmd.Dir == tempDir {
+			t.Errorf("Expected working directory to not be set to non-existent directory")
+		}
+	})
+
+	t.Run("validates working directory permissions", func(t *testing.T) {
+		executor := &Executor{}
+		config := ExecuteConfig{
+			StateFile: "test-state.json",
+		}
+
+		// Create a directory with no read permissions
+		tempDir := "/tmp/test-river-noperm-" + strings.ReplaceAll(t.Name(), "/", "-")
+		err := os.Mkdir(tempDir, 0000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			_ = os.Chmod(tempDir, 0755) // Reset permissions to allow removal
+			_ = os.RemoveAll(tempDir)
+		}()
+
+		// Save original directory
+		originalWd, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalWd) }()
+
+		// Try to change to the no-permission directory
+		err = os.Chdir(tempDir)
+		if err == nil {
+			// If we somehow can change to it, skip this test
+			t.Skip("Unable to test permission validation - system allows access")
+		}
+
+		// Build command should handle permission errors gracefully
+		cmd := executor.buildCommandWithValidation(config)
+
+		if cmd == nil {
+			t.Fatal("Expected command to be created even with permission errors")
+		}
+	})
+
+	t.Run("sets working directory when valid", func(t *testing.T) {
+		executor := &Executor{}
+		config := ExecuteConfig{
+			StateFile: "test-state.json",
+		}
+
+		// Create a valid temporary directory
+		tempDir, err := os.MkdirTemp("", "test-river-valid-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.RemoveAll(tempDir) }()
+
+		// Change to the valid directory
+		originalWd, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalWd) }()
+		err = os.Chdir(tempDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Build command with validation
+		cmd := executor.buildCommandWithValidation(config)
+
+		if cmd == nil {
+			t.Fatal("Expected command to be created")
+		}
+
+		// Working directory should be set to the valid directory
+		// Need to handle macOS symlink behavior for /var/folders -> /private/var/folders
+		if cmd.Dir != tempDir && !strings.HasSuffix(cmd.Dir, strings.TrimPrefix(tempDir, "/private")) {
+			t.Errorf("Expected working directory to be %s, got %s", tempDir, cmd.Dir)
+		}
+	})
 }

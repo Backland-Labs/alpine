@@ -462,3 +462,201 @@ func TestRiverWorktreeEnvironmentVariables(t *testing.T) {
 	worktrees = repo.GetWorktrees()
 	assert.Greater(t, len(worktrees), 1, "Worktree should not be auto-cleaned")
 }
+
+// TestWorktree_ClaudeExecutesInCorrectDirectory verifies that Claude commands
+// execute in the worktree directory, not the original repository directory.
+// This test ensures the fix for issue #7 works correctly.
+func TestWorktree_ClaudeExecutesInCorrectDirectory(t *testing.T) {
+	// Create test git repository
+	repo := NewGitTestRepo(t)
+	
+	// Build river binary
+	riverBinary := BuildRiverBinary(t)
+	
+	// Create a marker file in the main repo to detect wrong execution directory
+	mainRepoMarker := filepath.Join(repo.RootDir, "main-repo-marker.txt")
+	require.NoError(t, os.WriteFile(mainRepoMarker, []byte("main repo"), 0644))
+	
+	// Commit the marker file
+	repo.runGitCommand("add", ".")
+	repo.runGitCommand("commit", "-m", "Add marker file")
+	
+	// Create a custom mock Claude script that writes its working directory
+	scriptPath := filepath.Join(t.TempDir(), "mock-claude-pwd.sh")
+	script := `#!/bin/bash
+# Mock Claude script that records working directory
+
+# Get the prompt from command line
+PROMPT="$@"
+
+# Use RIVER_STATE_FILE if set, otherwise default to claude_state.json
+STATE_FILE="${RIVER_STATE_FILE:-claude_state.json}"
+
+# Write working directory to a file
+pwd > claude-working-dir.txt
+
+# Write state based on prompt
+case "$PROMPT" in
+  *"/ralph"*)
+    cat > "$STATE_FILE" <<EOF
+{
+  "current_step_description": "Executed task and recorded working directory",
+  "next_step_prompt": "",
+  "status": "completed"
+}
+EOF
+    echo "Mock Claude: Processed /ralph"
+    ;;
+  *)
+    echo "Mock Claude: Unknown prompt: $PROMPT"
+    exit 1
+    ;;
+esac
+`
+	err := os.WriteFile(scriptPath, []byte(script), 0755)
+	require.NoError(t, err)
+	
+	// Disable auto-cleanup to inspect worktree after completion
+	os.Setenv("RIVER_GIT_AUTO_CLEANUP", "false")
+	defer os.Unsetenv("RIVER_GIT_AUTO_CLEANUP")
+	
+	// Run river with worktree enabled (default)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	
+	output, err := RunRiverWithMockClaude(ctx, t, riverBinary, repo.RootDir, scriptPath,
+		"--no-plan",
+		"Check working directory and create marker file")
+	require.NoError(t, err, "River command failed: %s", output)
+	
+	// Find the worktree directory
+	worktrees := repo.GetWorktrees()
+	var worktreePath string
+	for _, wt := range worktrees {
+		if wt != repo.RootDir && strings.Contains(wt, "river") {
+			worktreePath = wt
+			break
+		}
+	}
+	require.NotEmpty(t, worktreePath, "No worktree found")
+	
+	// Read the working directory file created by Claude
+	workingDirFile := filepath.Join(worktreePath, "claude-working-dir.txt")
+	workingDirBytes, err := os.ReadFile(workingDirFile)
+	require.NoError(t, err, "Claude should have created working directory file")
+	
+	claudeWorkingDir := strings.TrimSpace(string(workingDirBytes))
+	
+	// Verify Claude executed in the worktree directory
+	assert.Equal(t, worktreePath, claudeWorkingDir,
+		"Claude should execute in worktree directory, not main repo")
+	
+	// Verify the marker file exists only in main repo, not in worktree
+	// (unless Claude copied it, which would be wrong)
+	_, mainErr := os.Stat(mainRepoMarker)
+	assert.NoError(t, mainErr, "Marker should exist in main repo")
+	
+	worktreeMarker := filepath.Join(worktreePath, "main-repo-marker.txt")
+	_, wtErr := os.Stat(worktreeMarker)
+	assert.NoError(t, wtErr, "Marker should also exist in worktree (from git)")
+}
+
+// TestWorktree_FileOperationsIsolated verifies that file operations performed
+// by Claude in the worktree are isolated from the main repository.
+func TestWorktree_FileOperationsIsolated(t *testing.T) {
+	// Create test git repository
+	repo := NewGitTestRepo(t)
+	
+	// Build river binary
+	riverBinary := BuildRiverBinary(t)
+	
+	// Create initial file in main repo
+	testFile := filepath.Join(repo.RootDir, "test.txt")
+	require.NoError(t, os.WriteFile(testFile, []byte("original content"), 0644))
+	repo.runGitCommand("add", ".")
+	repo.runGitCommand("commit", "-m", "Add test file")
+	
+	// Create a custom mock Claude script that modifies files
+	scriptPath := filepath.Join(t.TempDir(), "mock-claude-files.sh")
+	script := `#!/bin/bash
+# Mock Claude script that modifies files
+
+# Get the prompt from command line
+PROMPT="$@"
+
+# Use RIVER_STATE_FILE if set, otherwise default to claude_state.json
+STATE_FILE="${RIVER_STATE_FILE:-claude_state.json}"
+
+# Write state based on prompt
+case "$PROMPT" in
+  *"/ralph"*)
+    # Modify existing file and create new file
+    echo "modified content" > test.txt
+    echo "new file content" > new-file.txt
+    
+    cat > "$STATE_FILE" <<EOF
+{
+  "current_step_description": "Modified files in worktree",
+  "next_step_prompt": "",
+  "status": "completed"
+}
+EOF
+    echo "Mock Claude: Processed /ralph"
+    ;;
+  *)
+    echo "Mock Claude: Unknown prompt: $PROMPT"
+    exit 1
+    ;;
+esac
+`
+	err := os.WriteFile(scriptPath, []byte(script), 0755)
+	require.NoError(t, err)
+	
+	// Disable auto-cleanup to inspect worktree after completion
+	os.Setenv("RIVER_GIT_AUTO_CLEANUP", "false")
+	defer os.Unsetenv("RIVER_GIT_AUTO_CLEANUP")
+	
+	// Run river with worktree enabled
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	
+	output, err := RunRiverWithMockClaude(ctx, t, riverBinary, repo.RootDir, scriptPath,
+		"--no-plan",
+		"Modify files to test isolation")
+	require.NoError(t, err, "River command failed: %s", output)
+	
+	// Find the worktree directory
+	worktrees := repo.GetWorktrees()
+	var worktreePath string
+	for _, wt := range worktrees {
+		if wt != repo.RootDir && strings.Contains(wt, "river") {
+			worktreePath = wt
+			break
+		}
+	}
+	require.NotEmpty(t, worktreePath, "No worktree found")
+	
+	// Verify main repo file is unchanged
+	mainContent, err := os.ReadFile(testFile)
+	require.NoError(t, err)
+	assert.Equal(t, "original content", string(mainContent),
+		"Main repo file should be unchanged")
+	
+	// Verify worktree has modified file
+	worktreeTestFile := filepath.Join(worktreePath, "test.txt")
+	worktreeContent, err := os.ReadFile(worktreeTestFile)
+	require.NoError(t, err)
+	assert.Equal(t, "modified content\n", string(worktreeContent),
+		"Worktree file should be modified")
+	
+	// Verify new file exists only in worktree
+	mainNewFile := filepath.Join(repo.RootDir, "new-file.txt")
+	_, err = os.Stat(mainNewFile)
+	assert.True(t, os.IsNotExist(err),
+		"New file should not exist in main repo")
+	
+	worktreeNewFile := filepath.Join(worktreePath, "new-file.txt")
+	newFileContent, err := os.ReadFile(worktreeNewFile)
+	require.NoError(t, err, "New file should exist in worktree")
+	assert.Equal(t, "new file content\n", string(newFileContent))
+}
