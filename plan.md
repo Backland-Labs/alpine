@@ -1,177 +1,130 @@
-# Git Worktree Integration - Implementation Plan
+# River CLI - Bare Execution Mode Implementation Plan
 
 ## Overview
-Add git worktree support to River CLI enabling isolated task execution in separate directories. Focus on creating worktrees at workflow start for clean isolation.
+Implement bare execution mode for River CLI: allow `river --no-plan --no-worktree` to run without a task description.
 
-## Architecture Changes
+**GitHub Issue**: #6  
+**Estimated Time**: 8-10 hours
 
-### New Package: `internal/gitx/`
-- **interfaces.go**: Core abstractions
-  ```go
-  type WorktreeManager interface {
-      Create(ctx context.Context, taskName string) (*Worktree, error)
-      Cleanup(ctx context.Context, wt *Worktree) error
-  }
+## Requirements
+1. Accept no arguments when both `--no-plan` and `--no-worktree` flags are set
+2. Continue from existing `claude_state.json` if present
+3. Start new workflow with `/ralph` if no state exists
+4. Maintain backwards compatibility
 
-  type Worktree struct {
-      Path       string // ../repo-river-<task>
-      Branch     string // river/<sanitised-task>
-      ParentRepo string // absolute path to main repo
-  }
-  ```
+## Implementation Tasks
 
-- **manager.go**: CLI-based implementation using system `git`
-- **slug.go**: Task name sanitization helpers
-- **mock/manager.go**: Mock implementation for testing
+### 1. CLI Argument Validation (2 hours) ✅ IMPLEMENTED
+**File**: `internal/cli/root.go`
 
-### Configuration Extensions (`internal/config/`)
-Add Git subsection:
+**Changes**:
 ```go
-type GitConfig struct {
-    WorktreeEnabled bool   // default=true
-    BaseBranch      string // default="main"
-    AutoCleanupWT   bool   // default=true
+// In rootCmd.PreRunE
+if len(args) == 0 && !cmd.Flag("file").Changed {
+    noPlan, _ := cmd.Flags().GetBool("no-plan")
+    noWorktree, _ := cmd.Flags().GetBool("no-worktree")
+    
+    if !(noPlan && noWorktree) {
+        return fmt.Errorf("either provide a task description or use --file flag")
+    }
 }
 ```
 
-### Workflow Engine Changes (`internal/workflow/`)
-- Inject `WorktreeManager` into `Engine` constructor
-- Add worktree lifecycle:
-  - **Pre-workflow**: Create worktree, change working directory
-  - **Post-workflow**: Optional cleanup
-- Update state file path to live within worktree
-
-## Implementation Phases
-
-### Phase 1: Configuration Groundwork ✅
-**Goal**: Add git configuration support
-- [x] Extend `Config` struct with `GitConfig`
-- [x] Add environment variables: `RIVER_GIT_ENABLED`, `RIVER_GIT_BASE_BRANCH`, `RIVER_GIT_AUTO_CLEANUP`
-- [x] Write configuration unit tests
-- [x] Update config loading logic
-
 **Tests**:
-- `TestConfigGitDefaults` ✅
-- `TestConfigGitEnvironmentVariables` ✅
+- `TestRootCmd_BareMode_AcceptsNoArgs`
+- `TestRootCmd_RequiresArgs_WithSingleFlag`
 
-### Phase 2: WorktreeManager Implementation ✅
-**Goal**: Core git worktree creation
-- [x] Create `internal/gitx/` package
-- [x] Implement `WorktreeManager` interface with CLI backend
-- [x] Add task name sanitization logic
-- [x] Create mock implementation for testing
+### 2. Task Description Handling (1 hour)
+**File**: `internal/cli/workflow.go`
 
-**Tests**:
-- `TestCreateWorktree_basic` - Creates directory, branch, registers worktree ✅
-- `TestCleanup_removesWorktreeDirAndPrunes` - Proper cleanup ✅
-- `TestBranchNameCollisionProducesUniqueNames` - Handles conflicts ✅
-- `TestErrorPropagation_gitFailure` - Error handling ✅
-
-### Phase 3: Engine Integration ✅
-**Goal**: Wire worktree creation into workflow engine
-- [x] Add `WorktreeManager` field to `Engine`
-- [x] Implement `createWorktree()` helper method
-- [x] Update `Run()` method to create worktree before workflow
-- [x] Handle working directory changes
-- [x] Update state file path to worktree location
-
-**Tests**:
-- `TestEngineCreatesWorktree` - Worktree creation with mock manager ✅
-- `TestEngineWorktreeDisabled` - Graceful fallback when disabled ✅
-- `TestEngineStateFileInWorktree` - State file location ✅
-
-### Phase 4: CLI Integration ✅
-**Goal**: Wire everything together at CLI level
-- [x] Update `NewRealDependencies()` to create `WorktreeManager`
-- [x] Add CLI flag: `--no-worktree`
-- [x] Handle dependency injection
-
-**Tests**:
-- `TestCLIWorktreeFlags` - Flag parsing ✅
-- `TestCLIWorktreeDisabled` - `--no-worktree` flag behavior ✅
-
-### Phase 5: Integration Testing ✅
-**Goal**: End-to-end validation
-- [x] Create test repository setup helpers
-- [x] Write integration tests with real git operations
-- [x] Test worktree isolation
-
-**Tests** (build tag `e2e`):
-- `TestRiverCreatesWorktree` - Complete workflow in isolated worktree ✅
-- `TestRiverWorktreeCleanup` - Proper cleanup after completion/failure ✅
-- `TestRiverWorktreeDisabled` - `--no-worktree` flag behavior ✅
-- `TestRiverWorktreeIsolation` - Proper isolation between worktrees ✅
-- `TestRiverWorktreeBranchNaming` - Branch name sanitization ✅
-- `TestRiverWorktreeEnvironmentVariables` - Environment variable configuration ✅
-
-## Test Strategy
-
-### Unit Tests
-- **gitx package**: Test git operations with temporary repositories
-- **workflow package**: Test integration with mock `WorktreeManager`
-- **config package**: Test configuration loading and validation
-
-### Integration Tests  
-- Use temporary git repositories
-- Test real git worktree operations
-- Verify isolation between worktrees
-
-### Mocking Strategy
-- Mock `WorktreeManager` for workflow tests
-- Mock `ClaudeExecutor` for git integration tests
-- Use dependency injection throughout
-
-## Integration Points
-
-### Workflow Engine
+**Changes**:
 ```go
-// Engine constructor changes
-func NewEngine(exec ClaudeExecutor, wtMgr gitx.WorktreeManager, cfg *config.Config) *Engine
+// In extractTaskDescription
+taskDescription := strings.TrimSpace(strings.Join(args, " "))
 
-// Run() method hooks
-func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan bool) error {
-    // Before workflow: Create worktree if enabled
-    if e.cfg.Git.WorktreeEnabled {
-        wt, err := e.wtMgr.Create(ctx, taskDescription)
-        if err != nil { return err }
-        e.wt = wt
-        
-        // Change working directory to worktree
-        if err := os.Chdir(wt.Path); err != nil {
-            return fmt.Errorf("failed to change to worktree directory: %w", err)
+if taskDescription == "" {
+    noPlan, _ := cmd.Flags().GetBool("no-plan")
+    noWorktree, _ := cmd.Flags().GetBool("no-worktree")
+    
+    if !(noPlan && noWorktree) {
+        return "", fmt.Errorf("task description cannot be empty")
+    }
+}
+```
+
+**Tests**:
+- `TestExtractTaskDescription_BareMode`
+
+### 3. Workflow Engine State Handling (3 hours)
+**File**: `internal/workflow/workflow.go`
+
+**Changes**:
+```go
+// In Run method
+isBareMode := taskDescription == "" && !generatePlan && !e.cfg.Git.WorktreeEnabled
+
+if isBareMode {
+    if _, err := os.Stat(e.stateFile); err == nil {
+        // Continue from existing state
+        e.logger.Info("Continuing from existing state file")
+        return e.runWorkflowLoop(ctx)
+    } else if os.IsNotExist(err) {
+        // Initialize with /ralph
+        e.logger.Info("Starting bare execution with /ralph")
+        if err := e.initializeWorkflow(ctx, "/ralph", false); err != nil {
+            return fmt.Errorf("failed to initialize bare workflow: %w", err)
         }
-        
-        // Update state file path
-        e.stateFile = filepath.Join(wt.Path, "claude_state.json")
     }
-    
-    // ... existing workflow logic runs in worktree ...
-    
-    // After completion: Optional cleanup
-    if e.wt != nil && e.cfg.Git.AutoCleanupWT {
-        defer e.wtMgr.Cleanup(ctx, e.wt)
+} else {
+    // Normal initialization
+    if err := e.initializeWorkflow(ctx, taskDescription, generatePlan); err != nil {
+        return fmt.Errorf("failed to initialize workflow: %w", err)
     }
 }
+
+return e.runWorkflowLoop(ctx)
 ```
 
-### Core Worktree Operations
-```go
-// Create worktree with new branch
-func (m *CLIWorktreeManager) Create(ctx context.Context, taskName string) (*Worktree, error) {
-    branch := fmt.Sprintf("river/%s", sanitizeTaskName(taskName))
-    repoName := filepath.Base(m.parentRepo)
-    wtPath := filepath.Join("..", fmt.Sprintf("%s-river-%s", repoName, slugify(taskName)))
-    
-    // git worktree add -B <branch> <path> <base-branch>
-    cmd := exec.CommandContext(ctx, "git", "worktree", "add", "-B", branch, wtPath, m.baseBranch)
-    if err := cmd.Run(); err != nil {
-        return nil, fmt.Errorf("failed to create worktree: %w", err)
-    }
-    
-    return &Worktree{
-        Path:       wtPath,
-        Branch:     branch,
-        ParentRepo: m.parentRepo,
-    }, nil
-}
-```
+**Tests**:
+- `TestEngine_BareMode_ContinuesExistingState`
+- `TestEngine_BareMode_InitializesWithRalph`
+
+### 4. Integration Tests (2 hours)
+**File**: `test/integration/bare_mode_test.go`
+
+**Key Tests**:
+- Complete bare mode workflow
+- State continuation after interrupt
+- Error handling for invalid flags
+
+### 5. Documentation (1-2 hours)
+**Updates**:
+1. Help text in `root.go`:
+   ```
+   river --no-plan --no-worktree  # Bare execution mode
+   ```
+
+2. CLAUDE.md - Add bare mode section
+
+3. CHANGELOG.md - Document new feature
+
+## Testing Checklist
+- [ ] Unit tests pass
+- [ ] Integration tests pass
+- [ ] Manual testing scenarios:
+  - [ ] First run creates state with `/ralph`
+  - [ ] Second run continues from state
+  - [ ] Single flag shows error
+  - [ ] Ctrl+C saves state correctly
+
+## Success Criteria
+- [ ] Bare mode works as specified
+- [ ] No breaking changes
+- [ ] All tests pass
+- [ ] golangci-lint clean
+- [ ] Documentation updated
+
+## Notes
+- This is an advanced feature - requires both flags to prevent accidental use
+- State file handling must be robust
+- Clear error messages are critical

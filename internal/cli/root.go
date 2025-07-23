@@ -45,7 +45,8 @@ Claude Code in a loop based on a state-driven workflow with your task descriptio
 Examples:
   river "Implement user authentication"
   river "Fix bug in payment processing" --no-plan
-  river --file task.md`,
+  river --file task.md
+  river --no-plan --no-worktree              # Bare execution mode`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if showVersion {
 				return nil
@@ -54,7 +55,12 @@ Examples:
 			if fromFile != "" {
 				return nil
 			}
+			// Check for bare execution mode (both --no-plan and --no-worktree)
 			if len(args) < 1 {
+				if noPlan && noWorktree {
+					// Bare execution mode allows no arguments
+					return nil
+				}
 				return fmt.Errorf("requires a task description (use quotes for multi-word descriptions)")
 			}
 			return nil

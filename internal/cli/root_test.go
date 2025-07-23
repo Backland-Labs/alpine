@@ -234,3 +234,112 @@ func contains(slice []string, item string) bool {
 	}
 	return false
 }
+
+// TestRootCmd_BareMode_AcceptsNoArgs tests that bare execution mode accepts no arguments
+// when both --no-plan and --no-worktree flags are set
+func TestRootCmd_BareMode_AcceptsNoArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+		wantMsg string
+	}{
+		{
+			name:    "bare mode with both flags accepts no args",
+			args:    []string{"--no-plan", "--no-worktree"},
+			wantErr: false,
+			wantMsg: "",
+		},
+		{
+			name:    "bare mode flags order reversed also works",
+			args:    []string{"--no-worktree", "--no-plan"},
+			wantErr: false,
+			wantMsg: "",
+		},
+		{
+			name:    "bare mode with task description still works",
+			args:    []string{"--no-plan", "--no-worktree", "Some task"},
+			wantErr: false,
+			wantMsg: "",
+		},
+		{
+			name:    "bare mode with file flag works",
+			args:    []string{"--no-plan", "--no-worktree", "--file", "task.md"},
+			wantErr: false,
+			wantMsg: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rootCmd := NewRootCommand()
+			buf := new(bytes.Buffer)
+			rootCmd.SetOut(buf)
+			rootCmd.SetErr(buf)
+			rootCmd.SetArgs(tt.args)
+
+			// Override RunE to avoid actual workflow execution
+			rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
+				return nil
+			}
+
+			err := rootCmd.Execute()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Execute() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if tt.wantMsg != "" && !strings.Contains(buf.String(), tt.wantMsg) {
+				t.Errorf("Expected output to contain %q, got %q", tt.wantMsg, buf.String())
+			}
+		})
+	}
+}
+
+// TestRootCmd_RequiresArgs_WithSingleFlag tests that single flags still require arguments
+func TestRootCmd_RequiresArgs_WithSingleFlag(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+		wantMsg string
+	}{
+		{
+			name:    "only --no-plan flag requires args",
+			args:    []string{"--no-plan"},
+			wantErr: true,
+			wantMsg: "requires a task description",
+		},
+		{
+			name:    "only --no-worktree flag requires args",
+			args:    []string{"--no-worktree"},
+			wantErr: true,
+			wantMsg: "requires a task description",
+		},
+		{
+			name:    "no flags requires args",
+			args:    []string{},
+			wantErr: true,
+			wantMsg: "requires a task description",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rootCmd := NewRootCommand()
+			buf := new(bytes.Buffer)
+			rootCmd.SetOut(buf)
+			rootCmd.SetErr(buf)
+			rootCmd.SetArgs(tt.args)
+
+			err := rootCmd.Execute()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Execute() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			output := buf.String()
+			if !strings.Contains(output, tt.wantMsg) {
+				t.Errorf("Expected output to contain %q, got %q", tt.wantMsg, output)
+			}
+		})
+	}
+}
