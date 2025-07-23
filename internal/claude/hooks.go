@@ -59,7 +59,7 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	}
 
 	// Generate Claude settings
-	settingsPath := filepath.Join(claudeDir, "settings.json")
+	settingsPath := filepath.Join(claudeDir, "settings.local.json")
 	if err := e.generateClaudeSettings(settingsPath, hookScriptPath); err != nil {
 		_ = os.Remove(todoFilePath)
 		_ = os.Remove(hookScriptPath)
@@ -78,8 +78,7 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 		os.Remove(todoFilePath)
 		os.Remove(hookScriptPath)
 		os.Remove(settingsPath)
-		// Try to remove .claude directory if empty
-		os.Remove(claudeDir)
+		// Don't remove .claude directory - may contain user's own settings
 	}
 
 	return todoFilePath, cleanup, nil
@@ -101,7 +100,7 @@ func (e *Executor) copyHookScript(destPath string) error {
 	return nil
 }
 
-// generateClaudeSettings creates the Claude Code settings.json file with hook configuration
+// generateClaudeSettings creates the Claude Code settings.local.json file with hook configuration
 func (e *Executor) generateClaudeSettings(settingsPath, hookScriptPath string) error {
 	settings := hookSettings{
 		Hooks: map[string]interface{}{

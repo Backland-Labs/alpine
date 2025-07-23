@@ -35,14 +35,14 @@ func TestExecutor_setupTodoHook(t *testing.T) {
 			t.Error(".claude directory was not created")
 		}
 
-		// Verify settings.json was created
-		settingsFile := filepath.Join(claudeDir, "settings.json")
+		// Verify settings.local.json was created
+		settingsFile := filepath.Join(claudeDir, "settings.local.json")
 		if _, err := os.Stat(settingsFile); os.IsNotExist(err) {
-			t.Error("settings.json was not created")
+			t.Error("settings.local.json was not created")
 		}
 
 		// Verify hook script was created
-		hookScriptPath := filepath.Join(claudeDir, "todo-monitor.sh")
+		hookScriptPath := filepath.Join(claudeDir, "todo-monitor.rs")
 		if info, err := os.Stat(hookScriptPath); os.IsNotExist(err) {
 			t.Error("Hook script was not created")
 		} else if info.Mode()&0111 == 0 {
@@ -57,7 +57,7 @@ func TestExecutor_setupTodoHook(t *testing.T) {
 			t.Error("Todo file was not cleaned up")
 		}
 		if _, err := os.Stat(settingsFile); !os.IsNotExist(err) {
-			t.Error("settings.json was not cleaned up")
+			t.Error("settings.local.json was not cleaned up")
 		}
 		if _, err := os.Stat(hookScriptPath); !os.IsNotExist(err) {
 			t.Error("Hook script was not cleaned up")
@@ -93,7 +93,7 @@ func TestExecutor_generateClaudeSettings(t *testing.T) {
 		}
 
 		tmpDir := t.TempDir()
-		settingsPath := filepath.Join(tmpDir, "settings.json")
+		settingsPath := filepath.Join(tmpDir, "settings.local.json")
 		hookPath := "/tmp/test-hook.sh"
 
 		err := executor.generateClaudeSettings(settingsPath, hookPath)
@@ -167,7 +167,7 @@ func TestExecutor_copyHookScript(t *testing.T) {
 		}
 
 		tmpDir := t.TempDir()
-		scriptPath := filepath.Join(tmpDir, "todo-monitor.sh")
+		scriptPath := filepath.Join(tmpDir, "todo-monitor.rs")
 
 		err := executor.copyHookScript(scriptPath)
 		if err != nil {
@@ -191,7 +191,7 @@ func TestExecutor_copyHookScript(t *testing.T) {
 			t.Fatalf("Failed to read script: %v", err)
 		}
 
-		if !strings.Contains(string(content), "#!/bin/bash") {
+		if !strings.Contains(string(content), "#!/usr/bin/env rust-script") {
 			t.Error("Script missing shebang")
 		}
 

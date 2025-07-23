@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Claude Executor
 - **Enhanced Execute method** - Now supports TODO monitoring mode alongside traditional spinner
-- **Added hook setup functionality** - Creates `.claude/settings.json` with PostToolUse configuration
+- **Added hook setup functionality** - Creates `.claude/settings.local.json` with PostToolUse configuration
 - **Improved error handling** - Graceful degradation when hook setup fails
 
 ### Technical Implementation
