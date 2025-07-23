@@ -46,7 +46,7 @@ func (v *outputValidator) ExtractKeyMetrics(output string) OutputMetrics {
 	}
 
 	lines := strings.Split(output, "\n")
-	
+
 	// Patterns for detecting errors and warnings
 	errorPattern := regexp.MustCompile(`(?i)ERROR:`)
 	warningPattern := regexp.MustCompile(`(?i)WARNING:`)
@@ -72,25 +72,25 @@ func (v *outputValidator) ExtractKeyMetrics(output string) OutputMetrics {
 func (v *outputValidator) NormalizeOutput(output string) string {
 	// Normalize line endings (CRLF -> LF)
 	output = strings.ReplaceAll(output, "\r\n", "\n")
-	
+
 	// Split into lines for processing
 	lines := strings.Split(output, "\n")
-	
+
 	// Trim trailing whitespace from each line
 	for i, line := range lines {
 		lines[i] = strings.TrimRight(line, " \t")
 	}
-	
+
 	// Rejoin lines
 	output = strings.Join(lines, "\n")
-	
+
 	// Collapse multiple blank lines into max 2
 	multipleBlankLines := regexp.MustCompile(`\n{3,}`)
 	output = multipleBlankLines.ReplaceAllString(output, "\n\n")
-	
+
 	// Trim leading and trailing whitespace
 	output = strings.TrimSpace(output)
-	
+
 	return output
 }
 

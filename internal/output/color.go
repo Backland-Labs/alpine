@@ -113,6 +113,40 @@ func (p *Printer) Println(args ...interface{}) {
 	_, _ = fmt.Fprintln(p.out, args...)
 }
 
+// StartTodoMonitoring prints an initial message for TODO monitoring
+func (p *Printer) StartTodoMonitoring() {
+	if p.useColor {
+		_, _ = fmt.Fprintf(p.out, "%s%s⚡ Monitoring Claude's progress...%s\n", colorBold, colorCyan, colorReset)
+	} else {
+		_, _ = fmt.Fprintf(p.out, "⚡ Monitoring Claude's progress...\n")
+	}
+}
+
+// UpdateCurrentTask updates the current task being displayed
+func (p *Printer) UpdateCurrentTask(task string) {
+	if task == "" {
+		return
+	}
+
+	// Clear current line and show new task
+	_, _ = fmt.Fprintf(p.out, "\r\033[K")
+	if p.useColor {
+		_, _ = fmt.Fprintf(p.out, "%s%s🔄 Working on: %s%s\n", colorBold, colorBlue, task, colorReset)
+	} else {
+		_, _ = fmt.Fprintf(p.out, "🔄 Working on: %s\n", task)
+	}
+}
+
+// StopTodoMonitoring prints a completion message and clears the line
+func (p *Printer) StopTodoMonitoring() {
+	_, _ = fmt.Fprintf(p.out, "\r\033[K") // Clear line
+	if p.useColor {
+		_, _ = fmt.Fprintf(p.out, "%s%s✓ Task completed%s\n", colorBold, colorGreen, colorReset)
+	} else {
+		_, _ = fmt.Fprintf(p.out, "✓ Task completed\n")
+	}
+}
+
 // isTerminal checks if stdout is a terminal
 func isTerminal() bool {
 	// Check if NO_COLOR env var is set

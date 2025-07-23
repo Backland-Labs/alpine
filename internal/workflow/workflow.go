@@ -28,7 +28,7 @@ type Engine struct {
 	stateFile      string
 	printer        *output.Printer
 	wt             *gitx.Worktree // Current worktree if created
-	originalDir    string          // Original directory to restore if needed
+	originalDir    string         // Original directory to restore if needed
 }
 
 // NewEngine creates a new workflow engine
@@ -45,10 +45,10 @@ func NewEngine(executor ClaudeExecutor, wtMgr gitx.WorktreeManager, cfg *config.
 // Run executes the main workflow loop with a task description
 func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan bool) error {
 	logger.WithField("task_description", taskDescription).Debug("Starting workflow run")
-	
+
 	// Check if this is bare mode
 	isBareMode := taskDescription == "" && !generatePlan && !e.cfg.Git.WorktreeEnabled
-	
+
 	// Validate input (skip for bare mode)
 	if !isBareMode && strings.TrimSpace(taskDescription) == "" {
 		return fmt.Errorf("task description cannot be empty")
@@ -117,7 +117,7 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 	for {
 		iteration++
 		logger.WithField("iteration", iteration).Debug("Starting workflow iteration")
-		
+
 		// Check context cancellation
 		select {
 		case <-ctx.Done():
@@ -134,7 +134,7 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 			return fmt.Errorf("failed to load state: %w", err)
 		}
 		logger.WithFields(map[string]interface{}{
-			"status": state.Status,
+			"status":       state.Status,
 			"current_step": state.CurrentStepDescription,
 		}).Debug("State loaded successfully")
 
@@ -148,15 +148,15 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 		// Execute Claude with the next prompt
 		e.printer.Step("Executing Claude with prompt: %s", state.NextStepPrompt)
 		logger.WithField("prompt", state.NextStepPrompt).Debug("Executing Claude")
-		
+
 		// Show progress indicator during Claude execution
 		progress := e.printer.StartProgressWithIteration("Executing Claude", iteration)
-		
+
 		config := claude.ExecuteConfig{
 			Prompt:    state.NextStepPrompt,
 			StateFile: e.stateFile,
 		}
-		
+
 		startTime := time.Now()
 		claudeErr := func() error {
 			if _, err := e.claudeExecutor.Execute(ctx, config); err != nil {
@@ -164,12 +164,12 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 			}
 			return nil
 		}()
-		
+
 		progress.Stop()
-		
+
 		if claudeErr != nil {
 			logger.WithFields(map[string]interface{}{
-				"error": claudeErr,
+				"error":    claudeErr,
 				"duration": time.Since(startTime),
 			}).Error("Claude execution failed")
 			return fmt.Errorf("claude execution failed: %w", claudeErr)
@@ -189,7 +189,7 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 // initializeWorkflow creates the initial state file
 func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string, generatePlan bool) error {
 	var prompt string
-	
+
 	if generatePlan {
 		prompt = "/make_plan " + taskDescription
 	} else {
@@ -203,7 +203,7 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 	} else {
 		e.printer.Info("Initializing workflow for task: %s", taskDescription)
 	}
-	
+
 	state := &core.State{
 		CurrentStepDescription: "Initializing workflow for task",
 		NextStepPrompt:         prompt,

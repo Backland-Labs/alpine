@@ -75,7 +75,7 @@ func buildGoBinary() error {
 	if err != nil {
 		return err
 	}
-	
+
 	cmd := exec.Command("go", "build", "-o", "river", "./cmd/river")
 	cmd.Dir = projectRoot
 	return cmd.Run()
@@ -87,13 +87,13 @@ func measureGoPerformance() (time.Duration, uint64, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	
+
 	binaryPath := filepath.Join(projectRoot, "river")
-	
+
 	// Measure startup time (average of 5 runs)
 	var totalDuration time.Duration
 	runs := 5
-	
+
 	for i := 0; i < runs; i++ {
 		start := time.Now()
 		cmd := exec.Command(binaryPath, "--version")
@@ -106,13 +106,13 @@ func measureGoPerformance() (time.Duration, uint64, error) {
 		}
 		totalDuration += time.Since(start)
 	}
-	
+
 	avgStartup := totalDuration / time.Duration(runs)
-	
+
 	// Estimate memory usage (very rough estimate based on binary size)
 	// In practice, Go binaries use ~10-20MB at runtime
 	estimatedMemory := uint64(15 * 1024 * 1024) // 15MB estimate
-	
+
 	return avgStartup, estimatedMemory, nil
 }
 
@@ -126,11 +126,11 @@ import json
 import os
 sys.exit(0)
 `
-	
+
 	// Measure startup time (average of 5 runs)
 	var totalDuration time.Duration
 	runs := 5
-	
+
 	for i := 0; i < runs; i++ {
 		start := time.Now()
 		cmd := exec.Command("python3", "-c", testScript)
@@ -139,19 +139,19 @@ sys.exit(0)
 		}
 		totalDuration += time.Since(start)
 	}
-	
+
 	avgStartup := totalDuration / time.Duration(runs)
-	
+
 	// Python typically uses more memory
 	estimatedMemory := uint64(30 * 1024 * 1024) // 30MB estimate
-	
+
 	return avgStartup, estimatedMemory, nil
 }
 
 // generateSummary creates a comparison summary
 func generateSummary(goResults, pythonResults VersionResults) Summary {
 	summary := Summary{}
-	
+
 	if pythonResults.StartupTimeMs > 0 {
 		startupRatio := goResults.StartupTimeMs / pythonResults.StartupTimeMs
 		if startupRatio < 1 {
@@ -159,14 +159,14 @@ func generateSummary(goResults, pythonResults VersionResults) Summary {
 		} else {
 			summary.StartupImprovement = fmt.Sprintf("%.1fx slower", startupRatio)
 		}
-		
+
 		memoryRatio := goResults.MemoryUsageMB / pythonResults.MemoryUsageMB
 		if memoryRatio < 1 {
 			summary.MemoryImprovement = fmt.Sprintf("%.1fx less memory", 1/memoryRatio)
 		} else {
 			summary.MemoryImprovement = fmt.Sprintf("%.1fx more memory", memoryRatio)
 		}
-		
+
 		if startupRatio < 1 && memoryRatio < 1 {
 			summary.OverallAssessment = "Go version shows significant performance improvements"
 		} else if startupRatio < 1.5 && memoryRatio < 1.5 {
@@ -179,7 +179,7 @@ func generateSummary(goResults, pythonResults VersionResults) Summary {
 		summary.MemoryImprovement = "Python comparison unavailable"
 		summary.OverallAssessment = "Go version performance measured successfully"
 	}
-	
+
 	return summary
 }
 
@@ -192,11 +192,11 @@ func WriteComparisonReport(report *ComparisonReport, w io.Writer) error {
 		}
 		return nil
 	}
-	
+
 	if err := writeOutput("\n=== Performance Comparison Report ===\n\n"); err != nil {
 		return err
 	}
-	
+
 	if err := writeOutput("Go Version:\n"); err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ func WriteComparisonReport(report *ComparisonReport, w io.Writer) error {
 	if err := writeOutput("  Memory Usage: %.2f MB\n", report.GoResults.MemoryUsageMB); err != nil {
 		return err
 	}
-	
+
 	if report.PythonResults.StartupTimeMs > 0 {
 		if err := writeOutput("\nPython Version:\n"); err != nil {
 			return err
@@ -218,7 +218,7 @@ func WriteComparisonReport(report *ComparisonReport, w io.Writer) error {
 			return err
 		}
 	}
-	
+
 	if err := writeOutput("\nSummary:\n"); err != nil {
 		return err
 	}
@@ -231,6 +231,6 @@ func WriteComparisonReport(report *ComparisonReport, w io.Writer) error {
 	if err := writeOutput("  Overall: %s\n", report.Summary.OverallAssessment); err != nil {
 		return err
 	}
-	
+
 	return nil
 }

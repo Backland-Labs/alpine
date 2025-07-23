@@ -20,7 +20,7 @@ func TestExtractTaskDescription_BareMode(t *testing.T) {
 
 		// Call with empty args, but both flags set to true
 		err := runWorkflowWithDependencies(context.Background(), []string{}, true, true, "", deps)
-		
+
 		// In bare mode (both flags set), empty task should be allowed
 		// This test should PASS after implementation
 		assert.NoError(t, err, "bare mode should allow empty task description")
@@ -34,7 +34,7 @@ func TestExtractTaskDescription_BareMode(t *testing.T) {
 
 		// Call with empty args and only no-plan flag
 		err := runWorkflowWithDependencies(context.Background(), []string{}, true, false, "", deps)
-		
+
 		// Should fail when only one flag is set
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "task description")
@@ -48,7 +48,7 @@ func TestExtractTaskDescription_BareMode(t *testing.T) {
 
 		// Call with empty args and only no-worktree flag
 		err := runWorkflowWithDependencies(context.Background(), []string{}, false, true, "", deps)
-		
+
 		// Should fail when only one flag is set
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "task description")
@@ -63,7 +63,7 @@ func TestExtractTaskDescription_BareMode(t *testing.T) {
 
 		// Call with whitespace-only task and both flags
 		err := runWorkflowWithDependencies(context.Background(), []string{"   \n\t  "}, true, true, "", deps)
-		
+
 		// In bare mode, whitespace-only should be treated as empty and allowed
 		assert.NoError(t, err, "bare mode should allow whitespace-only task description")
 	})
@@ -71,14 +71,14 @@ func TestExtractTaskDescription_BareMode(t *testing.T) {
 	t.Run("bare mode passes empty string to workflow engine", func(t *testing.T) {
 		mockEngine := &mockWorkflowEngine{}
 		deps := &Dependencies{
-			FileReader:      &mockFileReader{},
-			ConfigLoader:    &mockConfigLoader{},
-			WorkflowEngine:  mockEngine,
+			FileReader:     &mockFileReader{},
+			ConfigLoader:   &mockConfigLoader{},
+			WorkflowEngine: mockEngine,
 		}
 
 		// Call with no args in bare mode
 		err := runWorkflowWithDependencies(context.Background(), []string{}, true, true, "", deps)
-		
+
 		require.NoError(t, err)
 		// Verify that empty string was passed to the engine
 		assert.Equal(t, "", mockEngine.lastTaskDescription)

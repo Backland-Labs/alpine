@@ -7,7 +7,9 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/maxmcd/river/internal/config"
 	"github.com/maxmcd/river/internal/logger"
+	"github.com/maxmcd/river/internal/output"
 )
 
 // ExecuteConfig holds configuration for executing Claude
@@ -17,7 +19,6 @@ type ExecuteConfig struct {
 
 	// StateFile is the path to the claude_state.json file
 	StateFile string
-
 
 	// MCPServers is a list of MCP servers to enable (optional)
 	MCPServers []string
@@ -35,6 +36,8 @@ type ExecuteConfig struct {
 // Executor handles execution of Claude commands
 type Executor struct {
 	commandRunner CommandRunner
+	config        *config.Config
+	printer       *output.Printer
 }
 
 // CommandRunner interface for testing
@@ -46,13 +49,24 @@ type CommandRunner interface {
 func NewExecutor() *Executor {
 	return &Executor{
 		commandRunner: &defaultCommandRunner{},
+		config:        nil,
+		printer:       nil,
+	}
+}
+
+// NewExecutorWithConfig creates a new Claude executor with configuration and printer
+func NewExecutorWithConfig(cfg *config.Config, printer *output.Printer) *Executor {
+	return &Executor{
+		commandRunner: &defaultCommandRunner{},
+		config:        cfg,
+		printer:       printer,
 	}
 }
 
 // Execute runs Claude with the given configuration
 func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, error) {
 	logger.Debug("Starting Claude execution")
-	
+
 	// Validate required fields
 	if config.Prompt == "" {
 		return "", fmt.Errorf("prompt is required")
@@ -62,10 +76,15 @@ func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, e
 	}
 
 	logger.WithFields(map[string]interface{}{
-		"state_file": config.StateFile,
-		"mcp_servers": len(config.MCPServers),
+		"state_file":    config.StateFile,
+		"mcp_servers":   len(config.MCPServers),
 		"allowed_tools": len(config.AllowedTools),
 	}).Debug("Claude configuration validated")
+
+	// Check if we should use todo monitoring
+	if e.config != nil && e.config.ShowTodoUpdates && e.printer != nil {
+		return e.executeWithTodoMonitoring(ctx, config)
+	}
 
 	// Use command runner (allows for mocking in tests)
 	if e.commandRunner != nil {
@@ -75,6 +94,108 @@ func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, e
 	// Default implementation
 	runner := &defaultCommandRunner{}
 	return runner.Run(ctx, config)
+}
+
+// executeWithTodoMonitoring runs Claude with real-time TODO monitoring
+func (e *Executor) executeWithTodoMonitoring(ctx context.Context, config ExecuteConfig) (string, error) {
+	logger.Debug("Starting Claude execution with TODO monitoring")
+
+	// Setup hook (fallback to normal execution on failure)
+	todoFile, cleanup, err := e.setupTodoHook()
+	if err != nil {
+		logger.WithField("error", err).Info("Failed to setup TODO hook, falling back to normal execution")
+		return e.executeWithoutMonitoring(ctx, config)
+	}
+	defer cleanup()
+
+	// Start monitoring
+	monitor := NewTodoMonitor(todoFile)
+	monitorCtx, monitorCancel := context.WithCancel(ctx)
+	defer monitorCancel()
+	go monitor.Start(monitorCtx)
+
+	// Start Claude execution
+	claudeResult := make(chan string, 1)
+	claudeErr := make(chan error, 1)
+	go func() {
+		result, err := e.executeClaudeCommand(ctx, config, todoFile)
+		if err != nil {
+			claudeErr <- err
+		} else {
+			claudeResult <- result
+		}
+	}()
+
+	// Show updates
+	e.printer.StartTodoMonitoring()
+	defer e.printer.StopTodoMonitoring()
+
+	for {
+		select {
+		case task := <-monitor.Updates():
+			e.printer.UpdateCurrentTask(task)
+		case result := <-claudeResult:
+			return result, nil
+		case err := <-claudeErr:
+			return "", err
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
+}
+
+// executeWithoutMonitoring runs Claude using the standard command runner
+func (e *Executor) executeWithoutMonitoring(ctx context.Context, config ExecuteConfig) (string, error) {
+	if e.commandRunner != nil {
+		return e.commandRunner.Run(ctx, config)
+	}
+	runner := &defaultCommandRunner{}
+	return runner.Run(ctx, config)
+}
+
+// executeClaudeCommand runs Claude with environment variables for hook integration
+func (e *Executor) executeClaudeCommand(ctx context.Context, config ExecuteConfig, todoFile string) (string, error) {
+	// Create executor to access buildCommand
+	baseCmd := e.buildCommandWithValidation(config)
+
+	logger.WithFields(map[string]interface{}{
+		"command": baseCmd.Path,
+		"args":    baseCmd.Args,
+	}).Debug("Preparing Claude command with TODO monitoring")
+
+	// Handle timeout
+	if config.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, config.Timeout)
+		defer cancel()
+		logger.WithField("timeout", config.Timeout).Debug("Setting execution timeout")
+	}
+
+	// Create command with context
+	cmd := exec.CommandContext(ctx, baseCmd.Path, baseCmd.Args[1:]...)
+	cmd.Env = baseCmd.Env
+	cmd.Dir = baseCmd.Dir
+
+	// Add todo file environment variable
+	cmd.Env = append(cmd.Env, fmt.Sprintf("RIVER_TODO_FILE=%s", todoFile))
+
+	// Run the command
+	startTime := time.Now()
+	logger.Debug("Executing Claude command with TODO monitoring")
+	output, err := cmd.CombinedOutput()
+	duration := time.Since(startTime)
+
+	if err != nil {
+		logger.WithFields(map[string]interface{}{
+			"error":    err,
+			"duration": duration,
+			"output":   string(output),
+		}).Error("Claude execution failed")
+		return "", fmt.Errorf("claude execution failed: %w", err)
+	}
+
+	logger.WithField("duration", duration).Debug("Claude execution completed successfully")
+	return string(output), nil
 }
 
 // DefaultSystemPrompt is the default system prompt used when none is provided
@@ -155,7 +276,7 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 func (e *Executor) buildCommandWithValidation(config ExecuteConfig) *exec.Cmd {
 	// Build the command using the existing method
 	cmd := e.buildCommand(config)
-	
+
 	// Only validate and modify Dir if it was set by buildCommand
 	if cmd.Dir != "" {
 		// Validate the directory exists and is accessible
@@ -178,7 +299,7 @@ func (e *Executor) buildCommandWithValidation(config ExecuteConfig) *exec.Cmd {
 			}
 		}
 	}
-	
+
 	return cmd
 }
 
@@ -192,7 +313,7 @@ func (r *defaultCommandRunner) Run(ctx context.Context, config ExecuteConfig) (s
 
 	logger.WithFields(map[string]interface{}{
 		"command": baseCmd.Path,
-		"args": baseCmd.Args,
+		"args":    baseCmd.Args,
 	}).Debug("Preparing Claude command")
 
 	// Handle timeout
@@ -206,19 +327,19 @@ func (r *defaultCommandRunner) Run(ctx context.Context, config ExecuteConfig) (s
 	// Create command with context
 	cmd := exec.CommandContext(ctx, baseCmd.Path, baseCmd.Args[1:]...)
 	cmd.Env = baseCmd.Env
-	cmd.Dir = baseCmd.Dir  // Preserve working directory from buildCommand
+	cmd.Dir = baseCmd.Dir // Preserve working directory from buildCommand
 
 	// Run the command
 	startTime := time.Now()
 	logger.Debug("Executing Claude command")
 	output, err := cmd.CombinedOutput()
 	duration := time.Since(startTime)
-	
+
 	if err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error": err,
+			"error":    err,
 			"duration": duration,
-			"output": string(output),
+			"output":   string(output),
 		}).Error("Claude execution failed")
 		return "", fmt.Errorf("claude execution failed: %w", err)
 	}

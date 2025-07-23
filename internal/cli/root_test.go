@@ -110,11 +110,11 @@ func TestExecute(t *testing.T) {
 // TestCLIWorktreeFlags tests that the --no-worktree flag is parsed correctly
 func TestCLIWorktreeFlags(t *testing.T) {
 	tests := []struct {
-		name           string
-		args           []string
-		wantErr        bool
-		wantInOutput   []string
-		checkWorktree  func(t *testing.T, cmd *cobra.Command)
+		name          string
+		args          []string
+		wantErr       bool
+		wantInOutput  []string
+		checkWorktree func(t *testing.T, cmd *cobra.Command)
 	}{
 		{
 			name:    "--no-worktree flag in help",
@@ -168,7 +168,7 @@ func TestCLIWorktreeFlags(t *testing.T) {
 				if !noWorktree {
 					t.Errorf("Expected no-worktree flag to be true, got false")
 				}
-				
+
 				noPlan, err := cmd.Flags().GetBool("no-plan")
 				if err != nil {
 					t.Errorf("Failed to get no-plan flag: %v", err)

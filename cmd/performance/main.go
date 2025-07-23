@@ -18,14 +18,14 @@ func main() {
 
 	// Create runner
 	runner := performance.NewRunner(os.Stderr)
-	
+
 	// Run performance measurements
 	results, err := runner.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error running performance tests: %v\n", err)
 		os.Exit(1)
 	}
-	
+
 	// Determine output destination
 	output := os.Stdout
 	if *outputFile != "" {
@@ -41,7 +41,7 @@ func main() {
 		}()
 		output = f
 	}
-	
+
 	// Write results
 	if *jsonOutput {
 		if err := runner.WriteJSON(results, output); err != nil {
@@ -53,7 +53,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error writing summary: %v\n", err)
 			os.Exit(1)
 		}
-		
+
 		// If writing to file, also print summary to stdout
 		if *outputFile != "" {
 			if err := runner.WriteSummary(results, os.Stdout); err != nil {
@@ -61,13 +61,13 @@ func main() {
 			}
 		}
 	}
-	
+
 	// Check if performance meets expectations
 	if results.StartupTime.GoStartupTimeMs > 1000 {
 		fmt.Fprintf(os.Stderr, "\nWarning: Startup time exceeds 1 second\n")
 		os.Exit(1)
 	}
-	
+
 	if results.MemoryUsage.HeapAllocMB > 100 {
 		fmt.Fprintf(os.Stderr, "\nWarning: Memory usage exceeds 100MB\n")
 		os.Exit(1)

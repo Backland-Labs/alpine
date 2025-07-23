@@ -185,3 +185,8 @@ func LevelFromString(s string) Level {
 		return InfoLevel
 	}
 }
+
+// NewTestLogger creates a logger suitable for testing with debug level
+func NewTestLogger() *Logger {
+	return New(DebugLevel)
+}

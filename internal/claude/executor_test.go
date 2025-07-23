@@ -29,8 +29,8 @@ func TestExecutor_Execute(t *testing.T) {
 		{
 			name: "successful execution with basic prompt",
 			config: ExecuteConfig{
-				Prompt:      "test prompt",
-				StateFile:   "/tmp/state.json",
+				Prompt:    "test prompt",
+				StateFile: "/tmp/state.json",
 			},
 			mockCommand: &mockCommand{
 				output: "Claude execution successful",
@@ -41,9 +41,9 @@ func TestExecutor_Execute(t *testing.T) {
 		{
 			name: "successful execution with MCP servers",
 			config: ExecuteConfig{
-				Prompt:      "test prompt",
-				StateFile:   "/tmp/state.json",
-				MCPServers:  []string{"playwright", "context7"},
+				Prompt:     "test prompt",
+				StateFile:  "/tmp/state.json",
+				MCPServers: []string{"playwright", "context7"},
 			},
 			mockCommand: &mockCommand{
 				output: "Claude execution with MCP servers successful",
@@ -54,8 +54,8 @@ func TestExecutor_Execute(t *testing.T) {
 		{
 			name: "handles command execution failure",
 			config: ExecuteConfig{
-				Prompt:      "test prompt",
-				StateFile:   "/tmp/state.json",
+				Prompt:    "test prompt",
+				StateFile: "/tmp/state.json",
 			},
 			mockCommand: &mockCommand{
 				output: "",
@@ -165,8 +165,8 @@ func TestExecutor_buildCommand(t *testing.T) {
 		{
 			name: "basic command construction",
 			config: ExecuteConfig{
-				Prompt:      "test prompt",
-				StateFile:   "/tmp/state.json",
+				Prompt:    "test prompt",
+				StateFile: "/tmp/state.json",
 			},
 			expectedArgs: []string{
 				"--output-format", "text",
@@ -352,7 +352,7 @@ func TestExecutor_BuildCommand_WorkingDirectoryError(t *testing.T) {
 		if cmd == nil {
 			t.Fatal("expected command to be built even if working directory fails")
 		}
-		
+
 		// Verify basic command structure is intact
 		if cmd.Path != "claude" && !strings.HasSuffix(cmd.Path, "/claude") {
 			t.Errorf("expected command path to be 'claude', got %q", cmd.Path)
@@ -367,7 +367,7 @@ func TestExecutor_CommandRunner_PreservesDirectory(t *testing.T) {
 		// Create a custom command runner that can verify the directory
 		runner := &defaultCommandRunner{}
 		exec := &Executor{commandRunner: runner}
-		
+
 		config := ExecuteConfig{
 			Prompt:    "test prompt",
 			StateFile: "/tmp/state.json",
@@ -379,7 +379,7 @@ func TestExecutor_CommandRunner_PreservesDirectory(t *testing.T) {
 		// Note: Since we can't easily mock exec.CommandContext,
 		// this test documents the expected behavior.
 		// The actual implementation test will be done via integration tests.
-		
+
 		// For now, verify that buildCommand is called and creates a valid command
 		if baseCmd == nil {
 			t.Error("expected buildCommand to create a valid command")
@@ -403,7 +403,7 @@ func TestExecutor_WorkingDirectoryFallback(t *testing.T) {
 		// Build command - even if we can't mock os.Getwd failure directly,
 		// we can verify that command building continues
 		cmd := exec.buildCommand(config)
-		
+
 		if cmd == nil {
 			t.Fatal("expected command to be built even with directory issues")
 		}
@@ -412,7 +412,7 @@ func TestExecutor_WorkingDirectoryFallback(t *testing.T) {
 		if cmd.Path == "" {
 			t.Error("expected command path to be set")
 		}
-		
+
 		// When directory operations fail, cmd.Dir might be empty but command should still work
 		// This is the graceful fallback behavior
 	})
@@ -429,7 +429,7 @@ func TestExecutor_WorkingDirectoryFallback(t *testing.T) {
 
 		// Build command
 		cmd := exec.buildCommand(config)
-		
+
 		// Even without being able to capture logs in this test,
 		// we document that a warning should be logged when directory operations fail
 		if cmd == nil {
@@ -454,16 +454,16 @@ func TestExecutor_ValidatesWorkingDirectory(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		
+
 		// Change to valid directory first
 		originalWd, _ := os.Getwd()
 		defer func() { _ = os.Chdir(originalWd) }()
 		_ = os.Chdir(tempDir)
-		
+
 		// Now remove it to make it invalid
 		_ = os.Chdir(originalWd)
 		_ = os.RemoveAll(tempDir)
-		
+
 		// Try to change back to the now non-existent directory
 		err = os.Chdir(tempDir)
 		if err == nil {
@@ -477,7 +477,7 @@ func TestExecutor_ValidatesWorkingDirectory(t *testing.T) {
 		if cmd == nil {
 			t.Fatal("Expected command to be created even with invalid directory")
 		}
-		
+
 		// The validated method should not set an invalid directory
 		if cmd.Dir == tempDir {
 			t.Errorf("Expected working directory to not be set to non-existent directory")

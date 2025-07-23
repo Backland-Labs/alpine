@@ -54,7 +54,7 @@ func (v *commandValidator) CompareCommands(pythonCmd, goCmd []string) Comparison
 		result.Match = false
 		pythonSet := make(map[string]bool)
 		goSet := make(map[string]bool)
-		
+
 		for _, tool := range pythonComponents.ToolAllowlist {
 			pythonSet[tool] = true
 		}
@@ -83,14 +83,14 @@ func (v *commandValidator) CompareCommands(pythonCmd, goCmd []string) Comparison
 				})
 			}
 		}
-		
+
 		// Special case: if counts match but tools differ, show the difference
 		if len(pythonComponents.ToolAllowlist) == len(goComponents.ToolAllowlist) &&
 			len(pythonComponents.ToolAllowlist) > 0 && len(result.Differences) > 0 {
 			// Clear and show specific mismatches
 			result.Differences = []Difference{}
 			for i := range pythonComponents.ToolAllowlist {
-				if i < len(goComponents.ToolAllowlist) && 
+				if i < len(goComponents.ToolAllowlist) &&
 					pythonComponents.ToolAllowlist[i] != goComponents.ToolAllowlist[i] {
 					result.Differences = append(result.Differences, Difference{
 						Type:        "tool_allowlist",
@@ -152,11 +152,11 @@ func (v *commandValidator) ExtractComponents(cmd []string) CommandComponents {
 	}
 
 	components.Executable = cmd[0]
-	
+
 	i := 1
 	for i < len(cmd) {
 		arg := cmd[i]
-		
+
 		if strings.HasPrefix(arg, "--mcp-server-") {
 			// Extract MCP server name
 			serverName := strings.TrimPrefix(arg, "--mcp-server-")
@@ -241,21 +241,21 @@ func slicesEqualUnordered(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	
+
 	// Sort copies to compare
 	aCopy := make([]string, len(a))
 	bCopy := make([]string, len(b))
 	copy(aCopy, a)
 	copy(bCopy, b)
-	
+
 	sort.Strings(aCopy)
 	sort.Strings(bCopy)
-	
+
 	for i := range aCopy {
 		if aCopy[i] != bCopy[i] {
 			return false
 		}
 	}
-	
+
 	return true
 }

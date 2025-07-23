@@ -188,11 +188,11 @@ func TestRunWorkflowWithFileInput(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:             "file not found",
-			filename:         "missing.md",
-			fileContent:      nil,
-			fileError:        os.ErrNotExist,
-			setupMocks:       func(deps *Dependencies) {
+			name:        "file not found",
+			filename:    "missing.md",
+			fileContent: nil,
+			fileError:   os.ErrNotExist,
+			setupMocks: func(deps *Dependencies) {
 				deps.FileReader.(*MockFileReader).On("ReadFile", "missing.md").Return([]byte(nil), os.ErrNotExist)
 			},
 			wantErr:          true,

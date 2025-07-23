@@ -80,9 +80,9 @@ func (v *stateValidator) NormalizeState(state *core.State) *core.State {
 func normalizeString(s string) string {
 	// Trim whitespace
 	s = strings.TrimSpace(s)
-	
+
 	// Normalize line endings (CRLF -> LF)
 	s = strings.ReplaceAll(s, "\r\n", "\n")
-	
+
 	return s
 }

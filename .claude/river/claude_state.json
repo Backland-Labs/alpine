@@ -1,0 +1,5 @@
+{
+    "current_step_description": "Implemented Claude TODO Visibility feature from plan.md",
+    "next_step_prompt": "/verify",
+    "status": "running"
+}
