@@ -5,6 +5,23 @@ All notable changes to the River CLI project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+#### Claude Working Directory Execution (#7)
+- **Fixed Claude commands executing in wrong directory** - Claude now properly executes in the worktree directory instead of the original repository
+- **Added working directory validation** - Validates directory exists and is accessible before execution
+- **Enhanced error handling** - Graceful fallback when working directory detection fails
+- **Added comprehensive tests** - Unit and integration tests verify correct directory isolation
+
+### Changed
+
+#### Claude Executor
+- **Command builder now sets working directory** - Uses `os.Getwd()` to ensure Claude inherits current directory
+- **Added directory validation method** - Checks directory existence and permissions before execution
+- **Improved logging** - Debug and warning logs for directory operations
+
 ## [0.3.0] - 2025-07-22
 
 ### Added
