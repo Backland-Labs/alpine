@@ -131,10 +131,54 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 	// Create command
 	cmd := exec.Command("claude", args...)
 
+	// Set working directory to current directory (enables worktree isolation)
+	workDir, err := os.Getwd()
+	if err != nil {
+		// Log warning but continue without setting Dir
+		// Claude will use default behavior (inherit from parent process)
+		logger.WithField("error", err).Info("Failed to get working directory, Claude will use default directory")
+	} else {
+		cmd.Dir = workDir
+		logger.WithField("workDir", workDir).Debug("Set Claude working directory")
+	}
+
 	// Set environment variables
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("RIVER_STATE_FILE=%s", config.StateFile))
 
+	return cmd
+}
+
+// buildCommandWithValidation builds a command and validates the working directory
+// before setting it on the command. This ensures Claude is not executed in a
+// non-existent or inaccessible directory.
+func (e *Executor) buildCommandWithValidation(config ExecuteConfig) *exec.Cmd {
+	// Build the command using the existing method
+	cmd := e.buildCommand(config)
+	
+	// Only validate and modify Dir if it was set by buildCommand
+	if cmd.Dir != "" {
+		// Validate the directory exists and is accessible
+		if _, err := os.Stat(cmd.Dir); err != nil {
+			if os.IsNotExist(err) {
+				logger.WithField("workDir", cmd.Dir).
+					WithField("error", err.Error()).
+					Info("Working directory does not exist, using default directory")
+				cmd.Dir = "" // Clear invalid directory
+			} else if os.IsPermission(err) {
+				logger.WithField("workDir", cmd.Dir).
+					WithField("error", err.Error()).
+					Info("Working directory permission denied, using default directory")
+				cmd.Dir = "" // Clear inaccessible directory
+			} else {
+				// For other errors, log but keep the directory set
+				logger.WithField("workDir", cmd.Dir).
+					WithField("error", err.Error()).
+					Debug("Working directory validation encountered error")
+			}
+		}
+	}
+	
 	return cmd
 }
 
@@ -144,7 +188,7 @@ type defaultCommandRunner struct{}
 func (r *defaultCommandRunner) Run(ctx context.Context, config ExecuteConfig) (string, error) {
 	// Create executor to access buildCommand
 	executor := &Executor{}
-	baseCmd := executor.buildCommand(config)
+	baseCmd := executor.buildCommandWithValidation(config)
 
 	logger.WithFields(map[string]interface{}{
 		"command": baseCmd.Path,
@@ -162,6 +206,7 @@ func (r *defaultCommandRunner) Run(ctx context.Context, config ExecuteConfig) (s
 	// Create command with context
 	cmd := exec.CommandContext(ctx, baseCmd.Path, baseCmd.Args[1:]...)
 	cmd.Env = baseCmd.Env
+	cmd.Dir = baseCmd.Dir  // Preserve working directory from buildCommand
 
 	// Run the command
 	startTime := time.Now()
