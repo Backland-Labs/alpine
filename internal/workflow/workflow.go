@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -202,6 +203,12 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 		e.printer.Info("Initializing bare workflow execution")
 	} else {
 		e.printer.Info("Initializing workflow for task: %s", taskDescription)
+	}
+
+	// Ensure the directory exists before saving the state file
+	stateDir := filepath.Dir(e.stateFile)
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		return fmt.Errorf("failed to create state directory: %w", err)
 	}
 
 	state := &core.State{

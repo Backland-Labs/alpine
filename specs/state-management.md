@@ -6,8 +6,9 @@ River uses a JSON state file (`claude_state.json`) to track workflow progress an
 
 ## State File Location
 
-- Default: `./claude_state.json` (current working directory)
-- Created automatically when workflow starts
+- Default: `.claude/river/claude_state.json` (Claude Code's standard location)
+- Override with `RIVER_STATE_FILE` environment variable
+- Directory created automatically when workflow starts
 
 ## Schema
 
@@ -43,6 +44,12 @@ River uses a JSON state file (`claude_state.json`) to track workflow progress an
 1. **Initialize**: Create file with initial prompt and status `"running"`
 2. **Iterate**: Claude Code updates all fields during execution
 3. **Complete**: When status becomes `"completed"`, workflow ends
+
+### Bare Mode Behavior
+
+When running with `--no-plan --no-worktree`:
+- If state file exists: Continue from existing workflow
+- If no state file exists: Initialize new workflow with `/ralph`
 
 ## File Operations
 

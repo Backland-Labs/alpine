@@ -108,10 +108,10 @@ func New() (*Config, error) {
 	}
 	cfg.ShowTodoUpdates = showTodoUpdates
 
-	// Load StateFile - defaults to ./claude_state.json
+	// Load StateFile - defaults to .claude/river/claude_state.json
 	stateFile := os.Getenv("RIVER_STATE_FILE")
 	if stateFile == "" {
-		cfg.StateFile = filepath.Join(".", "claude_state.json")
+		cfg.StateFile = filepath.Join(".claude", "river", "claude_state.json")
 	} else {
 		cfg.StateFile = stateFile
 	}
