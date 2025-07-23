@@ -2,7 +2,7 @@ package hooks
 
 import _ "embed"
 
-//go:embed todo-monitor.sh
+//go:embed todo-monitor.rs
 var todoMonitorScript string
 
 // GetTodoMonitorScript returns the TodoWrite PostToolUse hook script

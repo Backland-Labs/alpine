@@ -45,7 +45,7 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	}
 
 	// Copy hook script to .claude directory
-	hookScriptPath := filepath.Join(claudeDir, "todo-monitor.sh")
+	hookScriptPath := filepath.Join(claudeDir, "todo-monitor.rs")
 	if err := e.copyHookScript(hookScriptPath); err != nil {
 		_ = os.Remove(todoFilePath)
 		return "", nil, fmt.Errorf("failed to copy hook script: %w", err)
