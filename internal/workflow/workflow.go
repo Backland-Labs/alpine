@@ -46,15 +46,20 @@ func NewEngine(executor ClaudeExecutor, wtMgr gitx.WorktreeManager, cfg *config.
 func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan bool) error {
 	logger.WithField("task_description", taskDescription).Debug("Starting workflow run")
 	
-	// Validate input
-	if strings.TrimSpace(taskDescription) == "" {
+	// Check if this is bare mode
+	isBareMode := taskDescription == "" && !generatePlan && !e.cfg.Git.WorktreeEnabled
+	
+	// Validate input (skip for bare mode)
+	if !isBareMode && strings.TrimSpace(taskDescription) == "" {
 		return fmt.Errorf("task description cannot be empty")
 	}
 
-	// Create worktree if enabled
-	if err := e.createWorktree(ctx, taskDescription); err != nil {
-		logger.WithField("error", err).Error("Failed to create worktree")
-		return fmt.Errorf("failed to create worktree: %w", err)
+	// Create worktree if enabled and not in bare mode
+	if !isBareMode {
+		if err := e.createWorktree(ctx, taskDescription); err != nil {
+			logger.WithField("error", err).Error("Failed to create worktree")
+			return fmt.Errorf("failed to create worktree: %w", err)
+		}
 	}
 
 	// Setup cleanup
@@ -76,13 +81,37 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 		}
 	}()
 
-	// Initialize workflow
-	logger.WithField("generate_plan", generatePlan).Debug("Initializing workflow")
-	if err := e.initializeWorkflow(taskDescription, generatePlan); err != nil {
-		logger.WithField("error", err).Error("Failed to initialize workflow")
-		return fmt.Errorf("failed to initialize workflow: %w", err)
+	// Handle bare mode initialization
+	if isBareMode {
+		if _, err := os.Stat(e.stateFile); err == nil {
+			// Continue from existing state
+			logger.Info("Continuing from existing state file")
+			e.printer.Info("Continuing from existing state file")
+			return e.runWorkflowLoop(ctx)
+		} else if os.IsNotExist(err) {
+			// Initialize with /ralph
+			logger.Info("Starting bare execution with /ralph")
+			e.printer.Info("Starting bare execution with /ralph")
+			if err := e.initializeWorkflow(ctx, "/ralph", false); err != nil {
+				return fmt.Errorf("failed to initialize bare workflow: %w", err)
+			}
+		} else {
+			return fmt.Errorf("failed to check state file: %w", err)
+		}
+	} else {
+		// Normal initialization
+		logger.WithField("generate_plan", generatePlan).Debug("Initializing workflow")
+		if err := e.initializeWorkflow(ctx, taskDescription, generatePlan); err != nil {
+			logger.WithField("error", err).Error("Failed to initialize workflow")
+			return fmt.Errorf("failed to initialize workflow: %w", err)
+		}
 	}
 
+	return e.runWorkflowLoop(ctx)
+}
+
+// runWorkflowLoop runs the main execution loop
+func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 	// Main execution loop
 	iteration := 0
 	for {
@@ -158,7 +187,7 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 }
 
 // initializeWorkflow creates the initial state file
-func (e *Engine) initializeWorkflow(taskDescription string, generatePlan bool) error {
+func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string, generatePlan bool) error {
 	var prompt string
 	
 	if generatePlan {
@@ -167,7 +196,13 @@ func (e *Engine) initializeWorkflow(taskDescription string, generatePlan bool) e
 		prompt = "/ralph " + taskDescription
 	}
 
-	e.printer.Info("Initializing workflow for task: %s", taskDescription)
+	// For bare mode, taskDescription is just "/ralph"
+	if taskDescription == "/ralph" {
+		prompt = taskDescription
+		e.printer.Info("Initializing bare workflow execution")
+	} else {
+		e.printer.Info("Initializing workflow for task: %s", taskDescription)
+	}
 	
 	state := &core.State{
 		CurrentStepDescription: "Initializing workflow for task",

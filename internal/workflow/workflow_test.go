@@ -496,3 +496,97 @@ func TestEngineStateFileInWorktree(t *testing.T) {
 	expectedStateFile := filepath.Join(worktreeDir, "claude_state.json")
 	assert.FileExists(t, expectedStateFile)
 }
+
+func TestEngine_BareMode_ContinuesExistingState(t *testing.T) {
+	// Test that bare mode continues from existing claude_state.json
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	stateFile := filepath.Join(tempDir, "claude_state.json")
+	
+	// Create existing state file
+	existingState := &core.State{
+		CurrentStepDescription: "Previous work done",
+		NextStepPrompt:         "/continue previous task",
+		Status:                 "running",
+	}
+	err := existingState.Save(stateFile)
+	require.NoError(t, err)
+	
+	// Create test executor that expects continuation
+	executor := newTestExecutor(t, stateFile)
+	executor.executions = []testExecution{
+		{
+			expectedPrompt: "/continue previous task",
+			stateUpdate: &core.State{
+				CurrentStepDescription: "Continued previous work",
+				NextStepPrompt:         "",
+				Status:                 "completed",
+			},
+		},
+	}
+	
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
+	engine.SetStateFile(stateFile)
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+	
+	// Run in bare mode (empty task, no plan, no worktree)
+	err = engine.Run(ctx, "", false)
+	require.NoError(t, err)
+	
+	// Verify execution happened
+	assert.Equal(t, 1, executor.executionCount)
+	
+	// Verify final state
+	finalState, err := core.LoadState(stateFile)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", finalState.Status)
+	assert.Equal(t, "Continued previous work", finalState.CurrentStepDescription)
+}
+
+func TestEngine_BareMode_InitializesWithRalph(t *testing.T) {
+	// Test that bare mode initializes with /ralph when no state exists
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	stateFile := filepath.Join(tempDir, "claude_state.json")
+	
+	// Create test executor that expects /ralph initialization
+	executor := newTestExecutor(t, stateFile)
+	executor.executions = []testExecution{
+		{
+			expectedPrompt: "/ralph",
+			stateUpdate: &core.State{
+				CurrentStepDescription: "Started bare execution",
+				NextStepPrompt:         "/continue task",
+				Status:                 "running",
+			},
+		},
+		{
+			expectedPrompt: "/continue task",
+			stateUpdate: &core.State{
+				CurrentStepDescription: "Completed bare execution",
+				NextStepPrompt:         "",
+				Status:                 "completed",
+			},
+		},
+	}
+	
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
+	engine.SetStateFile(stateFile)
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+	
+	// Run in bare mode (empty task, no plan, no worktree)
+	err := engine.Run(ctx, "", false)
+	require.NoError(t, err)
+	
+	// Verify both executions happened
+	assert.Equal(t, 2, executor.executionCount)
+	
+	// Verify final state
+	finalState, err := core.LoadState(stateFile)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", finalState.Status)
+}
