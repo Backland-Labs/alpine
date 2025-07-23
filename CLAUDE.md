@@ -62,6 +62,9 @@ golangci-lint run
 
 # Run with task from file
 ./river --file task.md
+
+# Bare execution mode - continue from existing state or start fresh
+./river --no-plan --no-worktree
 ```
 
 ## Key Implementation Notes

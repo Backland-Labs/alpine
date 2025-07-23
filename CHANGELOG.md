@@ -5,6 +5,38 @@ All notable changes to the River CLI project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-07-23
+
+### Added
+
+#### Bare Execution Mode
+- **Bare execution mode** allowing `river --no-plan --no-worktree` without task description
+- **Automatic state continuation** from existing `claude_state.json` when present
+- **Fresh workflow initialization** with `/ralph` command when no state exists
+- **Advanced flag validation** requiring both `--no-plan` and `--no-worktree` flags
+
+#### Enhanced CLI
+- **Flexible argument handling** supporting bare mode execution
+- **Comprehensive error messages** for invalid flag combinations
+- **State-aware workflow resumption** for interrupted tasks
+
+#### Testing Coverage
+- **Complete integration test suite** for bare mode scenarios
+- **State persistence validation** across workflow interruptions
+- **Error handling verification** for invalid configurations
+- **Workflow continuation testing** from existing state files
+
+### Technical Implementation
+- **CLI argument validation** in `internal/cli/root.go`
+- **Task description handling** in `internal/cli/workflow.go`
+- **Workflow engine state management** in `internal/workflow/workflow.go`
+- **Integration tests** in `test/integration/bare_mode_test.go`
+
+### Breaking Changes
+- None. All changes are backward compatible with existing workflows.
+
+---
+
 ## [0.3.0] - 2025-07-22
 
 ### Added

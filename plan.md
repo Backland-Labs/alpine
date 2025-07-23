@@ -101,16 +101,16 @@ return e.runWorkflowLoop(ctx)
 - Error handling ✅ TestBareMode_ErrorHandling
 - State file persistence ✅ TestBareMode_StateFilePersistence
 
-### 5. Documentation (1-2 hours)
+### 5. Documentation (1-2 hours) ✅ IMPLEMENTED
 **Updates**:
-1. Help text in `root.go`:
+1. Help text in `root.go`: ✅ COMPLETED
    ```
    river --no-plan --no-worktree  # Bare execution mode
    ```
 
-2. CLAUDE.md - Add bare mode section
+2. CLAUDE.md - Add bare mode section ✅ COMPLETED
 
-3. CHANGELOG.md - Document new feature
+3. CHANGELOG.md - Document new feature ✅ COMPLETED
 
 ## Testing Checklist
 - [ ] Unit tests pass
