@@ -237,6 +237,86 @@ export RIVER_HOOKS_ENABLED="true"
 - Update external monitoring systems
 - Generate workflow analytics
 
+### Todo Monitor Hook
+**Purpose**: Monitor all Claude Code tool usage and track TodoWrite updates
+**Script**: `todo-monitor.rs`
+**Behavior**:
+- Display all tool calls with timestamps to stderr for real-time visibility
+- Show tool-specific information (file paths, commands, search patterns)
+- Track TodoWrite updates with task counts (Completed/In Progress/Pending)
+- Display current in-progress task
+- Write current task to file specified by `RIVER_TODO_FILE` environment variable
+- Support both Claude Code PostToolUse format (`tool_name`/`tool_input`) and legacy format (`tool`/`args`)
+
+**Example Output**:
+```
+[14:32:15] [TODO] Updated - Completed: 2, In Progress: 1, Pending: 3
+[14:32:15] [TODO] Current task: Implementing user authentication
+[14:32:16] [READ] Reading file: /src/auth/login.js
+[14:32:18] [EDIT] Editing file: /src/auth/login.js
+[14:32:20] [BASH] Executing: npm test
+[14:32:22] [GREP] Searching for 'authenticate' in src/
+[14:32:23] [GLOB] Finding files matching '*.test.js' in tests/
+[14:32:24] [WEB] Fetching: https://api.example.com/docs
+```
+
+**Implementation Details**:
+```rust
+#!/usr/bin/env rust-script
+//! ```cargo
+//! [dependencies]
+//! serde_json = "1.0"
+//! chrono = "0.4"
+//! ```
+
+use serde_json::Value;
+use std::env;
+use std::io::{self, Read, Write};
+use std::fs::File;
+use chrono::Local;
+
+fn main() -> io::Result<()> {
+    // Read JSON input from Claude Code
+    let mut input = String::new();
+    io::stdin().read_to_string(&mut input)?;
+    
+    let data: Value = match serde_json::from_str(&input) {
+        Ok(v) => v,
+        Err(_) => return Ok(()), // Exit gracefully on invalid JSON
+    };
+    
+    // Get timestamp
+    let timestamp = Local::now().format("%H:%M:%S");
+    
+    // Check both possible field names for tool name (for compatibility)
+    let tool_name = data["tool_name"].as_str()
+        .or_else(|| data["tool"].as_str())
+        .unwrap_or("");
+    
+    // Get tool input - check both possible field names
+    let tool_input = data["tool_input"].as_object()
+        .or_else(|| data["args"].as_object());
+    
+    // Process and display all tool calls
+    match tool_name {
+        "TodoWrite" => handle_todo_write(&data, &timestamp, tool_input),
+        "Read" => /* display file path */,
+        "Write" => /* display file path */,
+        "Edit" | "MultiEdit" => /* display file path */,
+        "Bash" => /* display command */,
+        "Grep" => /* display pattern and path */,
+        "Glob" => /* display pattern and path */,
+        "LS" => /* display directory path */,
+        "WebFetch" => /* display URL */,
+        "WebSearch" => /* display query */,
+        "Task" => /* display agent description */,
+        _ => /* display generic tool message */
+    }
+    
+    Ok(())
+}
+```
+
 ## Advanced Hook Features
 
 ### Conditional Execution
