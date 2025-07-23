@@ -131,7 +131,7 @@ func TestBareMode_ContinuesExistingState(t *testing.T) {
 
 	// Verify it continued from existing state (not /ralph)
 	assert.Equal(t, 1, mockExecutor.executionCount)
-	
+
 	finalState, err := core.LoadState(stateFile)
 	require.NoError(t, err)
 	assert.Equal(t, "completed", finalState.Status)
@@ -400,7 +400,7 @@ func TestBareMode_ErrorHandling(t *testing.T) {
 
 	// State file should exist with the last successful state
 	helpers.AssertFileExists(t, stateFile)
-	
+
 	// Verify the state from the first successful execution was preserved
 	savedState, err := core.LoadState(stateFile)
 	require.NoError(t, err)

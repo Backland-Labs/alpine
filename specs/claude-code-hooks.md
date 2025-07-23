@@ -41,16 +41,43 @@ Claude Code hooks are configurable scripts that intercept and modify Claude Code
 
 ## Claude Code Hooks Core Functionality
 
+### Hook Implementation Language
+River hooks are implemented in **Rust** using `rust-script` for executable scripts. This provides:
+- Fast JSON parsing with `serde_json`
+- Type-safe error handling
+- Native performance
+- Self-contained executable scripts
+
 ### Blocking Tool Execution
 Hooks can prevent tools from executing by returning exit code 2:
-```bash
-#!/bin/bash
-# Block dangerous operations during certain workflow steps
-if [[ "$RIVER_CURRENT_STEP" == "planning" && "$TOOL_NAME" == "Bash" ]]; then
-    echo "Bash execution blocked during planning phase"
-    exit 2
-fi
-exit 0
+```rust
+#!/usr/bin/env rust-script
+//! ```cargo
+//! [dependencies]
+//! serde_json = "1.0"
+//! ```
+
+use serde_json::Value;
+use std::env;
+use std::io::{self, Read};
+use std::process;
+
+fn main() -> io::Result<()> {
+    let mut input = String::new();
+    io::stdin().read_to_string(&mut input)?;
+    
+    let data: Value = serde_json::from_str(&input).unwrap_or_default();
+    let tool = data["tool"].as_str().unwrap_or("");
+    
+    let current_step = env::var("RIVER_CURRENT_STEP").unwrap_or_default();
+    
+    if current_step == "planning" && tool == "Bash" {
+        eprintln!("Bash execution blocked during planning phase");
+        process::exit(2);
+    }
+    
+    process::exit(0);
+}
 ```
 
 ### Input/Output Modification
@@ -68,20 +95,83 @@ Hooks support sophisticated pattern matching for selective activation:
 ```json
 {
   "matcher": "(Bash|Edit|Write)",
-  "hooks": [{"type": "command", "command": "validate-file-operations.sh"}]
+  "hooks": [{"type": "command", "command": "validate-file-operations.rs"}]
 }
 ```
 
 ### Context Injection
 UserPromptSubmit hooks can augment prompts with additional context:
-```bash
-#!/bin/bash
-original_prompt=$(cat)
-echo "$original_prompt
+```rust
+#!/usr/bin/env rust-script
 
-Current River State: $RIVER_CURRENT_STEP
-Status: $RIVER_STATUS
-"
+use std::env;
+use std::io::{self, Read};
+
+fn main() -> io::Result<()> {
+    let mut original_prompt = String::new();
+    io::stdin().read_to_string(&mut original_prompt)?;
+    
+    let current_step = env::var("RIVER_CURRENT_STEP").unwrap_or_default();
+    let status = env::var("RIVER_STATUS").unwrap_or_default();
+    
+    println!("{}\n\nCurrent River State: {}\nStatus: {}", 
+             original_prompt.trim(), current_step, status);
+    
+    Ok(())
+}
+```
+
+## Hook Storage and Configuration
+
+### Claude Code Settings Files
+
+Claude Code hooks are configured through Claude's settings files, which follow a hierarchical precedence order:
+
+1. **Global User Settings**: `~/.claude/settings.json`
+   - Applied to all Claude Code sessions for the user
+   - Suitable for general River integration hooks
+
+2. **Project Settings**: `.claude/settings.json`
+   - Project-specific hooks configuration
+   - Committed to version control for team sharing
+   - Ideal for River workflow-specific hooks
+
+3. **Local Project Settings**: `.claude/settings.local.json`
+   - Local overrides not committed to version control
+   - Used for developer-specific customizations
+   - Takes precedence over project settings
+
+4. **Enterprise Policy Settings**
+   - Managed by enterprise administrators
+   - Cannot be overridden by user or project settings
+
+### Hook Script Storage
+
+Hook scripts referenced in configuration should be stored in:
+
+- **Built-in River Hooks**: Embedded in River binary or distributed alongside
+- **Project Hooks**: `./claude/hooks/` directory (relative to project root)
+- **User Hooks**: `~/.claude/hooks/` directory for user-global scripts
+- **Custom Paths**: Absolute paths specified in hook configuration
+
+### Settings File Structure
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/river-validate-tool.rs"
+          }
+        ]
+      }
+    ]
+  }
+}
 ```
 
 ## Configuration Structure
@@ -104,7 +194,7 @@ export RIVER_HOOKS_ENABLED="true"
         "hooks": [
           {
             "type": "command",
-            "command": "river-validate-tool.sh"
+            "command": "river-validate-tool.rs"
           }
         ]
       }
@@ -115,7 +205,7 @@ export RIVER_HOOKS_ENABLED="true"
         "hooks": [
           {
             "type": "command", 
-            "command": "river-inject-context.sh"
+            "command": "river-inject-context.rs"
           }
         ]
       }
@@ -128,7 +218,7 @@ export RIVER_HOOKS_ENABLED="true"
 
 ### Tool Validation Hook
 **Purpose**: Ensure tools align with current workflow step
-**Script**: `river-validate-tool.sh`
+**Script**: `river-validate-tool.rs`
 **Behavior**:
 - Read current River state from `claude_state.json`
 - Validate tool usage against workflow requirements
@@ -137,7 +227,7 @@ export RIVER_HOOKS_ENABLED="true"
 
 ### Context Injection Hook
 **Purpose**: Add River state to Claude prompts
-**Script**: `river-inject-context.sh`
+**Script**: `river-inject-context.rs`
 **Behavior**:
 - Read current step description and status
 - Append relevant context to user prompts
@@ -145,7 +235,7 @@ export RIVER_HOOKS_ENABLED="true"
 
 ### Progress Monitoring Hook
 **Purpose**: Track and log workflow progress
-**Script**: `river-monitor-progress.sh`
+**Script**: `river-monitor-progress.rs`
 **Behavior**:
 - Log tool usage patterns
 - Update external monitoring systems
@@ -169,11 +259,28 @@ Hooks can maintain state across executions through:
 
 ### Tool Result Modification
 PostToolUse hooks can modify tool results before Claude processes them:
-```bash
-#!/bin/bash
-# Filter sensitive information from tool outputs
-tool_output=$(cat)
-echo "$tool_output" | sed 's/password=[^[:space:]]*/password=****/g'
+```rust
+#!/usr/bin/env rust-script
+//! ```cargo
+//! [dependencies]
+//! regex = "1.0"
+//! ```
+
+use regex::Regex;
+use std::io::{self, Read};
+
+fn main() -> io::Result<()> {
+    let mut tool_output = String::new();
+    io::stdin().read_to_string(&mut tool_output)?;
+    
+    // Filter sensitive information from tool outputs
+    let re = Regex::new(r"password=[^\s]*").unwrap();
+    let filtered = re.replace_all(&tool_output, "password=****");
+    
+    print!("{}", filtered);
+    
+    Ok(())
+}
 ```
 
 ### Workflow Step Transitions

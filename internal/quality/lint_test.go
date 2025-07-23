@@ -31,22 +31,22 @@ func TestLintingCompliance(t *testing.T) {
 
 	// Parse the output to count issues
 	outputStr := string(output)
-	
+
 	if err != nil {
 		// If there are linting issues, the command will return exit code 1
 		// Count the number of issues reported
 		lines := strings.Split(strings.TrimSpace(outputStr), "\n")
 		var issueCount int
-		
+
 		for _, line := range lines {
 			// Lines that contain file paths and error descriptions are issues
-			if strings.Contains(line, ":") && (strings.Contains(line, "Error") || 
+			if strings.Contains(line, ":") && (strings.Contains(line, "Error") ||
 				strings.Contains(line, "errcheck") || strings.Contains(line, "staticcheck")) {
 				issueCount++
 			}
 		}
-		
-		t.Errorf("Found %d linting issues. All linting issues must be fixed.\nOutput:\n%s", 
+
+		t.Errorf("Found %d linting issues. All linting issues must be fixed.\nOutput:\n%s",
 			issueCount, outputStr)
 		return
 	}
@@ -55,4 +55,3 @@ func TestLintingCompliance(t *testing.T) {
 	assert.NoError(t, err, "golangci-lint should pass without errors")
 	assert.NotContains(t, outputStr, "issues:", "Should not contain any linting issues")
 }
-

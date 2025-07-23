@@ -29,17 +29,17 @@ func (m *StartupTimeMeasurer) MeasureStartupTime() (time.Duration, error) {
 	if err != nil {
 		return 0, err
 	}
-	
+
 	// Measure time to run with --help (minimal execution)
 	start := time.Now()
 	cmd := exec.Command(binaryPath, "--help")
 	err = cmd.Run()
 	duration := time.Since(start)
-	
+
 	if err != nil {
 		return 0, err
 	}
-	
+
 	return duration, nil
 }
 
@@ -50,7 +50,7 @@ func (m *StartupTimeMeasurer) MeasurePythonStartupTime() (time.Duration, error) 
 	if err != nil {
 		return 0, err
 	}
-	
+
 	// Create a minimal test that just checks state and exits
 	testScript := `#!/usr/bin/env python3
 import time
@@ -62,7 +62,7 @@ import os
 # Exit immediately
 print("startup time:", time.time() - start)
 `
-	
+
 	// Write test script to temp file
 	tmpFile := filepath.Join(projectRoot, ".startup_test.py")
 	if err := os.WriteFile(tmpFile, []byte(testScript), 0755); err != nil {
@@ -71,7 +71,7 @@ print("startup time:", time.time() - start)
 	defer func() {
 		_ = os.Remove(tmpFile)
 	}()
-	
+
 	// Measure time to run the minimal script
 	start := time.Now()
 	cmd := exec.Command("python3", tmpFile)
@@ -86,7 +86,7 @@ print("startup time:", time.time() - start)
 		}
 	}
 	duration := time.Since(start)
-	
+
 	return duration, nil
 }
 
@@ -96,26 +96,26 @@ func (m *StartupTimeMeasurer) ensureBinaryExists() (string, error) {
 	if _, err := exec.LookPath(m.binaryPath); err == nil {
 		return m.binaryPath, nil
 	}
-	
+
 	// Get the absolute path to the binary
 	absPath, err := filepath.Abs(m.binaryPath)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Find project root (where go.mod is)
 	projectRoot, err := findProjectRoot()
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Build the binary from the project root
 	buildCmd := exec.Command("go", "build", "-o", absPath, "./cmd/river")
 	buildCmd.Dir = projectRoot
 	if output, err := buildCmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("failed to build binary: %w\nOutput: %s", err, output)
 	}
-	
+
 	return absPath, nil
 }
 
@@ -125,12 +125,12 @@ func findProjectRoot() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
 			return dir, nil
 		}
-		
+
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			return "", fmt.Errorf("could not find project root (go.mod)")

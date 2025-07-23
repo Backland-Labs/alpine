@@ -5,6 +5,35 @@ All notable changes to the River CLI project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-07-23
+
+### Added
+
+#### Claude TODO Visibility
+- **Real-time TODO tracking** - Shows Claude's current task instead of generic "Executing Claude" spinner
+- **PostToolUse hook integration** - Monitors TodoWrite tool calls via Claude Code hooks
+- **Graceful fallback** - Falls back to spinner if hook setup fails
+- **Configurable display** - Can be disabled via `RIVER_SHOW_TODO_UPDATES=false`
+- **File-based monitoring** - Efficient file polling system for task updates
+- **Comprehensive test coverage** - Tests for hooks, monitoring, and display functionality
+
+### Changed
+
+#### Configuration
+- **Added ShowTodoUpdates option** - New configuration field with environment variable support
+- **Updated state file location** - Changed default location to `.claude/river/claude_state.json`
+
+#### Claude Executor
+- **Enhanced Execute method** - Now supports TODO monitoring mode alongside traditional spinner
+- **Added hook setup functionality** - Creates `.claude/settings.local.json` with PostToolUse configuration
+- **Improved error handling** - Graceful degradation when hook setup fails
+
+### Technical Implementation
+- **Hook system** in `internal/claude/hooks.go` - Manages Claude Code hook configuration
+- **TODO monitor** in `internal/claude/todo_monitor.go` - File-based task monitoring
+- **Hook script** in `internal/hooks/todo-monitor.sh` - Bash script for TodoWrite processing
+- **Display functions** in `internal/output/color.go` - Real-time task update display
+
 ## [0.4.0] - 2025-07-23
 
 ### Added

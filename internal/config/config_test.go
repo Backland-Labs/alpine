@@ -18,6 +18,7 @@ func TestNewConfig(t *testing.T) {
 		"RIVER_GIT_ENABLED",
 		"RIVER_GIT_BASE_BRANCH",
 		"RIVER_GIT_AUTO_CLEANUP",
+		"RIVER_SHOW_TODO_UPDATES",
 	}
 	for _, env := range envVars {
 		_ = os.Unsetenv(env)
@@ -63,6 +64,11 @@ func TestNewConfig(t *testing.T) {
 	if !cfg.Git.AutoCleanupWT {
 		t.Error("Git.AutoCleanupWT = false, want true")
 	}
+
+	// Test ShowTodoUpdates default
+	if !cfg.ShowTodoUpdates {
+		t.Error("ShowTodoUpdates = false, want true")
+	}
 }
 
 // TestConfigFromEnvironment tests loading configuration from environment variables
@@ -77,6 +83,7 @@ func TestConfigFromEnvironment(t *testing.T) {
 	_ = os.Setenv("RIVER_GIT_ENABLED", "false")
 	_ = os.Setenv("RIVER_GIT_BASE_BRANCH", "develop")
 	_ = os.Setenv("RIVER_GIT_AUTO_CLEANUP", "false")
+	_ = os.Setenv("RIVER_SHOW_TODO_UPDATES", "false")
 
 	defer func() {
 		// Clean up
@@ -88,6 +95,7 @@ func TestConfigFromEnvironment(t *testing.T) {
 		_ = os.Unsetenv("RIVER_GIT_ENABLED")
 		_ = os.Unsetenv("RIVER_GIT_BASE_BRANCH")
 		_ = os.Unsetenv("RIVER_GIT_AUTO_CLEANUP")
+		_ = os.Unsetenv("RIVER_SHOW_TODO_UPDATES")
 	}()
 
 	cfg, err := New()
@@ -126,6 +134,11 @@ func TestConfigFromEnvironment(t *testing.T) {
 
 	if cfg.Git.AutoCleanupWT {
 		t.Error("Git.AutoCleanupWT = true, want false")
+	}
+
+	// Test ShowTodoUpdates
+	if cfg.ShowTodoUpdates {
+		t.Error("ShowTodoUpdates = true, want false")
 	}
 }
 
@@ -409,9 +422,9 @@ func TestConfigGitDefaults(t *testing.T) {
 // TestConfigGitEnvironmentVariables tests Git configuration from environment variables
 func TestConfigGitEnvironmentVariables(t *testing.T) {
 	tests := []struct {
-		name   string
+		name    string
 		envVars map[string]string
-		want   GitConfig
+		want    GitConfig
 		wantErr bool
 	}{
 		{
@@ -460,9 +473,9 @@ func TestConfigGitEnvironmentVariables(t *testing.T) {
 				"RIVER_GIT_BASE_BRANCH": "",
 			},
 			want: GitConfig{
-				WorktreeEnabled: true,  // default
+				WorktreeEnabled: true,   // default
 				BaseBranch:      "main", // default when empty
-				AutoCleanupWT:   true,  // default
+				AutoCleanupWT:   true,   // default
 			},
 		},
 	}
@@ -473,7 +486,7 @@ func TestConfigGitEnvironmentVariables(t *testing.T) {
 			for k, v := range tt.envVars {
 				_ = os.Setenv(k, v)
 			}
-			
+
 			// Clean up after test
 			defer func() {
 				for k := range tt.envVars {

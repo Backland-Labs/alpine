@@ -30,7 +30,7 @@ func NewMemoryUsageMeasurer() *MemoryUsageMeasurer {
 func (m *MemoryUsageMeasurer) MeasureMemoryUsage() (*MemoryUsage, error) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
-	
+
 	return &MemoryUsage{
 		HeapAlloc:  memStats.HeapAlloc,
 		TotalAlloc: memStats.TotalAlloc,
@@ -46,7 +46,7 @@ func (m *MemoryUsageMeasurer) MeasurePythonMemoryUsage() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	
+
 	// Create a Python script that measures its own memory usage
 	testScript := `#!/usr/bin/env python3
 import psutil
@@ -69,7 +69,7 @@ except ImportError:
     # If psutil is not available, use a rough estimate
     print(20 * 1024 * 1024)  # 20MB estimate
 `
-	
+
 	// Write test script to temp file
 	tmpFile := filepath.Join(projectRoot, ".memory_test.py")
 	if err := os.WriteFile(tmpFile, []byte(testScript), 0755); err != nil {
@@ -78,7 +78,7 @@ except ImportError:
 	defer func() {
 		_ = os.Remove(tmpFile)
 	}()
-	
+
 	// Run the script and capture output
 	cmd := exec.Command("python3", tmpFile)
 	cmd.Dir = projectRoot
@@ -93,13 +93,13 @@ except ImportError:
 			return 20 * 1024 * 1024, nil // 20MB estimate
 		}
 	}
-	
+
 	// Parse the output
 	outputStr := strings.TrimSpace(string(output))
 	memoryBytes, err := strconv.ParseUint(outputStr, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse memory output: %w", err)
 	}
-	
+
 	return memoryBytes, nil
 }

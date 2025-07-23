@@ -107,16 +107,16 @@ if len(sys.argv) > 1 and sys.argv[1] == "ISSUE-456":
 
 			// Create runner config
 			config := &ParityConfig{
-				PythonPath:     filepath.Join(tmpDir, "python_river.py"),
-				GoPath:         "river", // Assuming Go binary is in PATH
-				WorkDir:        tmpDir,
-				CleanupOnExit:  true,
+				PythonPath:    filepath.Join(tmpDir, "python_river.py"),
+				GoPath:        "river", // Assuming Go binary is in PATH
+				WorkDir:       tmpDir,
+				CleanupOnExit: true,
 			}
 
 			// Create and run parity runner
 			runner := NewParityRunner(config)
 			ctx := context.Background()
-			
+
 			// For testing, we'll mock the execution
 			// In real implementation, this would run actual commands
 			results, err := runner.Run(ctx, tt.issueID)
@@ -162,7 +162,7 @@ func TestParityRunner_CompareExecutions(t *testing.T) {
 	}
 
 	results := runner.compareExecutions(pythonExec, goExec)
-	
+
 	assert.True(t, results.CommandMatch)
 	assert.True(t, results.StateMatch)
 	assert.True(t, results.OutputMatch)
@@ -171,11 +171,11 @@ func TestParityRunner_CompareExecutions(t *testing.T) {
 
 func TestParityRunner_GenerateReport(t *testing.T) {
 	results := &ParityResults{
-		IssueID:      "TEST-001",
-		Success:      false,
-		CommandMatch: true,
-		StateMatch:   false,
-		OutputMatch:  true,
+		IssueID:            "TEST-001",
+		Success:            false,
+		CommandMatch:       true,
+		StateMatch:         false,
+		OutputMatch:        true,
 		CommandDifferences: []Difference{},
 		StateDifferences: []Difference{
 			{

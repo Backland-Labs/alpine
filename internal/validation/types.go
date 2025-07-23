@@ -2,7 +2,7 @@ package validation
 
 import (
 	"context"
-	
+
 	"github.com/maxmcd/river/internal/core"
 )
 

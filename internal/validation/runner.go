@@ -245,9 +245,9 @@ func (r *parityRunner) GenerateReport(results *ParityResults) string {
 
 	// Metrics comparison
 	report.WriteString("Output Metrics:\n")
-	report.WriteString(fmt.Sprintf("  Python - Errors: %d, Warnings: %d\n", 
+	report.WriteString(fmt.Sprintf("  Python - Errors: %d, Warnings: %d\n",
 		results.PythonMetrics.ErrorCount, results.PythonMetrics.WarningCount))
-	report.WriteString(fmt.Sprintf("  Go     - Errors: %d, Warnings: %d\n", 
+	report.WriteString(fmt.Sprintf("  Go     - Errors: %d, Warnings: %d\n",
 		results.GoMetrics.ErrorCount, results.GoMetrics.WarningCount))
 
 	return report.String()

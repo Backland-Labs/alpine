@@ -43,6 +43,9 @@ type Config struct {
 	// ShowOutput controls whether Claude command output is displayed
 	ShowOutput bool
 
+	// ShowTodoUpdates controls whether to show real-time TODO progress from Claude
+	ShowTodoUpdates bool
+
 	// StateFile is the path to the state file
 	StateFile string
 
@@ -98,10 +101,17 @@ func New() (*Config, error) {
 	}
 	cfg.ShowOutput = showOutput
 
-	// Load StateFile - defaults to ./claude_state.json
+	// Load ShowTodoUpdates - defaults to true
+	showTodoUpdates, err := parseBoolEnv("RIVER_SHOW_TODO_UPDATES", true)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ShowTodoUpdates = showTodoUpdates
+
+	// Load StateFile - defaults to .claude/river/claude_state.json
 	stateFile := os.Getenv("RIVER_STATE_FILE")
 	if stateFile == "" {
-		cfg.StateFile = filepath.Join(".", "claude_state.json")
+		cfg.StateFile = filepath.Join(".claude", "river", "claude_state.json")
 	} else {
 		cfg.StateFile = stateFile
 	}

@@ -58,7 +58,7 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 					},
 				}
 				deps.ConfigLoader.(*MockConfigLoader).On("Load").Return(cfg, nil)
-				
+
 				// Expect worktree creation
 				wt := &gitx.Worktree{
 					Path:       "../river-river-implement-feature",
@@ -66,7 +66,7 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 					ParentRepo: "/tmp",
 				}
 				wtMgr.On("Create", mock.Anything, "Implement feature").Return(wt, nil)
-				
+
 				// Mock workflow engine with worktree manager injected
 				deps.WorkflowEngine.(*MockWorkflowEngine).On("Run", mock.Anything, "Implement feature", true).Return(nil)
 			},
@@ -88,10 +88,10 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 					},
 				}
 				deps.ConfigLoader.(*MockConfigLoader).On("Load").Return(cfg, nil)
-				
+
 				// Should NOT call worktree manager when --no-worktree is used
 				// No expectations set on wtMgr
-				
+
 				deps.WorkflowEngine.(*MockWorkflowEngine).On("Run", mock.Anything, "Fix bug", true).Return(nil)
 			},
 			expectWorktreeCall: false,
@@ -112,10 +112,10 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 					},
 				}
 				deps.ConfigLoader.(*MockConfigLoader).On("Load").Return(cfg, nil)
-				
+
 				// Should NOT call worktree manager when disabled in config
 				// No expectations set on wtMgr
-				
+
 				deps.WorkflowEngine.(*MockWorkflowEngine).On("Run", mock.Anything, "Add tests", true).Return(nil)
 			},
 			expectWorktreeCall: false,
@@ -136,10 +136,10 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 					},
 				}
 				deps.ConfigLoader.(*MockConfigLoader).On("Load").Return(cfg, nil)
-				
+
 				// Should NOT call worktree manager when --no-worktree flag is used
 				// No expectations set on wtMgr
-				
+
 				deps.WorkflowEngine.(*MockWorkflowEngine).On("Run", mock.Anything, "Refactor code", false).Return(nil)
 			},
 			expectWorktreeCall: false,
@@ -162,7 +162,7 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 				}
 				deps.ConfigLoader.(*MockConfigLoader).On("Load").Return(cfg, nil)
 				deps.FileReader.(*MockFileReader).On("ReadFile", "task.md").Return([]byte("Build new feature"), nil)
-				
+
 				// Expect worktree creation with task from file
 				wt := &gitx.Worktree{
 					Path:       "../river-river-build-new-feature",
@@ -170,7 +170,7 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 					ParentRepo: "/tmp",
 				}
 				wtMgr.On("Create", mock.Anything, "Build new feature").Return(wt, nil)
-				
+
 				deps.WorkflowEngine.(*MockWorkflowEngine).On("Run", mock.Anything, "Build new feature", true).Return(nil)
 			},
 			expectWorktreeCall: true,
@@ -186,7 +186,7 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 				WorkflowEngine: &MockWorkflowEngine{},
 				FileReader:     &MockFileReader{},
 			}
-			
+
 			// Create mock worktree manager
 			wtMgr := &MockWorktreeManager{}
 
@@ -253,7 +253,7 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 			deps.ConfigLoader.(*MockConfigLoader).AssertExpectations(t)
 			deps.WorkflowEngine.(*MockWorkflowEngine).AssertExpectations(t)
 			deps.FileReader.(*MockFileReader).AssertExpectations(t)
-			
+
 			// Verify worktree manager expectations
 			if tt.expectWorktreeCall {
 				wtMgr.AssertExpectations(t)
@@ -276,19 +276,18 @@ func TestCreateWorkflowEngine(t *testing.T) {
 			AutoCleanupWT:   true,
 		},
 	}
-	
+
 	// Create workflow engine
 	engine, wtMgr := CreateWorkflowEngine(cfg)
-	
+
 	// Check that engine and worktree manager are created
 	assert.NotNil(t, engine, "CreateWorkflowEngine should create a workflow engine")
 	assert.NotNil(t, wtMgr, "CreateWorkflowEngine should create a WorktreeManager when enabled")
-	
+
 	// Test with worktree disabled
 	cfg.Git.WorktreeEnabled = false
 	engine2, wtMgr2 := CreateWorkflowEngine(cfg)
-	
+
 	assert.NotNil(t, engine2, "CreateWorkflowEngine should create a workflow engine")
 	assert.Nil(t, wtMgr2, "CreateWorkflowEngine should not create a WorktreeManager when disabled")
 }
-

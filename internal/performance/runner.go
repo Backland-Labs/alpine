@@ -36,17 +36,17 @@ type MemoryUsageResults struct {
 
 // WorkflowPerfResults contains workflow performance measurements
 type WorkflowPerfResults struct {
-	IterationTimeMs     float64 `json:"iteration_time_ms"`
-	MemoryGrowthKB      float64 `json:"memory_growth_kb"`
-	WorkflowsPerSecond  float64 `json:"workflows_per_second"`
+	IterationTimeMs    float64 `json:"iteration_time_ms"`
+	MemoryGrowthKB     float64 `json:"memory_growth_kb"`
+	WorkflowsPerSecond float64 `json:"workflows_per_second"`
 }
 
 // PlatformInfo contains platform information
 type PlatformInfo struct {
-	OS           string `json:"os"`
-	Arch         string `json:"arch"`
-	GoVersion    string `json:"go_version"`
-	NumCPU       int    `json:"num_cpu"`
+	OS        string `json:"os"`
+	Arch      string `json:"arch"`
+	GoVersion string `json:"go_version"`
+	NumCPU    int    `json:"num_cpu"`
 }
 
 // Runner executes all performance measurements
@@ -106,49 +106,49 @@ func (r *Runner) Run() (*Results, error) {
 // measureStartupTime measures startup performance
 func (r *Runner) measureStartupTime(results *Results) error {
 	measurer := NewStartupTimeMeasurer()
-	
+
 	// Measure Go startup
 	goDuration, err := measurer.MeasureStartupTime()
 	if err != nil {
 		return err
 	}
 	results.StartupTime.GoStartupTimeMs = float64(goDuration.Milliseconds())
-	
+
 	// Try to measure Python startup
 	pythonDuration, err := measurer.MeasurePythonStartupTime()
 	if err == nil {
 		results.StartupTime.PythonStartupTimeMs = float64(pythonDuration.Milliseconds())
-		
+
 		// Calculate improvement
 		if pythonDuration > 0 {
 			improvement := ((float64(pythonDuration) - float64(goDuration)) / float64(pythonDuration)) * 100
 			results.StartupTime.Improvement = improvement
 		}
 	}
-	
+
 	return nil
 }
 
 // measureMemoryUsage measures memory usage
 func (r *Runner) measureMemoryUsage(results *Results) error {
 	measurer := NewMemoryUsageMeasurer()
-	
+
 	// Force GC for clean measurement
 	runtime.GC()
 	runtime.GC()
-	
+
 	usage, err := measurer.MeasureMemoryUsage()
 	if err != nil {
 		return err
 	}
-	
+
 	results.MemoryUsage = MemoryUsageResults{
 		HeapAllocMB:  float64(usage.HeapAlloc) / 1024 / 1024,
 		TotalAllocMB: float64(usage.TotalAlloc) / 1024 / 1024,
 		SysMB:        float64(usage.Sys) / 1024 / 1024,
 		NumGC:        usage.NumGC,
 	}
-	
+
 	return nil
 }
 
@@ -157,33 +157,33 @@ func (r *Runner) measureWorkflowPerformance(results *Results) error {
 	// Run a simple workflow benchmark
 	iterations := 10
 	totalTime := time.Duration(0)
-	
+
 	measurer := NewMemoryUsageMeasurer()
 	runtime.GC()
 	initialMem, _ := measurer.MeasureMemoryUsage()
-	
+
 	for i := 0; i < iterations; i++ {
 		start := time.Now()
 		// Simulate minimal workflow iteration
 		time.Sleep(1 * time.Millisecond) // Minimal work simulation
 		totalTime += time.Since(start)
 	}
-	
+
 	runtime.GC()
 	finalMem, _ := measurer.MeasureMemoryUsage()
-	
+
 	avgIterationTime := totalTime / time.Duration(iterations)
 	memGrowth := int64(0)
 	if finalMem.HeapAlloc > initialMem.HeapAlloc {
 		memGrowth = int64(finalMem.HeapAlloc - initialMem.HeapAlloc)
 	}
-	
+
 	results.WorkflowPerf = WorkflowPerfResults{
 		IterationTimeMs:    float64(avgIterationTime.Microseconds()) / 1000,
 		MemoryGrowthKB:     float64(memGrowth) / 1024,
 		WorkflowsPerSecond: float64(iterations) / totalTime.Seconds(),
 	}
-	
+
 	return nil
 }
 
@@ -203,19 +203,19 @@ func (r *Runner) WriteSummary(results *Results, w io.Writer) error {
 		}
 		return nil
 	}
-	
+
 	if err := writeOutput("\n=== River Performance Report ===\n"); err != nil {
 		return err
 	}
-	if err := writeOutput("Platform: %s/%s, Go %s, %d CPUs\n", 
-		results.Platform.OS, results.Platform.Arch, 
+	if err := writeOutput("Platform: %s/%s, Go %s, %d CPUs\n",
+		results.Platform.OS, results.Platform.Arch,
 		results.Platform.GoVersion, results.Platform.NumCPU); err != nil {
 		return err
 	}
 	if err := writeOutput("Timestamp: %s\n\n", results.Timestamp.Format(time.RFC3339)); err != nil {
 		return err
 	}
-	
+
 	if err := writeOutput("Startup Time:\n"); err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func (r *Runner) WriteSummary(results *Results, w io.Writer) error {
 			return err
 		}
 	}
-	
+
 	if err := writeOutput("\nMemory Usage:\n"); err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func (r *Runner) WriteSummary(results *Results, w io.Writer) error {
 	if err := writeOutput("  GC Cycles: %d\n", results.MemoryUsage.NumGC); err != nil {
 		return err
 	}
-	
+
 	if err := writeOutput("\nWorkflow Performance:\n"); err != nil {
 		return err
 	}
@@ -259,6 +259,6 @@ func (r *Runner) WriteSummary(results *Results, w io.Writer) error {
 	if err := writeOutput("  Throughput: %.2f workflows/sec\n", results.WorkflowPerf.WorkflowsPerSecond); err != nil {
 		return err
 	}
-	
+
 	return nil
 }

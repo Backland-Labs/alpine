@@ -203,7 +203,7 @@ func TestEngine_Run_ContextCancellation(t *testing.T) {
 	err := engine.Run(ctx, "Test task", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "context canceled")
-	
+
 	// Verify only first execution happened
 	assert.Equal(t, 1, executor.executionCount)
 }
@@ -339,21 +339,21 @@ func TestEngineCreatesWorktree(t *testing.T) {
 	ctx := context.Background()
 	tempDir := t.TempDir()
 	worktreeDir := filepath.Join(tempDir, "test-worktree")
-	
+
 	// Save current directory to restore later
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
 	defer func() {
 		_ = os.Chdir(originalDir)
 	}()
-	
+
 	// Mock worktree manager
 	mockWT := &gitx.Worktree{
 		Path:       worktreeDir,
 		Branch:     "river/test-task",
 		ParentRepo: tempDir,
 	}
-	
+
 	// Create a simple test executor that saves state relative to current directory
 	executor := &testExecutor{
 		t: t,
@@ -379,7 +379,7 @@ func TestEngineCreatesWorktree(t *testing.T) {
 			},
 		},
 	}
-	
+
 	wtMgr := &gitxmock.WorktreeManager{
 		CreateFunc: func(ctx context.Context, taskName string) (*gitx.Worktree, error) {
 			assert.Equal(t, "test task", taskName)
@@ -388,21 +388,21 @@ func TestEngineCreatesWorktree(t *testing.T) {
 			return mockWT, nil
 		},
 	}
-	
+
 	// Enable worktree in config
 	cfg := testConfig(true)
-	
+
 	engine := NewEngine(executor, wtMgr, cfg)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
-	
+
 	// Run workflow
 	err = engine.Run(ctx, "test task", false)
 	require.NoError(t, err)
-	
+
 	// Verify worktree was created
 	assert.Len(t, wtMgr.CreateCalls, 1)
 	assert.Equal(t, "test task", wtMgr.CreateCalls[0].TaskName)
-	
+
 	// Verify cleanup was called (auto cleanup is enabled)
 	assert.Len(t, wtMgr.CleanupCalls, 1)
 	assert.Equal(t, mockWT, wtMgr.CleanupCalls[0].WT)
@@ -413,7 +413,7 @@ func TestEngineWorktreeDisabled(t *testing.T) {
 	ctx := context.Background()
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
-	
+
 	// Create a test executor that marks workflow as completed immediately
 	executor := newTestExecutor(t, stateFile)
 	executor.executions = []testExecution{
@@ -426,21 +426,21 @@ func TestEngineWorktreeDisabled(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Mock worktree manager
 	wtMgr := &gitxmock.WorktreeManager{}
-	
+
 	// Disable worktree in config
 	cfg := testConfig(false)
-	
+
 	engine := NewEngine(executor, wtMgr, cfg)
 	engine.SetStateFile(stateFile)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
-	
+
 	// Run workflow
 	err := engine.Run(ctx, "test task", false)
 	require.NoError(t, err)
-	
+
 	// Verify worktree was NOT created
 	assert.Len(t, wtMgr.CreateCalls, 0)
 	assert.Len(t, wtMgr.CleanupCalls, 0)
@@ -451,14 +451,14 @@ func TestEngineStateFileInWorktree(t *testing.T) {
 	ctx := context.Background()
 	tempDir := t.TempDir()
 	worktreeDir := filepath.Join(tempDir, "test-worktree")
-	
+
 	// Mock worktree manager
 	mockWT := &gitx.Worktree{
 		Path:       worktreeDir,
 		Branch:     "river/test-task",
 		ParentRepo: tempDir,
 	}
-	
+
 	wtMgr := &gitxmock.WorktreeManager{
 		CreateFunc: func(ctx context.Context, taskName string) (*gitx.Worktree, error) {
 			// Create the worktree directory
@@ -466,7 +466,7 @@ func TestEngineStateFileInWorktree(t *testing.T) {
 			return mockWT, nil
 		},
 	}
-	
+
 	// Create a test executor that verifies state file location
 	executor := &testExecutor{
 		t: t,
@@ -481,17 +481,17 @@ func TestEngineStateFileInWorktree(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Enable worktree in config
 	cfg := testConfig(true)
-	
+
 	engine := NewEngine(executor, wtMgr, cfg)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
-	
+
 	// Run workflow
 	err := engine.Run(ctx, "test task", false)
 	require.NoError(t, err)
-	
+
 	// Verify state file was created in worktree
 	expectedStateFile := filepath.Join(worktreeDir, "claude_state.json")
 	assert.FileExists(t, expectedStateFile)
@@ -502,7 +502,7 @@ func TestEngine_BareMode_ContinuesExistingState(t *testing.T) {
 	ctx := context.Background()
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
-	
+
 	// Create existing state file
 	existingState := &core.State{
 		CurrentStepDescription: "Previous work done",
@@ -511,7 +511,7 @@ func TestEngine_BareMode_ContinuesExistingState(t *testing.T) {
 	}
 	err := existingState.Save(stateFile)
 	require.NoError(t, err)
-	
+
 	// Create test executor that expects continuation
 	executor := newTestExecutor(t, stateFile)
 	executor.executions = []testExecution{
@@ -524,20 +524,20 @@ func TestEngine_BareMode_ContinuesExistingState(t *testing.T) {
 			},
 		},
 	}
-	
+
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
 	engine := NewEngine(executor, wtMgr, cfg)
 	engine.SetStateFile(stateFile)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
-	
+
 	// Run in bare mode (empty task, no plan, no worktree)
 	err = engine.Run(ctx, "", false)
 	require.NoError(t, err)
-	
+
 	// Verify execution happened
 	assert.Equal(t, 1, executor.executionCount)
-	
+
 	// Verify final state
 	finalState, err := core.LoadState(stateFile)
 	require.NoError(t, err)
@@ -550,7 +550,7 @@ func TestEngine_BareMode_InitializesWithRalph(t *testing.T) {
 	ctx := context.Background()
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
-	
+
 	// Create test executor that expects /ralph initialization
 	executor := newTestExecutor(t, stateFile)
 	executor.executions = []testExecution{
@@ -571,20 +571,20 @@ func TestEngine_BareMode_InitializesWithRalph(t *testing.T) {
 			},
 		},
 	}
-	
+
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
 	engine := NewEngine(executor, wtMgr, cfg)
 	engine.SetStateFile(stateFile)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
-	
+
 	// Run in bare mode (empty task, no plan, no worktree)
 	err := engine.Run(ctx, "", false)
 	require.NoError(t, err)
-	
+
 	// Verify both executions happened
 	assert.Equal(t, 2, executor.executionCount)
-	
+
 	// Verify final state
 	finalState, err := core.LoadState(stateFile)
 	require.NoError(t, err)

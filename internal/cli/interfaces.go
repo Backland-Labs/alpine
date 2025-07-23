@@ -7,6 +7,7 @@ import (
 	"github.com/maxmcd/river/internal/claude"
 	"github.com/maxmcd/river/internal/config"
 	"github.com/maxmcd/river/internal/gitx"
+	"github.com/maxmcd/river/internal/output"
 	"github.com/maxmcd/river/internal/workflow"
 )
 
@@ -15,7 +16,7 @@ type ConfigLoader interface {
 	Load() (*config.Config, error)
 }
 
-// WorkflowEngine interface for dependency injection in tests  
+// WorkflowEngine interface for dependency injection in tests
 type WorkflowEngine interface {
 	Run(ctx context.Context, taskDescription string, generatePlan bool) error
 }
@@ -40,7 +41,8 @@ type RealWorkflowEngine struct {
 }
 
 func NewRealWorkflowEngine(cfg *config.Config, wtMgr gitx.WorktreeManager) *RealWorkflowEngine {
-	executor := claude.NewExecutor()
+	printer := output.NewPrinter()
+	executor := claude.NewExecutorWithConfig(cfg, printer)
 	engine := workflow.NewEngine(executor, wtMgr, cfg)
 	return &RealWorkflowEngine{engine: engine}
 }
@@ -59,10 +61,10 @@ func (r *RealFileReader) ReadFile(filename string) ([]byte, error) {
 // NewRealDependencies creates production dependencies
 func NewRealDependencies() *Dependencies {
 	return &Dependencies{
-		ConfigLoader:     &RealConfigLoader{},
-		WorkflowEngine:   nil, // Will be created after config is finalized
-		FileReader:       &RealFileReader{},
-		WorktreeManager:  nil, // Will be created after config is finalized
+		ConfigLoader:    &RealConfigLoader{},
+		WorkflowEngine:  nil, // Will be created after config is finalized
+		FileReader:      &RealFileReader{},
+		WorktreeManager: nil, // Will be created after config is finalized
 	}
 }
 
@@ -83,14 +85,14 @@ func CreateWorkflowEngine(cfg *config.Config) (WorkflowEngine, gitx.WorktreeMana
 
 	// Create workflow engine
 	engine := NewRealWorkflowEngine(cfg, wtMgr)
-	
+
 	return engine, wtMgr
 }
 
 // Dependencies struct for injection (moved from test file for reuse)
 type Dependencies struct {
-	ConfigLoader     ConfigLoader
-	WorkflowEngine   WorkflowEngine
-	FileReader       FileReader
-	WorktreeManager  gitx.WorktreeManager
+	ConfigLoader    ConfigLoader
+	WorkflowEngine  WorkflowEngine
+	FileReader      FileReader
+	WorktreeManager gitx.WorktreeManager
 }

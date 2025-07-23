@@ -30,13 +30,13 @@ func (p *Printer) StartProgress(message string) *Progress {
 		startTime: time.Now(),
 		done:      make(chan bool),
 	}
-	
+
 	progress.wg.Add(1)
 	go progress.animate()
-	
+
 	// Small delay to ensure first render
 	time.Sleep(10 * time.Millisecond)
-	
+
 	return progress
 }
 
@@ -49,13 +49,13 @@ func (p *Printer) StartProgressWithIteration(message string, iteration int) *Pro
 		startTime: time.Now(),
 		done:      make(chan bool),
 	}
-	
+
 	progress.wg.Add(1)
 	go progress.animate()
-	
+
 	// Small delay to ensure first render
 	time.Sleep(10 * time.Millisecond)
-	
+
 	return progress
 }
 
@@ -65,7 +65,7 @@ func (p *Progress) UpdateMessage(message string) {
 	p.message = message
 	spinnerIndex := p.spinnerIndex
 	p.mu.Unlock()
-	
+
 	// Immediately re-render with new message
 	p.render(spinnerIndex)
 }
@@ -80,9 +80,9 @@ func (p *Progress) Stop() {
 	default:
 		close(p.done)
 	}
-	
+
 	p.wg.Wait()
-	
+
 	// Clear the line
 	_, _ = fmt.Fprintf(p.printer.out, "\r\033[K")
 }
@@ -90,15 +90,15 @@ func (p *Progress) Stop() {
 // animate runs the spinner animation in a goroutine
 func (p *Progress) animate() {
 	defer p.wg.Done()
-	
+
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
-	
+
 	spinnerIndex := 0
-	
+
 	// Render immediately
 	p.render(spinnerIndex)
-	
+
 	for {
 		select {
 		case <-p.done:
@@ -119,14 +119,14 @@ func (p *Progress) render(spinnerIndex int) {
 	message := p.message
 	iteration := p.iteration
 	p.mu.Unlock()
-	
+
 	elapsed := time.Since(p.startTime)
-	
+
 	// Build the progress line
 	var line string
 	if p.printer.useColor {
 		spinner := spinnerChars[spinnerIndex%len(spinnerChars)]
-		
+
 		if iteration > 0 {
 			line = fmt.Sprintf("\r%s%s%s %s (Iteration %d) %s[%s]%s",
 				colorBold, colorCyan, spinner, message, iteration,
@@ -138,7 +138,7 @@ func (p *Progress) render(spinnerIndex int) {
 		}
 	} else {
 		spinner := spinnerChars[spinnerIndex%len(spinnerChars)]
-		
+
 		if iteration > 0 {
 			line = fmt.Sprintf("\r%s %s (Iteration %d) [%s]",
 				spinner, message, iteration, formatDuration(elapsed))
@@ -147,7 +147,7 @@ func (p *Progress) render(spinnerIndex int) {
 				spinner, message, formatDuration(elapsed))
 		}
 	}
-	
+
 	// Clear to end of line and print
 	_, _ = fmt.Fprintf(p.printer.out, "%s\033[K", line)
 }
