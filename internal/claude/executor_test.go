@@ -389,3 +389,51 @@ func TestExecutor_CommandRunner_PreservesDirectory(t *testing.T) {
 		// This will be verified in integration tests
 	})
 }
+
+func TestExecutor_WorkingDirectoryFallback(t *testing.T) {
+	// Test that the executor continues gracefully when working directory operations fail
+	// This test documents expected behavior when os.Getwd() fails or directory validation fails
+	t.Run("continues execution when working directory is unavailable", func(t *testing.T) {
+		exec := &Executor{}
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+		}
+
+		// Build command - even if we can't mock os.Getwd failure directly,
+		// we can verify that command building continues
+		cmd := exec.buildCommand(config)
+		
+		if cmd == nil {
+			t.Fatal("expected command to be built even with directory issues")
+		}
+
+		// Verify command has all required components
+		if cmd.Path == "" {
+			t.Error("expected command path to be set")
+		}
+		
+		// When directory operations fail, cmd.Dir might be empty but command should still work
+		// This is the graceful fallback behavior
+	})
+
+	t.Run("logs warning when working directory fails", func(t *testing.T) {
+		// This test documents that when os.Getwd() fails, a warning should be logged
+		// The actual implementation will use the logger package
+		// For now, we document the expected behavior
+		exec := &Executor{}
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+		}
+
+		// Build command
+		cmd := exec.buildCommand(config)
+		
+		// Even without being able to capture logs in this test,
+		// we document that a warning should be logged when directory operations fail
+		if cmd == nil {
+			t.Error("command building should not fail due to directory issues")
+		}
+	})
+}

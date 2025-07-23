@@ -132,8 +132,14 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 	cmd := exec.Command("claude", args...)
 
 	// Set working directory to current directory (enables worktree isolation)
-	if workDir, err := os.Getwd(); err == nil {
+	workDir, err := os.Getwd()
+	if err != nil {
+		// Log warning but continue without setting Dir
+		// Claude will use default behavior (inherit from parent process)
+		logger.WithField("error", err).Info("Failed to get working directory, Claude will use default directory")
+	} else {
 		cmd.Dir = workDir
+		logger.WithField("workDir", workDir).Debug("Set Claude working directory")
 	}
 
 	// Set environment variables
