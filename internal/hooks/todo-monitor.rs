@@ -22,7 +22,7 @@ fn main() -> io::Result<()> {
     };
     
     // Get timestamp
-    let timestamp = Local::now().format("%H:%M:%S");
+    let timestamp = Local::now().format("%H:%M:%S").to_string();
     
     // Check both possible field names for tool name (for compatibility)
     let tool_name = data["tool_name"].as_str()
