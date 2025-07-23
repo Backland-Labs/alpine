@@ -24,7 +24,7 @@ func TestState_Validate(t *testing.T) {
 			name: "valid state with running status",
 			state: State{
 				CurrentStepDescription: "Implementing feature X",
-				NextStepPrompt:         "/ralph",
+				NextStepPrompt:         "/run_implementation_loop",
 				Status:                 "running",
 			},
 			wantError: false,
@@ -42,7 +42,7 @@ func TestState_Validate(t *testing.T) {
 			name: "empty current step description",
 			state: State{
 				CurrentStepDescription: "",
-				NextStepPrompt:         "/ralph",
+				NextStepPrompt:         "/run_implementation_loop",
 				Status:                 "running",
 			},
 			wantError: true,
@@ -52,7 +52,7 @@ func TestState_Validate(t *testing.T) {
 			name: "empty status",
 			state: State{
 				CurrentStepDescription: "Doing something",
-				NextStepPrompt:         "/ralph",
+				NextStepPrompt:         "/run_implementation_loop",
 				Status:                 "",
 			},
 			wantError: true,
@@ -62,7 +62,7 @@ func TestState_Validate(t *testing.T) {
 			name: "invalid status value",
 			state: State{
 				CurrentStepDescription: "Doing something",
-				NextStepPrompt:         "/ralph",
+				NextStepPrompt:         "/run_implementation_loop",
 				Status:                 "invalid",
 			},
 			wantError: true,
@@ -240,7 +240,7 @@ func TestState_Save(t *testing.T) {
 			name: "save valid state",
 			state: State{
 				CurrentStepDescription: "Implementing feature Y",
-				NextStepPrompt:         "/ralph",
+				NextStepPrompt:         "/run_implementation_loop",
 				Status:                 "running",
 			},
 			wantError: false,
@@ -314,7 +314,7 @@ func TestInitializeState(t *testing.T) {
 			withPlan:         false,
 			checkResult: func(t *testing.T, state *State) {
 				assert.Contains(t, state.CurrentStepDescription, "parser")
-				assert.Equal(t, "/ralph", state.NextStepPrompt)
+				assert.Equal(t, "/run_implementation_loop", state.NextStepPrompt)
 				assert.Equal(t, "running", state.Status)
 			},
 		},
@@ -348,7 +348,7 @@ func TestConcurrentStateAccess(t *testing.T) {
 	// Create initial state
 	initial := State{
 		CurrentStepDescription: "Initial state",
-		NextStepPrompt:         "/ralph",
+		NextStepPrompt:         "/run_implementation_loop",
 		Status:                 "running",
 	}
 	err := initial.Save(tmpFile)

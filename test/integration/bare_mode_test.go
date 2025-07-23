@@ -16,10 +16,10 @@ import (
 	"github.com/maxmcd/river/test/integration/helpers"
 )
 
-// TestBareMode_StartsWithRalph tests that bare mode initializes with /ralph when no state exists
+// TestBareMode_StartsWithrun_implementation_loop tests that bare mode initializes with /run_implementation_loop when no state exists
 // This test validates that the bare execution mode correctly starts a new workflow
-// with the /ralph command when both --no-plan and --no-worktree flags are set
-func TestBareMode_StartsWithRalph(t *testing.T) {
+// with the /run_implementation_loop command when both --no-plan and --no-worktree flags are set
+func TestBareMode_StartsWithrun_implementation_loop(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -28,12 +28,12 @@ func TestBareMode_StartsWithRalph(t *testing.T) {
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
 
-	// Create mock Claude executor that expects /ralph command
+	// Create mock Claude executor that expects /run_implementation_loop command
 	mockExecutor := &MockClaudeExecutor{
 		stateFile: stateFile,
 		executions: []mockExecution{
 			{
-				expectedPrompt: "/ralph",
+				expectedPrompt: "/run_implementation_loop",
 				responseState: &core.State{
 					CurrentStepDescription: "Initialized bare mode workflow",
 					NextStepPrompt:         "/implement first-task",
@@ -74,7 +74,7 @@ func TestBareMode_StartsWithRalph(t *testing.T) {
 	assert.Equal(t, "Completed first task", finalState.CurrentStepDescription)
 	assert.Empty(t, finalState.NextStepPrompt)
 
-	// Verify /ralph was called first
+	// Verify /run_implementation_loop was called first
 	assert.Equal(t, 2, mockExecutor.executionCount)
 }
 
@@ -129,7 +129,7 @@ func TestBareMode_ContinuesExistingState(t *testing.T) {
 	err = engine.Run(ctx, "", false)
 	require.NoError(t, err)
 
-	// Verify it continued from existing state (not /ralph)
+	// Verify it continued from existing state (not /run_implementation_loop)
 	assert.Equal(t, 1, mockExecutor.executionCount)
 
 	finalState, err := core.LoadState(stateFile)
@@ -155,7 +155,7 @@ func TestBareMode_HandlesInterrupt(t *testing.T) {
 		stateFile: stateFile,
 		executions: []mockExecution{
 			{
-				expectedPrompt: "/ralph",
+				expectedPrompt: "/run_implementation_loop",
 				responseState: &core.State{
 					CurrentStepDescription: "Started task",
 					NextStepPrompt:         "/continue work",
@@ -252,12 +252,12 @@ func TestBareMode_CompleteWorkflow(t *testing.T) {
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
 
-	// First invocation - starts with /ralph
+	// First invocation - starts with /run_implementation_loop
 	mockExecutor1 := &MockClaudeExecutor{
 		stateFile: stateFile,
 		executions: []mockExecution{
 			{
-				expectedPrompt: "/ralph",
+				expectedPrompt: "/run_implementation_loop",
 				responseState: &core.State{
 					CurrentStepDescription: "Analyzed codebase and created plan",
 					NextStepPrompt:         "/implement feature-a",
@@ -367,7 +367,7 @@ func TestBareMode_ErrorHandling(t *testing.T) {
 	// Create a mock executor that simulates an error after initial execution
 	errorExecutions := []mockExecution{
 		{
-			expectedPrompt: "/ralph",
+			expectedPrompt: "/run_implementation_loop",
 			responseState: &core.State{
 				CurrentStepDescription: "Started processing",
 				NextStepPrompt:         "/continue",

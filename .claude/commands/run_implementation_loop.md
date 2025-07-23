@@ -85,4 +85,4 @@ Here are the options for each key:
 }
 ```
 
-You cannot mark status as "completed" if you also mark next_step_prompt as "/verify" or "/ralph".
+You cannot mark status as "completed" if you also mark next_step_prompt as "/verify" or "/run_implementation_loop".

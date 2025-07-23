@@ -140,7 +140,7 @@ func TestRiverWorktreeCleanup(t *testing.T) {
 	t.Run("SuccessfulCompletionWithAutoCleanup", func(t *testing.T) {
 		mockClaude := MockClaudeScript(t, []MockResponse{
 			{
-				PromptContains: "/ralph",
+				PromptContains: "/run_implementation_loop",
 				StateJSON: `{
   "current_step_description": "Task completed",
   "next_step_prompt": "",
@@ -206,7 +206,7 @@ func TestRiverWorktreeDisabled(t *testing.T) {
 	// Create mock Claude response
 	mockClaude := MockClaudeScript(t, []MockResponse{
 		{
-			PromptContains: "/ralph",
+			PromptContains: "/run_implementation_loop",
 			StateJSON: `{
   "current_step_description": "Task completed in main repo",
   "next_step_prompt": "",
@@ -339,7 +339,7 @@ func TestRiverWorktreeBranchNaming(t *testing.T) {
 	// Create mock Claude
 	mockClaude := MockClaudeScript(t, []MockResponse{
 		{
-			PromptContains: "/ralph",
+			PromptContains: "/run_implementation_loop",
 			StateJSON: `{
   "current_step_description": "Task done",
   "next_step_prompt": "",
@@ -416,7 +416,7 @@ func TestRiverWorktreeEnvironmentVariables(t *testing.T) {
 	// Create mock Claude
 	mockClaude := MockClaudeScript(t, []MockResponse{
 		{
-			PromptContains: "/ralph",
+			PromptContains: "/run_implementation_loop",
 			StateJSON: `{
   "current_step_description": "Task completed",
   "next_step_prompt": "",
@@ -497,7 +497,7 @@ pwd > claude-working-dir.txt
 
 # Write state based on prompt
 case "$PROMPT" in
-  *"/ralph"*)
+  *"/run_implementation_loop"*)
     cat > "$STATE_FILE" <<EOF
 {
   "current_step_description": "Executed task and recorded working directory",
@@ -505,7 +505,7 @@ case "$PROMPT" in
   "status": "completed"
 }
 EOF
-    echo "Mock Claude: Processed /ralph"
+    echo "Mock Claude: Processed /run_implementation_loop"
     ;;
   *)
     echo "Mock Claude: Unknown prompt: $PROMPT"
@@ -589,7 +589,7 @@ STATE_FILE="${RIVER_STATE_FILE:-claude_state.json}"
 
 # Write state based on prompt
 case "$PROMPT" in
-  *"/ralph"*)
+  *"/run_implementation_loop"*)
     # Modify existing file and create new file
     echo "modified content" > test.txt
     echo "new file content" > new-file.txt
@@ -601,7 +601,7 @@ case "$PROMPT" in
   "status": "completed"
 }
 EOF
-    echo "Mock Claude: Processed /ralph"
+    echo "Mock Claude: Processed /run_implementation_loop"
     ;;
   *)
     echo "Mock Claude: Unknown prompt: $PROMPT"

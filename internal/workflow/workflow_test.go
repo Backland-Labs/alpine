@@ -119,7 +119,7 @@ func TestEngine_Run_NoPlan(t *testing.T) {
 	executor := newTestExecutor(t, stateFile)
 	executor.executions = []testExecution{
 		{
-			expectedPrompt: "/ralph Fix bug in payment processing",
+			expectedPrompt: "/run_implementation_loop Fix bug in payment processing",
 			stateUpdate: &core.State{
 				CurrentStepDescription: "Fixed bug directly",
 				NextStepPrompt:         "",
@@ -359,7 +359,7 @@ func TestEngineCreatesWorktree(t *testing.T) {
 		t: t,
 		executions: []testExecution{
 			{
-				expectedPrompt: "/ralph test task",
+				expectedPrompt: "/run_implementation_loop test task",
 				beforeExecution: func() {
 					// At this point we should be in the worktree directory
 					cwd, err := os.Getwd()
@@ -418,7 +418,7 @@ func TestEngineWorktreeDisabled(t *testing.T) {
 	executor := newTestExecutor(t, stateFile)
 	executor.executions = []testExecution{
 		{
-			expectedPrompt: "/ralph test task",
+			expectedPrompt: "/run_implementation_loop test task",
 			stateUpdate: &core.State{
 				CurrentStepDescription: "Task completed",
 				NextStepPrompt:         "",
@@ -472,7 +472,7 @@ func TestEngineStateFileInWorktree(t *testing.T) {
 		t: t,
 		executions: []testExecution{
 			{
-				expectedPrompt: "/ralph test task",
+				expectedPrompt: "/run_implementation_loop test task",
 				stateUpdate: &core.State{
 					CurrentStepDescription: "Task completed",
 					NextStepPrompt:         "",
@@ -545,17 +545,17 @@ func TestEngine_BareMode_ContinuesExistingState(t *testing.T) {
 	assert.Equal(t, "Continued previous work", finalState.CurrentStepDescription)
 }
 
-func TestEngine_BareMode_InitializesWithRalph(t *testing.T) {
-	// Test that bare mode initializes with /ralph when no state exists
+func TestEngine_BareMode_InitializesWithrun_implementation_loop(t *testing.T) {
+	// Test that bare mode initializes with /run_implementation_loop when no state exists
 	ctx := context.Background()
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "claude_state.json")
 
-	// Create test executor that expects /ralph initialization
+	// Create test executor that expects /run_implementation_loop initialization
 	executor := newTestExecutor(t, stateFile)
 	executor.executions = []testExecution{
 		{
-			expectedPrompt: "/ralph",
+			expectedPrompt: "/run_implementation_loop",
 			stateUpdate: &core.State{
 				CurrentStepDescription: "Started bare execution",
 				NextStepPrompt:         "/continue task",

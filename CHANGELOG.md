@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Bare Execution Mode
 - **Bare execution mode** allowing `river --no-plan --no-worktree` without task description
 - **Automatic state continuation** from existing `claude_state.json` when present
-- **Fresh workflow initialization** with `/ralph` command when no state exists
+- **Fresh workflow initialization** with `/run_implementation_loop` command when no state exists
 - **Advanced flag validation** requiring both `--no-plan` and `--no-worktree` flags
 
 #### Enhanced CLI

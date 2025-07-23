@@ -113,7 +113,7 @@ export RIVER_GIT_AUTO_CLEANUP=false  # Preserve worktrees after completion
 
 River integrates with:
 - **Claude Code**: Executes with restricted tools and custom system prompt
-- **Slash Commands**: `/make_plan` for planning, `/ralph` for direct execution, `/verify` to verify @plan.md is implemented fully
+- **Slash Commands**: `/make_plan` for planning, `/run_implementation_loop` for direct execution, `/verify` to verify @plan.md is implemented fully
 - **Task Input**: Direct task descriptions or file input (no external API dependencies)
 
 ## References

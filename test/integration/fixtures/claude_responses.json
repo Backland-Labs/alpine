@@ -9,8 +9,8 @@
         "status": "running"
       }
     },
-    "ralph": {
-      "prompt": "/ralph",
+    "run_implementation_loop": {
+      "prompt": "/run_implementation_loop",
       "output": "Executing direct implementation without planning phase.\n\nAnalyzing the task requirements...\nImplementing solution...\nAdding tests...\nTask completed successfully.",
       "stateUpdate": {
         "currentStepDescription": "Direct implementation completed",

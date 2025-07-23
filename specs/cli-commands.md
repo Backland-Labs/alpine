@@ -30,7 +30,7 @@ river --version
 
 ## Flags
 
-- `--no-plan` - Skip plan generation and execute `/ralph` directly
+- `--no-plan` - Skip plan generation and execute `/run_implementation_loop` directly
 - `--file <path>` - Read task description from a file
 - `--help` - Show help message
 - `--version` - Show version information
@@ -46,7 +46,7 @@ river --version
 
 ### With --no-plan
 1. Accepts task description from command line or file
-2. Executes `/ralph` command directly
+2. Executes `/run_implementation_loop` command directly
 3. Runs Claude Code iteratively based on state
 4. Updates `claude_state.json` after each step
 5. Continues until status is "completed"

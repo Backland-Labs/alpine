@@ -33,7 +33,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "ISSUE-123":
     # Create state file
     state = {
         "current_step_description": "Implementing feature",
-        "next_step_prompt": "/ralph",
+        "next_step_prompt": "/run_implementation_loop",
         "status": "running"
     }
     with open("claude_state.json", "w") as f:
@@ -144,7 +144,7 @@ func TestParityRunner_CompareExecutions(t *testing.T) {
 		Output:  "Python output\nTask done",
 		State: &core.State{
 			CurrentStepDescription: "Python step",
-			NextStepPrompt:         "/ralph",
+			NextStepPrompt:         "/run_implementation_loop",
 			Status:                 "running",
 		},
 		ExitCode: 0,
@@ -155,7 +155,7 @@ func TestParityRunner_CompareExecutions(t *testing.T) {
 		Output:  "Python output\nTask done",
 		State: &core.State{
 			CurrentStepDescription: "Python step",
-			NextStepPrompt:         "/ralph",
+			NextStepPrompt:         "/run_implementation_loop",
 			Status:                 "running",
 		},
 		ExitCode: 0,

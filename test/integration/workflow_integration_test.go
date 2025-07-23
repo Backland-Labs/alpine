@@ -97,7 +97,7 @@ func TestFullWorkflowWithMockClaude(t *testing.T) {
 }
 
 // TestWorkflowWithNoPlanFlag tests the workflow when --no-plan flag is used
-// This should skip the planning phase and go directly to /ralph command
+// This should skip the planning phase and go directly to /run_implementation_loop command
 func TestWorkflowWithNoPlanFlag(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -111,7 +111,7 @@ func TestWorkflowWithNoPlanFlag(t *testing.T) {
 		stateFile: stateFile,
 		executions: []mockExecution{
 			{
-				expectedPrompt: "/ralph Fix database connection pooling",
+				expectedPrompt: "/run_implementation_loop Fix database connection pooling",
 				responseState: &core.State{
 					CurrentStepDescription: "Fixed connection pooling issue",
 					NextStepPrompt:         "",
@@ -297,7 +297,7 @@ func TestCleanupBehavior(t *testing.T) {
 		stateFile: stateFile,
 		executions: []mockExecution{
 			{
-				expectedPrompt: "/ralph Test cleanup",
+				expectedPrompt: "/run_implementation_loop Test cleanup",
 				responseState: &core.State{
 					CurrentStepDescription: "Cleanup test complete",
 					NextStepPrompt:         "",

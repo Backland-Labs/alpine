@@ -90,10 +90,10 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 			e.printer.Info("Continuing from existing state file")
 			return e.runWorkflowLoop(ctx)
 		} else if os.IsNotExist(err) {
-			// Initialize with /ralph
-			logger.Info("Starting bare execution with /ralph")
-			e.printer.Info("Starting bare execution with /ralph")
-			if err := e.initializeWorkflow(ctx, "/ralph", false); err != nil {
+			// Initialize with /run_implementation_loop
+			logger.Info("Starting bare execution with /run_implementation_loop")
+			e.printer.Info("Starting bare execution with /run_implementation_loop")
+			if err := e.initializeWorkflow(ctx, "/run_implementation_loop", false); err != nil {
 				return fmt.Errorf("failed to initialize bare workflow: %w", err)
 			}
 		} else {
@@ -194,11 +194,11 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 	if generatePlan {
 		prompt = "/make_plan " + taskDescription
 	} else {
-		prompt = "/ralph " + taskDescription
+		prompt = "/run_implementation_loop " + taskDescription
 	}
 
-	// For bare mode, taskDescription is just "/ralph"
-	if taskDescription == "/ralph" {
+	// For bare mode, taskDescription is just "/run_implementation_loop"
+	if taskDescription == "/run_implementation_loop" {
 		prompt = taskDescription
 		e.printer.Info("Initializing bare workflow execution")
 	} else {

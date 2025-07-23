@@ -17,7 +17,7 @@ const (
 // Common prompt constants
 const (
 	PromptMakePlan = "/make_plan"
-	PromptRalph    = "/ralph"
+	Promptrun_implementation_loop    = "/run_implementation_loop"
 	PromptContinue = "/continue"
 )
 
@@ -83,7 +83,7 @@ func InitializeState(issueTitle, issueDescription string, withPlan bool) *State 
 	}
 
 	// Set next prompt based on whether planning is requested
-	nextPrompt := PromptRalph
+	nextPrompt := Promptrun_implementation_loop
 	if withPlan {
 		nextPrompt = PromptMakePlan
 	}

@@ -30,7 +30,7 @@ River uses a JSON state file (`claude_state.json`) to track workflow progress an
 ### next_step_prompt
 - The command/prompt to execute in the next iteration
 - Set by Claude Code at the end of each step
-- Common values: `/ralph`, `/continue`, or custom prompts
+- Common values: `/run_implementation_loop`, `/continue`, or custom prompts
 - Empty string or missing when workflow is complete
 
 ### status
@@ -49,7 +49,7 @@ River uses a JSON state file (`claude_state.json`) to track workflow progress an
 
 When running with `--no-plan --no-worktree`:
 - If state file exists: Continue from existing workflow
-- If no state file exists: Initialize new workflow with `/ralph`
+- If no state file exists: Initialize new workflow with `/run_implementation_loop`
 
 ## File Operations
 
