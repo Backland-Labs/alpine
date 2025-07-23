@@ -89,13 +89,17 @@ return e.runWorkflowLoop(ctx)
 - `TestEngine_BareMode_ContinuesExistingState` ✅ All tests passing
 - `TestEngine_BareMode_InitializesWithRalph` ✅ All tests passing
 
-### 4. Integration Tests (2 hours)
+### 4. Integration Tests (2 hours) ✅ IMPLEMENTED
 **File**: `test/integration/bare_mode_test.go`
 
 **Key Tests**:
-- Complete bare mode workflow
-- State continuation after interrupt
-- Error handling for invalid flags
+- Complete bare mode workflow ✅ TestBareMode_CompleteWorkflow
+- State continuation after interrupt ✅ TestBareMode_HandlesInterrupt
+- Error handling for invalid flags ✅ TestBareMode_RequiresBothFlags
+- Bare mode starts with /ralph ✅ TestBareMode_StartsWithRalph
+- Continues from existing state ✅ TestBareMode_ContinuesExistingState
+- Error handling ✅ TestBareMode_ErrorHandling
+- State file persistence ✅ TestBareMode_StateFilePersistence
 
 ### 5. Documentation (1-2 hours)
 **Updates**:
