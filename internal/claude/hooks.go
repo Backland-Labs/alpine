@@ -117,8 +117,8 @@ func (e *Executor) generateClaudeSettings(settingsPath, hookScriptPath string) e
 					Matcher: "",
 					Hooks: []map[string]interface{}{
 						{
-							"type":    "command",
 							"command": hookScriptPath,
+							"type":    "command",
 						},
 					},
 				},
