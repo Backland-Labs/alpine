@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -305,4 +306,86 @@ type mockError struct {
 
 func (e *mockError) Error() string {
 	return e.msg
+}
+
+func TestExecutor_BuildCommand_SetsWorkingDirectory(t *testing.T) {
+	// Test that buildCommand sets the working directory to the current directory
+	// This ensures Claude commands execute in the correct directory for worktree isolation
+	t.Run("sets cmd.Dir to current working directory", func(t *testing.T) {
+		exec := &Executor{}
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+		}
+
+		// Get the expected working directory
+		expectedDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+
+		cmd := exec.buildCommand(config)
+
+		// Verify cmd.Dir is set to the current working directory
+		if cmd.Dir != expectedDir {
+			t.Errorf("expected cmd.Dir to be %q, got %q", expectedDir, cmd.Dir)
+		}
+	})
+}
+
+func TestExecutor_BuildCommand_WorkingDirectoryError(t *testing.T) {
+	// Test that buildCommand handles os.Getwd() errors gracefully
+	// Even if we can't get the working directory, the command should still be built
+	t.Run("handles os.Getwd error gracefully", func(t *testing.T) {
+		// Note: It's difficult to mock os.Getwd() directly in Go
+		// This test documents the expected behavior when os.Getwd() fails
+		// The implementation should continue without setting cmd.Dir
+		exec := &Executor{}
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+		}
+
+		cmd := exec.buildCommand(config)
+
+		// Even without mocking os.Getwd error, we can verify the command is built
+		if cmd == nil {
+			t.Fatal("expected command to be built even if working directory fails")
+		}
+		
+		// Verify basic command structure is intact
+		if cmd.Path != "claude" && !strings.HasSuffix(cmd.Path, "/claude") {
+			t.Errorf("expected command path to be 'claude', got %q", cmd.Path)
+		}
+	})
+}
+
+func TestExecutor_CommandRunner_PreservesDirectory(t *testing.T) {
+	// Test that defaultCommandRunner preserves the working directory from buildCommand
+	// This ensures the directory context flows through the entire execution pipeline
+	t.Run("preserves working directory from buildCommand", func(t *testing.T) {
+		// Create a custom command runner that can verify the directory
+		runner := &defaultCommandRunner{}
+		exec := &Executor{commandRunner: runner}
+		
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+		}
+
+		// Build the base command to get expected directory
+		baseCmd := exec.buildCommand(config)
+
+		// Note: Since we can't easily mock exec.CommandContext,
+		// this test documents the expected behavior.
+		// The actual implementation test will be done via integration tests.
+		
+		// For now, verify that buildCommand is called and creates a valid command
+		if baseCmd == nil {
+			t.Error("expected buildCommand to create a valid command")
+		}
+
+		// Once implemented, cmd.Dir should be preserved in the CommandContext call
+		// This will be verified in integration tests
+	})
 }

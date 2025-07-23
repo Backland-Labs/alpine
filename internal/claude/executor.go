@@ -131,6 +131,11 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 	// Create command
 	cmd := exec.Command("claude", args...)
 
+	// Set working directory to current directory (enables worktree isolation)
+	if workDir, err := os.Getwd(); err == nil {
+		cmd.Dir = workDir
+	}
+
 	// Set environment variables
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("RIVER_STATE_FILE=%s", config.StateFile))
@@ -162,6 +167,7 @@ func (r *defaultCommandRunner) Run(ctx context.Context, config ExecuteConfig) (s
 	// Create command with context
 	cmd := exec.CommandContext(ctx, baseCmd.Path, baseCmd.Args[1:]...)
 	cmd.Env = baseCmd.Env
+	cmd.Dir = baseCmd.Dir  // Preserve working directory from buildCommand
 
 	// Run the command
 	startTime := time.Now()

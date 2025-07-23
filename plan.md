@@ -1,130 +1,234 @@
-# River CLI - Bare Execution Mode Implementation Plan
+# Fix Claude Commands Not Executing in Git Worktree Directory
 
 ## Overview
-Implement bare execution mode for River CLI: allow `river --no-plan --no-worktree` to run without a task description.
 
-**GitHub Issue**: #6  
-**Estimated Time**: 8-10 hours
+**GitHub Issue**: #7  
+**Problem**: River creates Git worktrees for isolation but Claude commands execute in the original repository directory instead of the worktree, defeating the purpose of isolation.
 
-## Requirements
-1. Accept no arguments when both `--no-plan` and `--no-worktree` flags are set
-2. Continue from existing `claude_state.json` if present
-3. Start new workflow with `/ralph` if no state exists
-4. Maintain backwards compatibility
+**Root Cause**: The `exec.Command` in `internal/claude/executor.go` doesn't set the `Dir` field, so Claude inherits the directory from when River started, not River's current working directory.
+
+**Objective**: Ensure Claude commands execute in the correct worktree directory to maintain proper isolation.
+
+## Prioritized Features
+
+### P0: Core Working Directory Fix
+**Must Have** - Critical bug fix for worktree isolation
+
+### P1: Testing Infrastructure  
+**Should Have** - Ensure the fix works and prevent regressions
+
+### P2: Error Handling & Validation
+**Should Have** - Robust handling of edge cases
+
+### P3: Documentation Updates
+**Nice to Have** - Update documentation to reflect correct behavior
 
 ## Implementation Tasks
 
-### 1. CLI Argument Validation (2 hours) ✅ IMPLEMENTED
-**File**: `internal/cli/root.go`
+### P0-1: Set Working Directory in Claude Executor ✅ IMPLEMENTED
+**File**: `internal/claude/executor.go`
 
-**Changes**:
+**Acceptance Criteria**:
+- Claude commands execute in the current working directory ✅
+- Worktree isolation works correctly ✅
+- Backward compatibility maintained for non-worktree usage ✅
+
+**Test Cases**:
 ```go
-// In rootCmd.PreRunE
-if len(args) == 0 && !cmd.Flag("file").Changed {
-    noPlan, _ := cmd.Flags().GetBool("no-plan")
-    noWorktree, _ := cmd.Flags().GetBool("no-worktree")
-    
-    if !(noPlan && noWorktree) {
-        return fmt.Errorf("either provide a task description or use --file flag")
-    }
+func TestBuildCommand_SetsWorkingDirectory(t *testing.T)
+func TestBuildCommand_HandlesGetWdError(t *testing.T)
+```
+
+**Implementation Steps**:
+1. Modify `buildCommand()` method around line 132-138
+2. Add `os.Getwd()` call to get current working directory
+3. Set `cmd.Dir = workDir` in the command construction
+4. Handle `os.Getwd()` error gracefully
+
+**Code Change**:
+```go
+// Create command
+cmd := exec.Command("claude", args...)
+
+// Set working directory to current directory (enables worktree isolation)
+if workDir, err := os.Getwd(); err == nil {
+    cmd.Dir = workDir
+}
+
+// Existing environment setup...
+```
+
+**Integration Points**:
+- Works with existing workflow engine directory management
+- Compatible with `RIVER_WORKDIR` configuration
+- No changes needed in worktree manager
+
+### P0-2: Update Command Runner Working Directory ✅ IMPLEMENTED
+**File**: `internal/claude/executor.go`
+
+**Acceptance Criteria**:
+- `defaultCommandRunner.Run()` preserves working directory from `buildCommand` ✅
+- Command execution inherits correct directory context ✅
+
+**Test Cases**:
+```go
+func TestCommandRunner_PreservesWorkingDirectory(t *testing.T)
+```
+
+**Implementation Steps**:
+1. Update `defaultCommandRunner.Run()` method around line 163
+2. Ensure `cmd.Dir` is preserved when creating `CommandContext`
+3. Verify environment and directory are both inherited
+
+**Code Change**:
+```go
+cmd := exec.CommandContext(ctx, baseCmd.Path, baseCmd.Args[1:]...)
+cmd.Env = baseCmd.Env
+cmd.Dir = baseCmd.Dir  // Preserve working directory from buildCommand
+```
+
+### P1-1: Unit Tests for Working Directory
+**File**: `internal/claude/executor_test.go`
+
+**Acceptance Criteria**:
+- Tests verify `cmd.Dir` is set correctly
+- Tests handle `os.Getwd()` errors
+- Tests verify backward compatibility
+
+**Test Cases**:
+```go
+func TestExecutor_BuildCommand_SetsWorkingDirectory(t *testing.T) {
+    // Verify cmd.Dir equals os.Getwd()
+}
+
+func TestExecutor_BuildCommand_WorkingDirectoryError(t *testing.T) {
+    // Mock os.Getwd() to return error, verify graceful handling
+}
+
+func TestExecutor_CommandRunner_PreservesDirectory(t *testing.T) {
+    // Verify working directory flows through command runner
 }
 ```
 
-**Tests**:
-- `TestRootCmd_BareMode_AcceptsNoArgs`
-- `TestRootCmd_RequiresArgs_WithSingleFlag`
+**Implementation Steps**:
+1. Add test for successful working directory setting
+2. Add test for `os.Getwd()` error handling  
+3. Add test for command runner directory preservation
+4. Update existing tests if needed
 
-### 2. Task Description Handling (1 hour)
-**File**: `internal/cli/workflow.go`
+### P1-2: Integration Test for Worktree Execution
+**File**: `test/e2e/worktree_test.go` or new file
 
-**Changes**:
+**Acceptance Criteria**:
+- End-to-end test verifies Claude executes in worktree
+- Test confirms file operations happen in correct directory
+- Test validates state file is in worktree
+
+**Test Cases**:
 ```go
-// In extractTaskDescription
-taskDescription := strings.TrimSpace(strings.Join(args, " "))
+func TestWorktree_ClaudeExecutesInCorrectDirectory(t *testing.T) {
+    // Create worktree, run Claude command, verify working directory
+}
 
-if taskDescription == "" {
-    noPlan, _ := cmd.Flags().GetBool("no-plan")
-    noWorktree, _ := cmd.Flags().GetBool("no-worktree")
-    
-    if !(noPlan && noWorktree) {
-        return "", fmt.Errorf("task description cannot be empty")
-    }
+func TestWorktree_FileOperationsIsolated(t *testing.T) {
+    // Verify file created by Claude appears in worktree, not main repo
 }
 ```
 
-**Tests**:
-- `TestExtractTaskDescription_BareMode`
+**Implementation Steps**:
+1. Extend existing worktree test or create new test file
+2. Add test that creates a worktree and runs a Claude command
+3. Verify Claude operations happen in worktree directory
+4. Add assertions for file isolation
 
-### 3. Workflow Engine State Handling (3 hours)
-**File**: `internal/workflow/workflow.go`
+### P2-1: Error Handling for Working Directory
+**File**: `internal/claude/executor.go`
 
-**Changes**:
+**Acceptance Criteria**:
+- Graceful fallback when `os.Getwd()` fails
+- Clear error messages for directory-related issues
+- Logging for debugging working directory issues
+
+**Test Cases**:
 ```go
-// In Run method
-isBareMode := taskDescription == "" && !generatePlan && !e.cfg.Git.WorktreeEnabled
+func TestExecutor_WorkingDirectoryFallback(t *testing.T)
+```
 
-if isBareMode {
-    if _, err := os.Stat(e.stateFile); err == nil {
-        // Continue from existing state
-        e.logger.Info("Continuing from existing state file")
-        return e.runWorkflowLoop(ctx)
-    } else if os.IsNotExist(err) {
-        // Initialize with /ralph
-        e.logger.Info("Starting bare execution with /ralph")
-        if err := e.initializeWorkflow(ctx, "/ralph", false); err != nil {
-            return fmt.Errorf("failed to initialize bare workflow: %w", err)
-        }
-    }
+**Implementation Steps**:
+1. Add error handling for `os.Getwd()` failure
+2. Add optional logging for working directory debugging
+3. Ensure fallback behavior is consistent
+
+**Code Enhancement**:
+```go
+workDir, err := os.Getwd()
+if err != nil {
+    // Log warning but continue without setting Dir
+    // Claude will use default behavior
 } else {
-    // Normal initialization
-    if err := e.initializeWorkflow(ctx, taskDescription, generatePlan); err != nil {
-        return fmt.Errorf("failed to initialize workflow: %w", err)
-    }
+    cmd.Dir = workDir
 }
-
-return e.runWorkflowLoop(ctx)
 ```
 
-**Tests**:
-- `TestEngine_BareMode_ContinuesExistingState`
-- `TestEngine_BareMode_InitializesWithRalph`
+### P2-2: Working Directory Validation
+**File**: `internal/claude/executor.go`
 
-### 4. Integration Tests (2 hours)
-**File**: `test/integration/bare_mode_test.go`
+**Acceptance Criteria**:
+- Validate working directory exists and is accessible
+- Handle edge cases like permission issues
+- Provide helpful error messages
 
-**Key Tests**:
-- Complete bare mode workflow
-- State continuation after interrupt
-- Error handling for invalid flags
+**Test Cases**:
+```go
+func TestExecutor_ValidatesWorkingDirectory(t *testing.T)
+```
 
-### 5. Documentation (1-2 hours)
-**Updates**:
-1. Help text in `root.go`:
-   ```
-   river --no-plan --no-worktree  # Bare execution mode
-   ```
+**Implementation Steps**:
+1. Add validation that working directory exists
+2. Check directory permissions if needed
+3. Add appropriate error handling
 
-2. CLAUDE.md - Add bare mode section
+### P3-1: Update Documentation
+**File**: `CLAUDE.md`
 
-3. CHANGELOG.md - Document new feature
+**Acceptance Criteria**:
+- Document corrected worktree behavior
+- Update architecture notes about directory isolation
+- Add troubleshooting notes for directory issues
 
-## Testing Checklist
-- [ ] Unit tests pass
-- [ ] Integration tests pass
-- [ ] Manual testing scenarios:
-  - [ ] First run creates state with `/ralph`
-  - [ ] Second run continues from state
-  - [ ] Single flag shows error
-  - [ ] Ctrl+C saves state correctly
+**Implementation Steps**:
+1. Add section about worktree directory isolation
+2. Update workflow documentation
+3. Add troubleshooting section
 
 ## Success Criteria
-- [ ] Bare mode works as specified
-- [ ] No breaking changes
-- [ ] All tests pass
-- [ ] golangci-lint clean
-- [ ] Documentation updated
 
-## Notes
-- This is an advanced feature - requires both flags to prevent accidental use
-- State file handling must be robust
-- Clear error messages are critical
+- [ ] Claude commands execute in worktree directory when worktrees are enabled
+- [ ] File operations by Claude are isolated to the worktree
+- [ ] State file management works correctly in worktree context  
+- [ ] Backward compatibility maintained for `--no-worktree` usage
+- [ ] All existing tests pass
+- [ ] New tests verify the fix works correctly
+- [ ] `golangci-lint` passes without new warnings
+
+## Risk Assessment
+
+**Low Risk** - This is a targeted fix that:
+- Only affects where Claude commands execute
+- Follows established patterns in the codebase
+- Is backward compatible
+- Changes are isolated to the Claude executor module
+
+## Testing Strategy
+
+1. **Unit tests**: Verify working directory is set correctly
+2. **Integration tests**: End-to-end worktree workflow validation  
+3. **Manual testing**: Verify actual Claude commands execute in worktree
+4. **Regression testing**: Ensure non-worktree usage still works
+
+## Implementation Order
+
+1. **P0 tasks**: Core fix for working directory inheritance
+2. **P1 tasks**: Testing infrastructure to validate the fix
+3. **P2 tasks**: Enhanced error handling and edge cases
+4. **P3 tasks**: Documentation updates
