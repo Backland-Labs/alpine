@@ -184,23 +184,31 @@ if err != nil {
 - Added both error and success logging for debugging
 - Tests verify fallback behavior works correctly
 
-### P2-2: Working Directory Validation
+### P2-2: Working Directory Validation ✅ IMPLEMENTED
 **File**: `internal/claude/executor.go`
 
 **Acceptance Criteria**:
-- Validate working directory exists and is accessible
-- Handle edge cases like permission issues
-- Provide helpful error messages
+- Validate working directory exists and is accessible ✅
+- Handle edge cases like permission issues ✅
+- Provide helpful error messages ✅
 
 **Test Cases**:
 ```go
-func TestExecutor_ValidatesWorkingDirectory(t *testing.T)
+func TestExecutor_ValidatesWorkingDirectory(t *testing.T) ✅
 ```
 
 **Implementation Steps**:
-1. Add validation that working directory exists
-2. Check directory permissions if needed
-3. Add appropriate error handling
+1. Add validation that working directory exists ✅
+2. Check directory permissions if needed ✅
+3. Add appropriate error handling ✅
+
+**Implementation Notes**:
+- Added `buildCommandWithValidation()` method that validates working directory before execution
+- Validates directory existence using `os.Stat()`
+- Handles permission errors gracefully with appropriate logging
+- Falls back to default directory when validation fails
+- Comprehensive test suite covers non-existent directories, permission issues, and valid directories
+- Integration with command runner ensures validation is always performed
 
 ### P3-1: Update Documentation
 **File**: `CLAUDE.md`

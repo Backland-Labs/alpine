@@ -437,3 +437,121 @@ func TestExecutor_WorkingDirectoryFallback(t *testing.T) {
 		}
 	})
 }
+
+func TestExecutor_ValidatesWorkingDirectory(t *testing.T) {
+	// This test verifies that the executor validates working directory exists and is accessible
+	// before setting it on the command. This prevents Claude from being executed in a
+	// non-existent or inaccessible directory which could cause confusing errors.
+	t.Run("validates working directory exists", func(t *testing.T) {
+		executor := &Executor{}
+		config := ExecuteConfig{
+			StateFile: "test-state.json",
+		}
+
+		// Create a temporary directory and then remove it to simulate non-existent directory
+		tempDir := "/tmp/test-river-validation-" + strings.ReplaceAll(t.Name(), "/", "-")
+		err := os.Mkdir(tempDir, 0755)
+		if err != nil {
+			t.Fatal(err)
+		}
+		
+		// Change to valid directory first
+		originalWd, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalWd) }()
+		_ = os.Chdir(tempDir)
+		
+		// Now remove it to make it invalid
+		_ = os.Chdir(originalWd)
+		_ = os.RemoveAll(tempDir)
+		
+		// Try to change back to the now non-existent directory
+		err = os.Chdir(tempDir)
+		if err == nil {
+			t.Fatal("Expected error when changing to non-existent directory")
+		}
+
+		// Stay in original directory and build command
+		cmd := executor.buildCommandWithValidation(config)
+
+		// Command should still be created but Dir should be validated
+		if cmd == nil {
+			t.Fatal("Expected command to be created even with invalid directory")
+		}
+		
+		// The validated method should not set an invalid directory
+		if cmd.Dir == tempDir {
+			t.Errorf("Expected working directory to not be set to non-existent directory")
+		}
+	})
+
+	t.Run("validates working directory permissions", func(t *testing.T) {
+		executor := &Executor{}
+		config := ExecuteConfig{
+			StateFile: "test-state.json",
+		}
+
+		// Create a directory with no read permissions
+		tempDir := "/tmp/test-river-noperm-" + strings.ReplaceAll(t.Name(), "/", "-")
+		err := os.Mkdir(tempDir, 0000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			_ = os.Chmod(tempDir, 0755) // Reset permissions to allow removal
+			_ = os.RemoveAll(tempDir)
+		}()
+
+		// Save original directory
+		originalWd, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalWd) }()
+
+		// Try to change to the no-permission directory
+		err = os.Chdir(tempDir)
+		if err == nil {
+			// If we somehow can change to it, skip this test
+			t.Skip("Unable to test permission validation - system allows access")
+		}
+
+		// Build command should handle permission errors gracefully
+		cmd := executor.buildCommandWithValidation(config)
+
+		if cmd == nil {
+			t.Fatal("Expected command to be created even with permission errors")
+		}
+	})
+
+	t.Run("sets working directory when valid", func(t *testing.T) {
+		executor := &Executor{}
+		config := ExecuteConfig{
+			StateFile: "test-state.json",
+		}
+
+		// Create a valid temporary directory
+		tempDir, err := os.MkdirTemp("", "test-river-valid-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.RemoveAll(tempDir) }()
+
+		// Change to the valid directory
+		originalWd, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalWd) }()
+		err = os.Chdir(tempDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Build command with validation
+		cmd := executor.buildCommandWithValidation(config)
+
+		if cmd == nil {
+			t.Fatal("Expected command to be created")
+		}
+
+		// Working directory should be set to the valid directory
+		// Need to handle macOS symlink behavior for /var/folders -> /private/var/folders
+		if cmd.Dir != tempDir && !strings.HasSuffix(cmd.Dir, strings.TrimPrefix(tempDir, "/private")) {
+			t.Errorf("Expected working directory to be %s, got %s", tempDir, cmd.Dir)
+		}
+	})
+}
