@@ -87,13 +87,13 @@ cmd.Env = baseCmd.Env
 cmd.Dir = baseCmd.Dir  // Preserve working directory from buildCommand
 ```
 
-### P1-1: Unit Tests for Working Directory
+### P1-1: Unit Tests for Working Directory ✅ IMPLEMENTED
 **File**: `internal/claude/executor_test.go`
 
 **Acceptance Criteria**:
-- Tests verify `cmd.Dir` is set correctly
-- Tests handle `os.Getwd()` errors
-- Tests verify backward compatibility
+- Tests verify `cmd.Dir` is set correctly ✅
+- Tests handle `os.Getwd()` errors ✅
+- Tests verify backward compatibility ✅
 
 **Test Cases**:
 ```go
@@ -210,18 +210,23 @@ func TestExecutor_ValidatesWorkingDirectory(t *testing.T) ✅
 - Comprehensive test suite covers non-existent directories, permission issues, and valid directories
 - Integration with command runner ensures validation is always performed
 
-### P3-1: Update Documentation
+### P3-1: Update Documentation ✅ IMPLEMENTED
 **File**: `CLAUDE.md`
 
 **Acceptance Criteria**:
-- Document corrected worktree behavior
-- Update architecture notes about directory isolation
-- Add troubleshooting notes for directory issues
+- Document corrected worktree behavior ✅
+- Update architecture notes about directory isolation ✅
+- Add troubleshooting notes for directory issues ✅
 
 **Implementation Steps**:
-1. Add section about worktree directory isolation
-2. Update workflow documentation
-3. Add troubleshooting section
+1. Add section about worktree directory isolation ✅
+2. Update workflow documentation ✅
+3. Add troubleshooting section ✅
+
+**Implementation Notes**:
+- Added "Directory Isolation" subsection to Architecture
+- Added comprehensive "Worktree Directory Isolation" section with usage examples
+- Added "Troubleshooting" section with common issues and debug techniques
 
 ## Success Criteria
 

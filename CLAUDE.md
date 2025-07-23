@@ -25,6 +25,14 @@ The project follows a state-driven architecture where:
 }
 ```
 
+### Directory Isolation
+
+When worktrees are enabled (default behavior), River ensures complete isolation:
+- Claude commands execute in the worktree directory
+- State files (`claude_state.json`) are created in the worktree
+- All file operations are confined to the worktree
+- The main repository remains unmodified during execution
+
 ## Specifications
 
 Key specifications are located in the `specs/` directory:
@@ -74,6 +82,30 @@ golangci-lint run
 6. **Code Style**: Write idiomatic Go code following standard conventions
 7. **Quality**: Use standard Go tools (`go fmt`, `golangci-lint`) for formatting and linting
 
+## Worktree Directory Isolation
+
+River uses Git worktrees to provide isolated environments for Claude Code execution:
+
+1. **Automatic Directory Context**: When River creates a worktree, all Claude commands automatically execute within that worktree directory, not the original repository.
+
+2. **Complete Isolation**: File operations, state management, and all Claude interactions are confined to the worktree, preventing unintended changes to the main repository.
+
+3. **Working Directory Inheritance**: River ensures Claude inherits the correct working directory through proper `cmd.Dir` configuration in the executor.
+
+4. **Fallback Behavior**: If working directory detection fails, River logs a warning and allows Claude to use its default directory behavior.
+
+### Worktree Usage
+```bash
+# Default behavior - creates an isolated worktree
+./river "Implement new feature"
+
+# Disable worktree isolation (work in current directory)
+./river "Fix bug" --no-worktree
+
+# Control worktree cleanup
+export RIVER_GIT_AUTO_CLEANUP=false  # Preserve worktrees after completion
+```
+
 ## Workflow Integration
 
 River integrates with:
@@ -84,3 +116,35 @@ River integrates with:
 ## References
 
 - Claude Code CLI reference: https://docs.anthropic.com/en/docs/claude-code/cli-reference
+
+## Troubleshooting
+
+### Working Directory Issues
+
+**Problem**: Claude commands not executing in the expected directory
+- **Symptom**: Files created in wrong location, state file in main repo instead of worktree
+- **Solution**: Ensure you're using River v0.2.1+ which includes the working directory fix
+- **Debug**: Check River logs for "Set Claude working directory" messages
+
+**Problem**: "Failed to get working directory" warnings
+- **Symptom**: Warning logs about working directory detection failure
+- **Cause**: Permission issues or invalid current directory
+- **Solution**: River will continue with default behavior; ensure you have proper permissions
+
+**Problem**: Worktree not being used despite default settings
+- **Check**: Verify Git is installed and repository is initialized
+- **Check**: Ensure `--no-worktree` flag is not set
+- **Check**: Confirm `RIVER_GIT_AUTO_WORKTREE` is not set to "false"
+
+### Debug Logging
+
+Enable debug logging to trace directory operations:
+```bash
+export RIVER_LOG_LEVEL=debug
+./river "Your task"
+```
+
+Look for these log entries:
+- "Set Claude working directory: /path/to/worktree"
+- "Creating worktree at: /path/to/worktree"
+- "Failed to get working directory" (indicates fallback mode)
