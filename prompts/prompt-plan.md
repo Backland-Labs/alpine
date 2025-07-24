@@ -49,4 +49,6 @@ Clarity and Precision: The plan must be unambiguous. An engineer should be able 
 
 Sufficient Detail: Provide enough detail for the TDD cycle.
 
+Review your work before submitting the plan to plan.md
+
 DO NOT IMPLEMENT THE PLAN. JUST CREATE THE plan.md file in the root directory.
