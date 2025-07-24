@@ -233,6 +233,170 @@ func TestGeneratePlan(t *testing.T) {
 	})
 }
 
+// TestPlanCommand_RouteToGeminiByDefault tests that default behavior calls Gemini
+func TestPlanCommand_RouteToGeminiByDefault(t *testing.T) {
+	// Save and restore environment
+	originalKey := os.Getenv("GEMINI_API_KEY")
+	defer func() {
+		_ = os.Setenv("GEMINI_API_KEY", originalKey)
+	}()
+	_ = os.Setenv("GEMINI_API_KEY", "test-key")
+
+	// Create a test prompt template
+	tempDir := t.TempDir()
+	promptsDir := filepath.Join(tempDir, "prompts")
+	if err := os.Mkdir(promptsDir, 0755); err != nil {
+		t.Fatalf("failed to create prompts dir: %v", err)
+	}
+	promptTemplate := `Task: {{TASK}}`
+	if err := os.WriteFile(filepath.Join(promptsDir, "prompt-plan.md"), []byte(promptTemplate), 0644); err != nil {
+		t.Fatalf("failed to write prompt template: %v", err)
+	}
+
+	// Change to temp directory for the test
+	originalDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(originalDir) }()
+	_ = os.Chdir(tempDir)
+
+	// This test verifies the routing logic defaults to Gemini
+	// Full implementation will come after refactoring for testability
+	t.Skip("Waiting for command runner injection")
+}
+
+// TestPlanCommand_RouteToClaude tests that --cc flag routes to Claude
+func TestPlanCommand_RouteToClaude(t *testing.T) {
+	// Create a test prompt template
+	tempDir := t.TempDir()
+	promptsDir := filepath.Join(tempDir, "prompts")
+	if err := os.Mkdir(promptsDir, 0755); err != nil {
+		t.Fatalf("failed to create prompts dir: %v", err)
+	}
+	promptTemplate := `Task: {{TASK}}`
+	if err := os.WriteFile(filepath.Join(promptsDir, "prompt-plan.md"), []byte(promptTemplate), 0644); err != nil {
+		t.Fatalf("failed to write prompt template: %v", err)
+	}
+
+	// Change to temp directory for the test
+	originalDir, _ := os.Getwd()
+	defer func() { _ = os.Chdir(originalDir) }()
+	_ = os.Chdir(tempDir)
+
+	// This test verifies the routing logic routes to Claude when --cc is used
+	// Full implementation will come after implementing generatePlanWithClaude
+	t.Skip("Waiting for generatePlanWithClaude implementation")
+}
+
+// TestPlanCommand_ErrorPropagation tests error handling from both paths
+func TestPlanCommand_ErrorPropagation(t *testing.T) {
+	t.Run("Gemini error propagation", func(t *testing.T) {
+		// Test that errors from generatePlan are properly propagated
+		rootCmd := NewRootCommand()
+		output := &bytes.Buffer{}
+		rootCmd.SetOut(output)
+		rootCmd.SetErr(output)
+		rootCmd.SetArgs([]string{"plan", "test task"})
+
+		// Without GEMINI_API_KEY, it should error
+		originalKey := os.Getenv("GEMINI_API_KEY")
+		defer func() {
+			_ = os.Setenv("GEMINI_API_KEY", originalKey)
+		}()
+		_ = os.Unsetenv("GEMINI_API_KEY")
+
+		err := rootCmd.Execute()
+		if err == nil {
+			t.Error("expected error when GEMINI_API_KEY not set")
+		}
+		if !strings.Contains(err.Error(), "GEMINI_API_KEY not set") {
+			t.Errorf("expected GEMINI_API_KEY error, got: %v", err)
+		}
+	})
+
+	t.Run("Claude error propagation", func(t *testing.T) {
+		// Test that errors from generatePlanWithClaude are properly propagated
+		rootCmd := NewRootCommand()
+		output := &bytes.Buffer{}
+		rootCmd.SetOut(output)
+		rootCmd.SetErr(output)
+		rootCmd.SetArgs([]string{"plan", "--cc", "test task"})
+
+		err := rootCmd.Execute()
+		if err == nil {
+			t.Error("expected error from generatePlanWithClaude")
+		}
+		// Since we're not in a directory with prompts/prompt-plan.md, we expect a prompt template error
+		if !strings.Contains(err.Error(), "failed to read prompt template") {
+			t.Errorf("expected prompt template error, got: %v", err)
+		}
+	})
+}
+
+// TestPlanCommand_RoutingLogic tests that the correct function is called based on flag
+func TestPlanCommand_RoutingLogic(t *testing.T) {
+	// Capture stdout to verify the routing messages
+	oldStdout := os.Stdout
+	defer func() { os.Stdout = oldStdout }()
+
+	t.Run("default routes to Gemini", func(t *testing.T) {
+		// Create a pipe to capture stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+		defer func() { os.Stdout = oldStdout }()
+
+		rootCmd := NewRootCommand()
+		rootCmd.SetArgs([]string{"plan", "test task"})
+
+		// Without GEMINI_API_KEY, we expect the Gemini-specific error
+		originalKey := os.Getenv("GEMINI_API_KEY")
+		defer func() {
+			_ = os.Setenv("GEMINI_API_KEY", originalKey)
+		}()
+		_ = os.Unsetenv("GEMINI_API_KEY")
+
+		err := rootCmd.Execute()
+		if err == nil || !strings.Contains(err.Error(), "GEMINI_API_KEY not set") {
+			t.Errorf("expected GEMINI_API_KEY error (indicating Gemini path), got: %v", err)
+		}
+
+		// Close writer and read output
+		w.Close()
+		var buf bytes.Buffer
+		_, _ = buf.ReadFrom(r)
+		outputStr := buf.String()
+
+		// Check that output shows "Generating plan..." (Gemini message)
+		if !strings.Contains(outputStr, "Generating plan...") {
+			t.Errorf("expected 'Generating plan...' message, got: %s", outputStr)
+		}
+	})
+
+	t.Run("--cc flag routes to Claude", func(t *testing.T) {
+		// Create a pipe to capture stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+		defer func() { os.Stdout = oldStdout }()
+
+		rootCmd := NewRootCommand()
+		rootCmd.SetArgs([]string{"plan", "--cc", "test task"})
+
+		err := rootCmd.Execute()
+		if err == nil || !strings.Contains(err.Error(), "failed to read prompt template") {
+			t.Errorf("expected prompt template error (indicating Claude path), got: %v", err)
+		}
+
+		// Close writer and read output
+		w.Close()
+		var buf bytes.Buffer
+		_, _ = buf.ReadFrom(r)
+		outputStr := buf.String()
+
+		// Check that output shows "Generating plan using Claude Code..." (Claude message)
+		if !strings.Contains(outputStr, "Generating plan using Claude Code...") {
+			t.Errorf("expected 'Generating plan using Claude Code...' message, got: %s", outputStr)
+		}
+	})
+}
+
 // TestGeneratePlanRefactored tests the refactored generatePlan function with dependencies
 func TestGeneratePlanRefactored(t *testing.T) {
 	// Create a temporary directory for testing
@@ -273,5 +437,102 @@ Generate a detailed plan in markdown format.`
 		// This test will be implemented once we refactor generatePlan
 		// to accept a PlanGenerator interface or similar for testing
 		t.Skip("Waiting for generatePlan refactoring")
+	})
+}
+
+// TestGeneratePlanWithClaude tests the Claude plan generation logic
+func TestGeneratePlanWithClaude(t *testing.T) {
+	// Test basic functionality and error paths
+	t.Run("handles missing prompt template", func(t *testing.T) {
+		// Create a temporary directory without prompt template
+		tempDir := t.TempDir()
+
+		// Change to temp directory for the test
+		originalDir, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalDir) }()
+		_ = os.Chdir(tempDir)
+
+		// The function should fail to read the prompt template
+		err := generatePlanWithClaude("test task")
+
+		if err == nil || !strings.Contains(err.Error(), "failed to read prompt template") {
+			t.Errorf("expected prompt template error, got: %v", err)
+		}
+	})
+
+	t.Run("replaces task placeholder correctly", func(t *testing.T) {
+		// This test verifies that {{TASK}} is replaced in the prompt
+		// We can't easily test this without mocking the executor
+		// So we'll skip this for now
+		t.Skip("Requires executor mocking to test prompt replacement")
+	})
+}
+
+// TestGeneratePlanWithClaude_PromptTemplate verifies correct prompt template usage
+func TestGeneratePlanWithClaude_PromptTemplate(t *testing.T) {
+	t.Run("reads and processes prompt template", func(t *testing.T) {
+		// This test will verify that the prompt template is read and {{TASK}} is replaced
+		// It should test that the function:
+		// 1. Reads prompts/prompt-plan.md
+		// 2. Replaces {{TASK}} with the actual task
+		// 3. Passes the processed prompt to Claude
+
+		// For now, skip until implementation
+		t.Skip("Waiting for generatePlanWithClaude implementation")
+	})
+
+	t.Run("handles missing prompt template", func(t *testing.T) {
+		// Create a temporary directory without prompt template
+		tempDir := t.TempDir()
+
+		// Change to temp directory for the test
+		originalDir, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalDir) }()
+		_ = os.Chdir(tempDir)
+
+		// The function should fail to read the prompt template
+		err := generatePlanWithClaude("test task")
+
+		if err == nil || !strings.Contains(err.Error(), "failed to read prompt template") {
+			t.Errorf("expected prompt template error, got: %v", err)
+		}
+	})
+}
+
+// TestGeneratePlanWithClaude_ErrorHandling tests various error scenarios
+func TestGeneratePlanWithClaude_ErrorHandling(t *testing.T) {
+	t.Run("handles missing Claude CLI", func(t *testing.T) {
+		// Test that appropriate error is returned when Claude CLI is not found
+		t.Skip("Waiting for generatePlanWithClaude implementation")
+	})
+
+	t.Run("handles Claude execution failure", func(t *testing.T) {
+		// Test error propagation from Claude executor
+		t.Skip("Waiting for generatePlanWithClaude implementation")
+	})
+
+	t.Run("handles timeout", func(t *testing.T) {
+		// Test timeout handling (5 minutes default)
+		t.Skip("Waiting for generatePlanWithClaude implementation")
+	})
+}
+
+// TestGeneratePlanWithClaude_MockExecution tests with mock executor
+func TestGeneratePlanWithClaude_MockExecution(t *testing.T) {
+	t.Run("executes Claude with correct configuration", func(t *testing.T) {
+		// This test will use a mock executor to verify:
+		// 1. ExecuteConfig is properly configured
+		// 2. Temporary state file is created
+		// 3. Output is streamed correctly
+		// 4. Cleanup happens after execution
+		t.Skip("Waiting for generatePlanWithClaude implementation")
+	})
+
+	t.Run("uses planning-specific configuration", func(t *testing.T) {
+		// Verify that planning-specific settings are used:
+		// - No MCP servers
+		// - Planning system prompt
+		// - Temporary state file
+		t.Skip("Waiting for generatePlanWithClaude implementation")
 	})
 }

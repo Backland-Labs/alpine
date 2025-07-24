@@ -10,7 +10,7 @@ You are a senior Technical Product Manager (TPM). Your audience is a senior engi
 Generate a plan.md file that outlines a clear, step-by-step implementation strategy for the provided feature request. Think systematically about this implementation.
 
 ## Context
-Feature Request: "add a river review command to review a plan.md"
+Feature Request: {{TASK}}
 
 Specifications Directory: All relevant technical specifications and design documents are located in the @specs/ directory.
 

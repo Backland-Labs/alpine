@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/maxmcd/river/internal/claude"
 	"github.com/spf13/cobra"
 )
 
@@ -37,9 +40,16 @@ the plan using Claude Code instead.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			task := args[0]
-			// The ccFlag variable is captured by the closure and will be used
-			// in Task 2 to route between generatePlan and generatePlanWithClaude
-			return generatePlan(task)
+
+			// Route based on --cc flag
+			if ccFlag {
+				// Log that we're using Claude Code
+				fmt.Println("Generating plan using Claude Code...")
+				return generatePlanWithClaude(task)
+			} else {
+				// Default to Gemini (existing behavior)
+				return generatePlan(task)
+			}
 		},
 	}
 
@@ -93,6 +103,79 @@ func generatePlan(task string) error {
 			return fmt.Errorf("gemini command failed with exit code %d", exitErr.ExitCode())
 		}
 		return fmt.Errorf("failed to execute gemini command: %w", err)
+	}
+
+	fmt.Println("\nPlan generation completed.")
+	return nil
+}
+
+// generatePlanWithClaude generates an implementation plan using Claude Code
+func generatePlanWithClaude(task string) error {
+	// Read the prompt template
+	promptPath := filepath.Join("prompts", "prompt-plan.md")
+	promptTemplate, err := os.ReadFile(promptPath)
+	if err != nil {
+		return fmt.Errorf("failed to read prompt template: %w", err)
+	}
+
+	// Replace placeholders in the prompt template
+	prompt := string(promptTemplate)
+	prompt = strings.ReplaceAll(prompt, "{{TASK}}", task)
+
+	// Create a temporary state file (required by executor)
+	stateFile, err := os.CreateTemp("", "claude_state_*.json")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary state file: %w", err)
+	}
+	defer os.Remove(stateFile.Name()) // Clean up after execution
+
+	// Write initial state content
+	initialState := `{"current_step_description": "Generating plan", "next_step_prompt": "", "status": "running"}`
+	if err := os.WriteFile(stateFile.Name(), []byte(initialState), 0644); err != nil {
+		return fmt.Errorf("failed to write initial state: %w", err)
+	}
+
+	// Create Claude executor
+	executor := claude.NewExecutor()
+
+	// Configure ExecuteConfig for planning
+	config := claude.ExecuteConfig{
+		Prompt:    prompt,
+		StateFile: stateFile.Name(),
+		// No MCP servers for planning
+		MCPServers: []string{},
+		// Planning-specific allowed tools (read-only)
+		AllowedTools: []string{
+			"Read", "Grep", "Glob", "LS",
+			"WebSearch", "WebFetch", "mcp__context7__*",
+		},
+		// Planning-specific system prompt
+		SystemPrompt: "You are a senior Technical Product Manager creating implementation plans. " +
+			"Focus on understanding the codebase and creating detailed plan.md files. " +
+			"Follow TDD principles and River's planning conventions.",
+		// 5-minute timeout for plan generation
+		Timeout: 5 * time.Minute,
+	}
+
+	// Note: We need to add --add-dir . for codebase context
+	// This requires extending ExecuteConfig or modifying the executor
+	// For now, we'll execute Claude with the current configuration
+
+	// Create context with timeout
+	ctx := context.Background()
+
+	// Execute Claude
+	fmt.Println("Generating plan using Claude Code...")
+	_, err = executor.Execute(ctx, config)
+	if err != nil {
+		// Check for specific error types
+		if execErr, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("Claude Code execution failed with exit code %d", execErr.ExitCode())
+		}
+		if strings.Contains(err.Error(), "executable file not found") {
+			return fmt.Errorf("Claude Code CLI not found. Please install from https://claude.ai/download")
+		}
+		return fmt.Errorf("failed to execute Claude Code: %w", err)
 	}
 
 	fmt.Println("\nPlan generation completed.")

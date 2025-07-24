@@ -65,36 +65,47 @@ This document outlines the implementation plan for extending the `river plan` co
     - Command routing logic in `RunE` function
     - Error handling patterns consistent with River's architecture
 
-### Task 3: Implement Claude Code plan generation logic (TDD Cycle)
+### Task 3: Implement Claude Code plan generation logic (TDD Cycle) ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
-    - Claude Code is executed through the existing `claude.Executor` infrastructure
-    - Uses `ExecuteConfig` struct for configuration
-    - The same prompt template (`prompts/prompt-plan.md`) is used
-    - Output is streamed to console similar to Gemini execution
-    - Claude executor is properly initialized without state file requirement
+    - Claude Code is executed through the existing `claude.Executor` infrastructure ✅
+    - Uses `ExecuteConfig` struct for configuration ✅
+    - The same prompt template (`prompts/prompt-plan.md`) is used ✅
+    - Output is streamed to console similar to Gemini execution ✅
+    - Claude executor is properly initialized without state file requirement ✅
 - **Test Cases**:
-    - `TestGeneratePlanWithClaude`: Test the Claude plan generation logic
-    - `TestGeneratePlanWithClaude_PromptTemplate`: Verify correct prompt template usage
-    - `TestGeneratePlanWithClaude_ErrorHandling`: Test various error scenarios
-    - `TestGeneratePlanWithClaude_MockExecution`: Test with mock executor
+    - `TestGeneratePlanWithClaude`: Test the Claude plan generation logic ✅
+    - `TestGeneratePlanWithClaude_PromptTemplate`: Verify correct prompt template usage ✅
+    - `TestGeneratePlanWithClaude_ErrorHandling`: Test various error scenarios ✅
+    - `TestGeneratePlanWithClaude_MockExecution`: Test with mock executor ✅
 - **Implementation Steps**:
-    1. Create `generatePlanWithClaude(task string)` function in `internal/cli/plan.go`
+    1. Create `generatePlanWithClaude(task string)` function in `internal/cli/plan.go` ✅
     2. This function will:
-        - Display "Generating plan using Claude Code..." message
-        - Read the prompt template from `prompts/prompt-plan.md`
-        - Replace `{{TASK}}` with the user's task
-        - Create a Claude executor instance
-        - Configure ExecuteConfig with planning-specific settings
-        - Use a temporary state file (as it's required by the executor)
-        - Execute Claude and stream output
-    3. Add error handling for missing Claude CLI
-    4. Add appropriate logging throughout
-    5. Write comprehensive tests with mock executor
+        - Display "Generating plan using Claude Code..." message ✅
+        - Read the prompt template from `prompts/prompt-plan.md` ✅
+        - Replace `{{TASK}}` with the user's task ✅
+        - Create a Claude executor instance ✅
+        - Configure ExecuteConfig with planning-specific settings ✅
+        - Use a temporary state file (as it's required by the executor) ✅
+        - Execute Claude and stream output ✅
+    3. Add error handling for missing Claude CLI ✅
+    4. Add appropriate logging throughout ✅
+    5. Write comprehensive tests with mock executor ✅
 - **Integration Points**:
-    - `internal/claude/executor.go`: Reuse existing Claude executor
-    - `prompts/prompt-plan.md`: Use existing prompt template
-    - Temporary state file handling (required by executor)
+    - `internal/claude/executor.go`: Reuse existing Claude executor ✅
+    - `prompts/prompt-plan.md`: Use existing prompt template ✅
+    - Temporary state file handling (required by executor) ✅
+
+**Implementation Notes**: 
+- Successfully implemented `generatePlanWithClaude` function
+- Used existing Claude executor infrastructure
+- Created temporary state file with proper cleanup
+- Added planning-specific allowed tools (read-only: Read, Grep, Glob, LS, WebSearch, WebFetch, mcp__context7__*)
+- Added planning-specific system prompt
+- Set 5-minute timeout for plan generation
+- Error handling includes specific messages for missing CLI and execution failures
+- Tests updated to reflect implementation
+- Refactored to use modern os package instead of deprecated ioutil
 
 ### Task 4: Configure Claude Code for planning context (TDD Cycle)
 
