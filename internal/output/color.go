@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 // ANSI color codes
@@ -16,6 +17,9 @@ const (
 	colorCyan   = "\033[36m"
 	colorGray   = "\033[90m"
 	colorBold   = "\033[1m"
+
+	// maxToolLogs defines the maximum number of tool logs to keep in the circular buffer
+	maxToolLogs = 4
 )
 
 // Printer handles colored output
@@ -23,6 +27,10 @@ type Printer struct {
 	out      io.Writer
 	err      io.Writer
 	useColor bool
+
+	// Tool log state management
+	toolLogs []string   // Circular buffer for tool logs
+	mu       sync.Mutex // Mutex for thread-safe access to toolLogs
 }
 
 // NewPrinter creates a new printer with color support
@@ -144,6 +152,20 @@ func (p *Printer) StopTodoMonitoring() {
 		_, _ = fmt.Fprintf(p.out, "%s%s✓ Task completed%s\n", colorBold, colorGreen, colorReset)
 	} else {
 		_, _ = fmt.Fprintf(p.out, "✓ Task completed\n")
+	}
+}
+
+// AddToolLog adds a new tool log message to the circular buffer
+func (p *Printer) AddToolLog(message string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Append the new message
+	p.toolLogs = append(p.toolLogs, message)
+
+	// If we exceed maxToolLogs, remove the oldest entry
+	if len(p.toolLogs) > maxToolLogs {
+		p.toolLogs = p.toolLogs[len(p.toolLogs)-maxToolLogs:]
 	}
 }
 
