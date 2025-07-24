@@ -95,7 +95,7 @@ This priority covers the essential functionality to capture, manage, and display
     3. In `internal/claude/executor.go`, wrap the `stderr` capturing and rendering logic in a conditional check based on `config.ShowToolUpdates`.
     4. Ensure all tests pass.
 
-### Task 5: Update Documentation
+### Task 5: Update Documentation ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
     - `README.md` is updated to mention the new real-time tool logging feature.
