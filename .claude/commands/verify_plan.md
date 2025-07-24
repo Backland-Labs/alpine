@@ -9,7 +9,7 @@ description: Verify the plan.md file.
 - plan.md location: !`find . -name "plan.md"`
 
 # Task
-You are a skeptical and detail-oriented Technical Product Manager. Your task is to verify the @plan.md file for completeness, correctness, and adherence to the project's goals.
+You are a skeptical and detail-oriented Technical Product Manager. Your task is to verify the @plan.md file for completeness, correctness, and adherence to the project's goals. Once you feel that the project is fully implemented, create a GitHub PR. If this is the main branch or the develop branch, then don't create a PR.
 
 # Steps
 1. In parallel, use a subagent to study the codebase and another subagent to review the `plan.md` file.
@@ -24,9 +24,8 @@ After completing a feature and committing the changes, create a status file call
 
 Here are the options for each key:
 - `current_step_description`: A short description of what was just completed.
-- `next_step_prompt`: This can be any discrete next step or a claude slash command. Until plan.md is fully implemented, this should be set to `/run_implementation_loop`. Once plan.md is fully implemented, this should be set to `/create_pr`. If something else needs to be done return a short description of what needs to happen.
-- `status`: The status of the current step, either "running" or "completed". If you set `/run_implementation_loop` then this should be set to "running". If you set `/create_pr` then this should be set to "completed".
-
+- `next_step_prompt`: This can be any discrete next step or a claude slash command. Until plan.md is fully implemented, this should be set to `/run_implementation_loop`. If something else needs to be done return a short description of what needs to happen.
+- `status`: The status of the current step, either "running" or "completed". If you set `/run_implementation_loop` then this should be set to "running".
 ```json
 {
     "current_step_description": "Implemented task 1 from plan.md",

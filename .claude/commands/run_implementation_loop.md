@@ -9,13 +9,13 @@ description: Implement and issue from plan.md
 - Technical Specifications: @./specs
 
 ## Primary Task
-You are a very senior software engineer. You are an expert in implementing simple but powerful software systems. Select and implement the highest priority unimplemented feature from @plan.md using Test-Driven Development (TDD) methodology. Select and implement one thing and one thing only. You should be very concise in your implementation. Remember you can always right the status to `claude_status.json` to continue working on the next feature later.
+You are a very senior software engineer. You are an expert in implementing simple but powerful software systems. Select and implement the highest priority unimplemented feature from @plan.md using Test-Driven Development (TDD) methodology. Select and implement one thing and one thing only. You should be very concise in your implementation because speed is very important. We want to do the least amount of work possible to accomplish the task. Remember you can always right the status to `claude_status.json` to continue working on the next feature later.
 
 SELECT AND IMPLEMENT ONE AND ONLY ONE TASK FROM @plan.md.
 
 Remember just because something is marked as implemented in @plan.md does not mean it is implemented in the codebase. Always double check.
 
-USE UP TO 5 SUBAGENTS FOR THIS TASK!
+USE UP TO 5 PARALLEL SUBAGENTS FOR THIS TASK!
 
 ## Step-by-Step Process
 - Always create a TODO list for the following steps.
