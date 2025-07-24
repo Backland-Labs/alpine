@@ -23,19 +23,28 @@ func NewPlanCommand() *cobra.Command {
 // newPlanCmd creates a new plan command
 func newPlanCmd() *planCmd {
 	pc := &planCmd{}
+	var ccFlag bool
 
 	pc.cmd = &cobra.Command{
 		Use:   "plan <task-description>",
-		Short: "Generate an implementation plan using Gemini CLI",
-		Long: `Generate a detailed implementation plan for a given task using Gemini CLI.
+		Short: "Generate an implementation plan using Gemini CLI or Claude Code",
+		Long: `Generate a detailed implementation plan for a given task using Gemini CLI (default) or Claude Code.
 This command reads the project specifications and creates a structured plan
-that can be used with River's implementation workflow.`,
+that can be used with River's implementation workflow.
+
+By default, the plan is generated using Gemini. Use the --cc flag to generate
+the plan using Claude Code instead.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			task := args[0]
+			// The ccFlag variable is captured by the closure and will be used
+			// in Task 2 to route between generatePlan and generatePlanWithClaude
 			return generatePlan(task)
 		},
 	}
+
+	// Add the --cc flag
+	pc.cmd.Flags().BoolVar(&ccFlag, "cc", false, "Use Claude Code instead of Gemini for plan generation")
 
 	return pc
 }
@@ -49,7 +58,7 @@ func (pc *planCmd) Command() *cobra.Command {
 func generatePlan(task string) error {
 	// Notify user that plan generation is starting
 	fmt.Println("Generating plan...")
-	
+
 	// Check if GEMINI_API_KEY is set
 	if os.Getenv("GEMINI_API_KEY") == "" {
 		return fmt.Errorf("GEMINI_API_KEY not set")

@@ -25,6 +25,91 @@ func TestPlanCommand(t *testing.T) {
 		}
 	})
 
+	// TestPlanCommand_CCFlagExists: Verify the flag is registered on the command
+	t.Run("cc flag exists", func(t *testing.T) {
+		rootCmd := NewRootCommand()
+		planCmd, _, err := rootCmd.Find([]string{"plan"})
+		if err != nil {
+			t.Fatalf("failed to find plan command: %v", err)
+		}
+
+		ccFlag := planCmd.Flag("cc")
+		if ccFlag == nil {
+			t.Error("--cc flag not found on plan command")
+		}
+
+		if ccFlag.Usage != "Use Claude Code instead of Gemini for plan generation" {
+			t.Errorf("incorrect usage text for --cc flag: %s", ccFlag.Usage)
+		}
+	})
+
+	// TestPlanCommand_CCFlagDefault: Verify flag defaults to false
+	t.Run("cc flag defaults to false", func(t *testing.T) {
+		rootCmd := NewRootCommand()
+		planCmd, _, err := rootCmd.Find([]string{"plan"})
+		if err != nil {
+			t.Fatalf("failed to find plan command: %v", err)
+		}
+
+		ccFlag := planCmd.Flag("cc")
+		if ccFlag == nil {
+			t.Fatal("--cc flag not found on plan command")
+		}
+
+		if ccFlag.DefValue != "false" {
+			t.Errorf("--cc flag should default to false, got: %s", ccFlag.DefValue)
+		}
+	})
+
+	// TestPlanCommand_ParsesCCFlag: Test that the flag value is correctly parsed
+	t.Run("parses cc flag correctly", func(t *testing.T) {
+		// Test with --cc flag set to true
+		rootCmd := NewRootCommand()
+		output := &bytes.Buffer{}
+		rootCmd.SetOut(output)
+		rootCmd.SetErr(output)
+
+		// We can't test the actual execution without implementing the feature
+		// but we can verify the flag is parsed by the command
+		planCmd, _, err := rootCmd.Find([]string{"plan"})
+		if err != nil {
+			t.Fatalf("failed to find plan command: %v", err)
+		}
+
+		// Parse the flag
+		err = planCmd.ParseFlags([]string{"--cc"})
+		if err != nil {
+			t.Errorf("failed to parse --cc flag: %v", err)
+		}
+
+		ccFlag := planCmd.Flag("cc")
+		if ccFlag == nil {
+			t.Fatal("--cc flag not found after parsing")
+		}
+
+		if ccFlag.Value.String() != "true" {
+			t.Errorf("--cc flag should be true when set, got: %s", ccFlag.Value.String())
+		}
+	})
+
+	// TestPlanCommand_HelpText: Verify help text includes both Gemini and Claude options
+	t.Run("help text mentions both engines", func(t *testing.T) {
+		rootCmd := NewRootCommand()
+		planCmd, _, err := rootCmd.Find([]string{"plan"})
+		if err != nil {
+			t.Fatalf("failed to find plan command: %v", err)
+		}
+
+		// Check that the Long description mentions both Gemini and Claude
+		if !strings.Contains(planCmd.Long, "Gemini") {
+			t.Error("plan command Long description should mention Gemini")
+		}
+
+		if !strings.Contains(planCmd.Long, "Claude") {
+			t.Error("plan command Long description should mention Claude Code option")
+		}
+	})
+
 	// Test that plan command requires exactly one argument
 	t.Run("plan command requires one argument", func(t *testing.T) {
 		rootCmd := NewRootCommand()

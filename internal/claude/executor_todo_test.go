@@ -22,11 +22,11 @@ func TestExecutor_executeWithTodoMonitoring(t *testing.T) {
 			t.Fatalf("Failed to get working directory: %v", err)
 		}
 		defer func() { _ = os.Chdir(oldWd) }()
-		
+
 		if err := os.Chdir(readOnlyDir); err != nil {
 			t.Fatalf("Failed to change directory: %v", err)
 		}
-		
+
 		// Make directory read-only to cause hook setup failure
 		if err := os.Chmod(readOnlyDir, 0555); err != nil {
 			t.Fatalf("Failed to make directory read-only: %v", err)
@@ -80,7 +80,7 @@ func TestExecutor_executeWithTodoMonitoring(t *testing.T) {
 			t.Fatalf("Failed to get working directory: %v", err)
 		}
 		defer func() { _ = os.Chdir(oldWd) }()
-		
+
 		if err := os.Chdir(tmpDir); err != nil {
 			t.Fatalf("Failed to change directory: %v", err)
 		}
