@@ -36,7 +36,7 @@ This priority covers the essential functionality to capture, manage, and display
     4. Implement the `AddToolLog` method in `internal/output/color.go`. It should lock the mutex, append the new log, and trim the slice if it exceeds `maxToolLogs`.
     5. Ensure all tests pass.
 
-### Task 2: Capture Tool Logs from `stderr` in Real-time (TDD Cycle)
+### Task 2: Capture Tool Logs from `stderr` in Real-time (TDD Cycle) ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
     - The `claude.Executor` can capture the `stderr` stream of the hook script process separately from `stdout`.

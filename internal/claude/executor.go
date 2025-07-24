@@ -1,10 +1,14 @@
 package claude
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/maxmcd/river/internal/config"
@@ -186,7 +190,12 @@ func (e *Executor) executeClaudeCommand(ctx context.Context, config ExecuteConfi
 	// Add todo file environment variable
 	cmd.Env = append(cmd.Env, fmt.Sprintf("RIVER_TODO_FILE=%s", todoFile))
 
-	// Run the command
+	// Check if we should capture stderr for tool logs
+	if e.config != nil && e.config.ShowTodoUpdates && e.printer != nil {
+		return e.executeWithStderrCapture(ctx, cmd)
+	}
+
+	// Fallback to combined output
 	startTime := time.Now()
 	logger.Debug("Executing Claude command with TODO monitoring")
 	output, err := cmd.CombinedOutput()
@@ -203,6 +212,81 @@ func (e *Executor) executeClaudeCommand(ctx context.Context, config ExecuteConfi
 
 	logger.WithField("duration", duration).Debug("Claude execution completed successfully")
 	return string(output), nil
+}
+
+// executeWithStderrCapture runs a command with separate stdout/stderr handling
+// stderr lines are sent to printer.AddToolLog() in real-time
+func (e *Executor) executeWithStderrCapture(ctx context.Context, cmd *exec.Cmd) (string, error) {
+	startTime := time.Now()
+
+	// Get stdout pipe
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+
+	// Get stderr pipe
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return "", fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	// Start the command
+	logger.Debug("Starting Claude command with stderr capture")
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("failed to start command: %w", err)
+	}
+
+	// Capture stdout
+	var stdoutBuf bytes.Buffer
+	var wg sync.WaitGroup
+
+	// Read stdout in a goroutine
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if _, err := io.Copy(&stdoutBuf, stdoutPipe); err != nil {
+			logger.WithField("error", err).Error("Error reading stdout")
+		}
+	}()
+
+	// Read stderr line-by-line and send to AddToolLog
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		scanner := bufio.NewScanner(stderrPipe)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if e.printer != nil {
+				e.printer.AddToolLog(line)
+			}
+			logger.WithField("stderr", line).Debug("Captured stderr line")
+		}
+		if err := scanner.Err(); err != nil {
+			logger.WithField("error", err).Error("Error reading stderr")
+		}
+	}()
+
+	// Wait for command to complete
+	err = cmd.Wait()
+	duration := time.Since(startTime)
+
+	// Wait for all goroutines to finish reading
+	wg.Wait()
+
+	output := stdoutBuf.String()
+
+	if err != nil {
+		logger.WithFields(map[string]interface{}{
+			"error":    err,
+			"duration": duration,
+			"output":   output,
+		}).Error("Claude execution failed")
+		return "", fmt.Errorf("claude execution failed: %w", err)
+	}
+
+	logger.WithField("duration", duration).Debug("Claude execution completed successfully with stderr capture")
+	return output, nil
 }
 
 // DefaultSystemPrompt is the default system prompt used when none is provided
