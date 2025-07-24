@@ -46,6 +46,9 @@ type Config struct {
 	// ShowTodoUpdates controls whether to show real-time TODO progress from Claude
 	ShowTodoUpdates bool
 
+	// ShowToolUpdates controls whether to show real-time tool usage updates
+	ShowToolUpdates bool
+
 	// StateFile is the path to the state file
 	StateFile string
 
@@ -107,6 +110,13 @@ func New() (*Config, error) {
 		return nil, err
 	}
 	cfg.ShowTodoUpdates = showTodoUpdates
+
+	// Load ShowToolUpdates - defaults to true
+	showToolUpdates, err := parseBoolEnv("RIVER_SHOW_TOOL_UPDATES", true)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ShowToolUpdates = showToolUpdates
 
 	// StateFile is always at a fixed location
 	cfg.StateFile = filepath.Join(".claude", "river", "claude_state.json")

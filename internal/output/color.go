@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+	"sync"
 )
 
 // ANSI color codes
@@ -16,6 +18,9 @@ const (
 	colorCyan   = "\033[36m"
 	colorGray   = "\033[90m"
 	colorBold   = "\033[1m"
+
+	// maxToolLogs defines the maximum number of tool logs to keep in the circular buffer
+	maxToolLogs = 4
 )
 
 // Printer handles colored output
@@ -23,6 +28,11 @@ type Printer struct {
 	out      io.Writer
 	err      io.Writer
 	useColor bool
+
+	// Tool log state management
+	toolLogs    []string   // Circular buffer for tool logs
+	currentTask string     // Current task being displayed
+	mu          sync.Mutex // Mutex for thread-safe access to toolLogs and currentTask
 }
 
 // NewPrinter creates a new printer with color support
@@ -128,6 +138,10 @@ func (p *Printer) UpdateCurrentTask(task string) {
 		return
 	}
 
+	p.mu.Lock()
+	p.currentTask = task
+	p.mu.Unlock()
+
 	// Clear current line and show new task
 	_, _ = fmt.Fprintf(p.out, "\r\033[K")
 	if p.useColor {
@@ -135,6 +149,9 @@ func (p *Printer) UpdateCurrentTask(task string) {
 	} else {
 		_, _ = fmt.Fprintf(p.out, "🔄 Working on: %s\n", task)
 	}
+
+	// Render tool logs to maintain sticky header
+	p.RenderToolLogs()
 }
 
 // StopTodoMonitoring prints a completion message and clears the line
@@ -145,6 +162,70 @@ func (p *Printer) StopTodoMonitoring() {
 	} else {
 		_, _ = fmt.Fprintf(p.out, "✓ Task completed\n")
 	}
+}
+
+// AddToolLog adds a new tool log message to the circular buffer
+func (p *Printer) AddToolLog(message string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Append the new message
+	p.toolLogs = append(p.toolLogs, message)
+
+	// If we exceed maxToolLogs, remove the oldest entry
+	if len(p.toolLogs) > maxToolLogs {
+		p.toolLogs = p.toolLogs[len(p.toolLogs)-maxToolLogs:]
+	}
+}
+
+// RenderToolLogs renders the tool logs with ANSI escape codes for a sticky header effect
+func (p *Printer) RenderToolLogs() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// If no tool logs, return empty string
+	if len(p.toolLogs) == 0 {
+		return ""
+	}
+
+	var output strings.Builder
+
+	// Calculate total lines to move up (number of logs + 1 for header)
+	linesToMoveUp := len(p.toolLogs) + 1
+
+	// Move cursor up
+	output.WriteString(fmt.Sprintf("\033[%dA", linesToMoveUp))
+
+	// Clear and re-print the header line (primary task)
+	output.WriteString("\033[K") // Clear line
+	if p.currentTask != "" {
+		if p.useColor {
+			output.WriteString(fmt.Sprintf("%s%s🔄 Working on: %s%s\n", colorBold, colorBlue, p.currentTask, colorReset))
+		} else {
+			output.WriteString(fmt.Sprintf("🔄 Working on: %s\n", p.currentTask))
+		}
+	} else {
+		if p.useColor {
+			output.WriteString(fmt.Sprintf("%s%s🔄 Working on: Real-time tool monitoring%s\n", colorBold, colorBlue, colorReset))
+		} else {
+			output.WriteString("🔄 Working on: Real-time tool monitoring\n")
+		}
+	}
+
+	// Print each tool log with indentation and gray color
+	for _, log := range p.toolLogs {
+		output.WriteString("\033[K") // Clear line
+		if p.useColor {
+			output.WriteString(fmt.Sprintf("  %s%s%s\n", colorGray, log, colorReset))
+		} else {
+			output.WriteString(fmt.Sprintf("  %s\n", log))
+		}
+	}
+
+	// Write the output to the terminal
+	_, _ = fmt.Fprint(p.out, output.String())
+
+	return output.String()
 }
 
 // isTerminal checks if stdout is a terminal

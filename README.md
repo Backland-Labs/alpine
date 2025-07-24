@@ -9,6 +9,7 @@ River is a CLI orchestrator for Claude Code that automates iterative AI-assisted
 - **State-Driven Execution**: Monitor and manage workflow progress through a JSON state file
 - **Iterative Development**: Automatically continue execution until task completion
 - **Enhanced UX**: Colored output, progress indicators, and detailed logging
+- **Real-time Tool Logging**: Live display of agent operations with sticky header showing current task and scrolling log of recent tool usage
 - **Fast & Efficient**: Written in Go for superior performance compared to the Python version
 
 ## Installation
@@ -189,6 +190,7 @@ River uses environment variables for configuration:
 | `RIVER_VERBOSITY` | Logging level (debug, verbose, normal) | normal |
 | `RIVER_SHOW_OUTPUT` | Show Claude output (true/false) | true |
 | `RIVER_AUTO_CLEANUP` | Auto-cleanup state file on completion | true |
+| `RIVER_SHOW_TOOL_UPDATES` | Display real-time tool usage logs | true |
 
 Example configuration:
 ```bash
@@ -229,6 +231,11 @@ Status values:
 - **Colored Output**: Terminal colors for better readability (respects `NO_COLOR` environment variable)
 - **Progress Indicators**: Animated spinner with elapsed time during long operations
 - **Debug Logging**: Detailed logs with timestamps when `RIVER_VERBOSITY=debug`
+- **Real-time Tool Logging**: Live feed showing the last 3-4 tool operations performed by the agent
+  - Sticky header displays the current primary task
+  - Scrolling log shows recent tool usage (Read, Edit, Write, etc.)
+  - Non-intrusive display that updates without flickering
+  - Can be disabled by setting `RIVER_SHOW_TOOL_UPDATES=false`
 
 ### Workflow Automation
 
