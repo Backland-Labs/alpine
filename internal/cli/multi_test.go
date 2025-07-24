@@ -23,19 +23,19 @@ var mockExecCommand = exec.Command
 func spawnRiverProcesses(ctx context.Context, pairs []PathTaskPair, output *bytes.Buffer) error {
 	// For testing, we need to intercept the output and respect context cancellation
 	// This version runs processes in parallel to match the real implementation
-	
+
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(pairs))
 	var mu sync.Mutex
-	
+
 	// Always disable color in tests for predictable output
 	useColor := false
-	
+
 	for i, pair := range pairs {
 		wg.Add(1)
 		go func(index int, p PathTaskPair) {
 			defer wg.Done()
-			
+
 			select {
 			case <-ctx.Done():
 				errChan <- ctx.Err()
@@ -43,32 +43,32 @@ func spawnRiverProcesses(ctx context.Context, pairs []PathTaskPair, output *byte
 			default:
 				// Use mockExecCommand instead of exec.Command
 				cmd := mockExecCommand("river", p.Task)
-				
+
 				// Extract project name and create prefix writers
 				projectName := ExtractProjectName(p.Path)
-				
+
 				// Create a buffer to capture this process's output
 				var procOutput bytes.Buffer
 				prefixWriter := NewPrefixWriter(&procOutput, projectName, useColor, index)
-				
+
 				cmd.Stdout = prefixWriter
 				cmd.Stderr = prefixWriter
-				
+
 				// For testing, write what directory we would run in
 				fmt.Fprintf(prefixWriter, "Running in: %s\n", p.Path)
-				
+
 				// Start the command
 				if err := cmd.Start(); err != nil {
 					errChan <- fmt.Errorf("failed to run River in %s: %w", p.Path, err)
 					return
 				}
-				
+
 				// Wait for command completion or context cancellation
 				done := make(chan error, 1)
 				go func() {
 					done <- cmd.Wait()
 				}()
-				
+
 				select {
 				case <-ctx.Done():
 					// Kill the process if context is cancelled
@@ -85,7 +85,7 @@ func spawnRiverProcesses(ctx context.Context, pairs []PathTaskPair, output *byte
 					mu.Lock()
 					output.Write(procOutput.Bytes())
 					mu.Unlock()
-					
+
 					if err != nil {
 						errChan <- fmt.Errorf("failed to run River in %s: %w", p.Path, err)
 					}
@@ -93,18 +93,18 @@ func spawnRiverProcesses(ctx context.Context, pairs []PathTaskPair, output *byte
 			}
 		}(i, pair)
 	}
-	
+
 	// Wait for all goroutines to complete
 	wg.Wait()
 	close(errChan)
-	
+
 	// Return the first error encountered
 	for err := range errChan {
 		if err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -270,7 +270,7 @@ exit 0
 
 		var output bytes.Buffer
 		ctx := context.Background()
-		
+
 		err = spawnRiverProcesses(ctx, pairs, &output)
 		assert.NoError(t, err)
 
@@ -305,7 +305,7 @@ sleep 10
 
 		var output bytes.Buffer
 		err = spawnRiverProcesses(ctx, pairs, &output)
-		
+
 		// Should timeout
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "context deadline exceeded")
@@ -331,7 +331,7 @@ exit 1
 
 		var output bytes.Buffer
 		err = spawnRiverProcesses(context.Background(), pairs, &output)
-		
+
 		// Should report the error with prefix
 		assert.Error(t, err)
 		assert.Contains(t, output.String(), "[test] Error: Something went wrong")
@@ -351,10 +351,10 @@ echo "[$1] Finished at: $(date +%s.%N)"
 		// Store the path for each task so we can pass it to the helper
 		taskPaths := map[string]string{
 			"task1": "/tmp/proj1",
-			"task2": "/tmp/proj2", 
+			"task2": "/tmp/proj2",
 			"task3": "/tmp/proj3",
 		}
-		
+
 		mockExecCommand = func(name string, args ...string) *exec.Cmd {
 			// args[0] is the task description
 			if len(args) > 0 {
@@ -376,13 +376,13 @@ echo "[$1] Finished at: $(date +%s.%N)"
 		start := time.Now()
 		err = spawnRiverProcesses(context.Background(), pairs, &output)
 		duration := time.Since(start)
-		
+
 		assert.NoError(t, err)
-		
+
 		// If running in parallel, should take ~0.1s, not 0.3s
 		// Allow some overhead for process startup
 		assert.Less(t, duration, 600*time.Millisecond)
-		
+
 		// Verify all processes ran
 		outputStr := output.String()
 		assert.Contains(t, outputStr, "[/tmp/proj1] Started")
@@ -417,25 +417,25 @@ echo "Line 3 for task: $1"
 
 		// Verify all lines are properly prefixed
 		outputStr := output.String()
-		
+
 		// Check project-a output
 		assert.Contains(t, outputStr, "[project-a] Line 1 for task: task A")
 		assert.Contains(t, outputStr, "[project-a] Line 2 for task: task A")
 		assert.Contains(t, outputStr, "[project-a] Error message")
 		assert.Contains(t, outputStr, "[project-a] Line 3 for task: task A")
-		
+
 		// Check project-b output
 		assert.Contains(t, outputStr, "[project-b] Line 1 for task: task B")
 		assert.Contains(t, outputStr, "[project-b] Line 2 for task: task B")
 		assert.Contains(t, outputStr, "[project-b] Error message")
 		assert.Contains(t, outputStr, "[project-b] Line 3 for task: task B")
-		
+
 		// Verify no unprefixed lines (except empty lines)
 		lines := bytes.Split(output.Bytes(), []byte("\n"))
 		for _, line := range lines {
 			if len(line) > 0 {
 				// Every non-empty line should start with a prefix
-				assert.True(t, bytes.HasPrefix(line, []byte("[project-a]")) || 
+				assert.True(t, bytes.HasPrefix(line, []byte("[project-a]")) ||
 					bytes.HasPrefix(line, []byte("[project-b]")),
 					"Line should have prefix: %s", string(line))
 			}
@@ -473,14 +473,14 @@ echo "Output for $1"
 			projectName := ExtractProjectName(pair.Path)
 			// Create a prefix writer with colors enabled to verify color cycling
 			pw := NewPrefixWriter(&bytes.Buffer{}, projectName, true, i)
-			
+
 			// The color index should cycle through available colors
 			expectedColorIndex := i % len(prefixColors)
 			actualColor := pw.colorCode
 			expectedColor := prefixColors[expectedColorIndex]
-			
-			assert.Equal(t, expectedColor, actualColor, 
-				"Project %s (index %d) should use color index %d", 
+
+			assert.Equal(t, expectedColor, actualColor,
+				"Project %s (index %d) should use color index %d",
 				projectName, i, expectedColorIndex)
 		}
 	})
@@ -619,10 +619,9 @@ exit 0
 		if _, err := exec.LookPath("river"); err != nil {
 			t.Skip("river binary not in PATH, skipping integration test")
 		}
-		
+
 		// This test would actually run river, which we don't want in unit tests
 		// The functionality is already tested through the other tests
 		t.Skip("Skipping actual river execution in unit tests")
 	})
 }
-

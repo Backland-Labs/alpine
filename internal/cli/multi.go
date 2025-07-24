@@ -23,7 +23,7 @@ func NewMultiCommand() *cobra.Command {
 // newMultiCmd creates a new multi command
 func newMultiCmd() *multiCmd {
 	mc := &multiCmd{}
-	
+
 	mc.cmd = &cobra.Command{
 		Use:   "multi [path task]...",
 		Short: "Run multiple River agents in parallel",
@@ -43,7 +43,7 @@ Example:
 		},
 		RunE: mc.execute,
 	}
-	
+
 	return mc
 }
 
@@ -58,10 +58,10 @@ func (mc *multiCmd) execute(cmd *cobra.Command, args []string) error {
 	if err := ValidateArguments(args); err != nil {
 		return err
 	}
-	
+
 	// Parse path/task pairs
 	pairs := ParsePathTaskPairs(args)
-	
+
 	// Spawn River processes
 	return SpawnRiverProcesses(pairs)
 }
@@ -98,23 +98,23 @@ func ExtractProjectName(path string) string {
 	if path == "/" {
 		return "root"
 	}
-	
+
 	if path == "." {
 		// For current directory, just return "."
 		return "."
 	}
-	
+
 	// Remove trailing slashes
 	path = filepath.Clean(path)
-	
+
 	// Get the base name
 	base := filepath.Base(path)
-	
+
 	// If we get an empty string or slash, use "project" as fallback
 	if base == "" || base == "/" {
 		return "project"
 	}
-	
+
 	return base
 }
 
@@ -122,41 +122,41 @@ func ExtractProjectName(path string) string {
 func SpawnRiverProcesses(pairs []PathTaskPair) error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(pairs))
-	
+
 	// Determine if we should use color based on terminal support
 	useColor := isTerminalColor()
-	
+
 	for i, pair := range pairs {
 		wg.Add(1)
-		
+
 		go func(index int, p PathTaskPair) {
 			defer wg.Done()
-			
+
 			// Extract project name from path
 			projectName := ExtractProjectName(p.Path)
-			
+
 			// Create prefix writers for stdout and stderr
 			stdoutWriter := NewPrefixWriter(os.Stdout, projectName, useColor, index)
 			stderrWriter := NewPrefixWriter(os.Stderr, projectName, useColor, index)
-			
+
 			// Create the River command
 			cmd := exec.Command("river", p.Task)
 			cmd.Dir = p.Path
 			cmd.Stdout = stdoutWriter
 			cmd.Stderr = stderrWriter
 			cmd.Stdin = os.Stdin
-			
+
 			// Run the command
 			if err := cmd.Run(); err != nil {
 				errChan <- fmt.Errorf("failed to run River in %s: %w", p.Path, err)
 			}
 		}(i, pair)
 	}
-	
+
 	// Wait for all processes to complete
 	wg.Wait()
 	close(errChan)
-	
+
 	// Check for errors
 	var firstErr error
 	for err := range errChan {
@@ -164,7 +164,7 @@ func SpawnRiverProcesses(pairs []PathTaskPair) error {
 			firstErr = err
 		}
 	}
-	
+
 	return firstErr
 }
 
