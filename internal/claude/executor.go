@@ -213,6 +213,8 @@ var DefaultAllowedTools = []string{
 	"Write",
 	"Edit",
 	"Remove",
+	"TodoWrite",
+	"Task",
 }
 
 // buildCommand constructs the exec.Cmd for Claude
