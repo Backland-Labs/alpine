@@ -196,7 +196,7 @@ This document outlines the implementation plan for extending the `river plan` co
 - **Note**: Several tests are skipped awaiting future refactoring for better testability
 - Planning-specific tests (TestClaudePlanningToolRestrictions, etc.) were not implemented as the current test structure validates these through integration tests
 
-## P1: Enhanced Features (NOT IMPLEMENTED)
+## P1: Enhanced Features ✅ IMPLEMENTED
 
 ### Task 6: Add progress indicators and error handling ✅ IMPLEMENTED
 
@@ -223,19 +223,29 @@ This document outlines the implementation plan for extending the `river plan` co
 - Both generatePlan and generatePlanWithClaude now use the same output formatting
 - Tests verify progress indicators are shown and properly cleaned up
 
-### Task 7: Add documentation and CLI help updates (NOT IMPLEMENTED)
+### Task 7: Add documentation and CLI help updates ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
-    - README.md includes information about `--cc` flag
-    - CLI help text clearly explains both engines
-    - Installation instructions for Claude Code CLI
-    - Examples of using both engines
+    - README.md includes information about `--cc` flag ✅
+    - CLI help text clearly explains both engines ✅
+    - Installation instructions for Claude Code CLI ✅
+    - Examples of using both engines ✅
 - **Implementation Steps**:
-    1. Update `plan` command's Long description in code
-    2. Add section to README.md about plan generation options
-    3. Include comparison table of Gemini vs Claude features
-    4. Add troubleshooting section for common issues
-    5. Update any relevant documentation in specs/
+    1. Update `plan` command's Long description in code ✅
+    2. Add section to README.md about plan generation options ✅
+    3. Include comparison table of Gemini vs Claude features ✅
+    4. Add troubleshooting section for common issues ✅
+    5. Update any relevant documentation in specs/ ✅
+
+**Implementation Notes**:
+- Added comprehensive documentation to README.md including:
+  - Plan Generation section with Gemini and Claude Code subsections
+  - Comparison table highlighting differences between the two engines
+  - Installation instructions for Claude Code CLI in Prerequisites section
+  - Examples showing usage of both engines with various flag combinations
+  - Troubleshooting section covering common plan generation issues
+- Updated cli-commands.md spec to include river plan command documentation
+- CLI help text was already updated in the code (plan.go) from previous tasks
 
 ## Implementation Notes
 
@@ -301,10 +311,10 @@ This document outlines the implementation plan for extending the `river plan` co
   - [x] Missing GEMINI_API_KEY error (when using Gemini)
   - [x] Timeout handling
   - [x] Execution failure messages
-- [ ] Documentation is updated:
+- [x] Documentation is updated:
   - [x] CLI help text mentions both engines
-  - [ ] README includes `--cc` flag usage (Task 7)
-  - [ ] Installation instructions for Claude Code (Task 7)
+  - [x] README includes `--cc` flag usage (Task 7)
+  - [x] Installation instructions for Claude Code (Task 7)
 - [x] Output streaming works correctly for both engines
   - Note: Gemini streams output in real-time, Claude buffers until completion
 - [x] Performance is acceptable (5-minute timeout)

@@ -30,8 +30,18 @@ go install ./cmd/river
 ### Prerequisites
 
 - Go 1.19 or higher
-- Claude Code CLI installed and configured
+- Claude Code CLI installed and configured (for execution)
+- Gemini API key set as `GEMINI_API_KEY` environment variable (for plan generation with Gemini)
 - MCP servers configured (if using specific tools)
+
+### Installing Claude Code CLI
+
+To use River with Claude Code (for execution or plan generation with `--cc`), you need to install the Claude Code CLI:
+
+1. Visit the Claude Code website: [claude.ai/code](https://claude.ai/code)
+2. Follow the installation instructions for your platform
+3. Authenticate with your Anthropic account: `claude auth login`
+4. Verify installation: `claude --version`
 
 ### Pre-built Binaries
 
@@ -75,6 +85,61 @@ Flags:
   -h, --help          Help for river
       --no-plan       Skip plan generation and execute directly
   -v, --version       Version for river
+
+river plan [flags] <task>
+
+Flags:
+      --cc            Use Claude Code instead of Gemini for plan generation
+  -h, --help          Help for plan
+```
+
+## Plan Generation
+
+River supports two engines for generating implementation plans:
+
+### Gemini (Default)
+By default, River uses Gemini for plan generation. This requires a Gemini API key:
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+river plan "Add user authentication to the web app"
+```
+
+### Claude Code (Alternative)
+You can use Claude Code for plan generation with the `--cc` flag:
+
+```bash
+river plan --cc "Add user authentication to the web app"
+```
+
+### Comparison: Gemini vs Claude Code
+
+| Feature | Gemini | Claude Code |
+|---------|--------|-------------|
+| Default option | ✓ | |
+| API key required | ✓ (GEMINI_API_KEY) | |
+| CLI installation required | | ✓ |
+| Output streaming | Real-time | Buffered |
+| Codebase context | Limited | Full (via `--add-dir .`) |
+| Multi-turn conversation | | ✓ |
+| Tool usage | | Read-only tools |
+| Typical speed | Fast | Slower (more analysis) |
+
+### Examples
+
+```bash
+# Generate a plan using Gemini (default)
+river plan "Implement caching layer for API responses"
+
+# Generate a plan using Claude Code
+river plan --cc "Implement caching layer for API responses"
+
+# Generate a plan from a file description
+echo "Refactor the authentication module to use JWT tokens" > task.md
+river plan --file task.md
+
+# Use Claude Code with file input
+river plan --cc --file task.md
 ```
 
 ## Configuration
@@ -189,6 +254,47 @@ river/
 ├── specs/             # Architecture specifications
 └── test/              # Integration tests
 ```
+
+## Troubleshooting
+
+### Plan Generation Issues
+
+**Missing GEMINI_API_KEY error**
+```
+Error: GEMINI_API_KEY environment variable is not set
+```
+Solution: Set your Gemini API key:
+```bash
+export GEMINI_API_KEY="your-api-key"
+```
+
+**Claude Code CLI not found error**
+```
+Error: Claude Code CLI not found. Please install from https://claude.ai/code
+```
+Solution: Install Claude Code CLI following the instructions in the Prerequisites section.
+
+**Plan generation timeout**
+- Claude Code plan generation has a 5-minute timeout
+- For complex codebases, this may be exceeded
+- Try breaking down your task into smaller, more specific requirements
+
+### Common Issues
+
+**State file conflicts**
+- River uses `claude_state.json` to track progress
+- If you see unexpected behavior, try removing this file and restarting
+```bash
+rm claude_state.json
+```
+
+**Worktree permission errors**
+- Ensure you have write permissions in the Git repository
+- Check that Git is properly initialized: `git status`
+
+**MCP server errors**
+- Verify MCP servers are properly configured
+- Check Claude Code configuration: `claude config list`
 
 ## License
 

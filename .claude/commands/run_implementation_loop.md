@@ -42,7 +42,7 @@ USE UP TO 5 SUBAGENTS FOR THIS TASK!
 - Add a comment to the Linear issue as to the current progress. This can be brief. If you don't know the linear issue then skip updating linear.
 
 ## Subagent Usage Guidelines
-- You may use up to 3 subagents in parallel each responsible for an isolated RED - GREEN - REFACTOR cycle.
+- You may use up to 5 subagents in parallel each responsible for an isolated RED - GREEN - REFACTOR cycle.
 
 ## Success Criteria
 - [ ] Items from `plan.md` is fully implemented with passing tests

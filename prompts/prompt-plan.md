@@ -19,7 +19,7 @@ Codebase: The full source code is available in the current working directory.
 ## Steps:
 1. **Deep Technical Analysis**
    - Study all relevant specifications in `specs/` directory
-   - Document key technical requirements and constraints
+   - Understand key technical requirements and constraints
    - Identify dependencies and integration points
 
 2. **Codebase Study**
