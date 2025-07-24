@@ -20,7 +20,7 @@ river --continue
 
 ### P0: Minimal Multi-Agent Support
 
-#### Task 1: Add --continue Flag
+#### Task 1: Add --continue Flag ✅ IMPLEMENTED
 **Test Cases:**
 - `river --continue` resumes from existing state file
 - Works if state exists with status != "completed"
@@ -30,6 +30,13 @@ river --continue
 - Add `--continue` flag to root command
 - When set, skip task argument requirement
 - Equivalent to `--no-plan --no-worktree` but cleaner
+
+**Status:** Implemented in v0.2.0
+- Added --continue flag to root command
+- Flag automatically sets --no-plan and --no-worktree
+- Validates that no task argument is provided with --continue
+- Checks for existing state file and shows appropriate error if missing
+- Comprehensive test suite added
 
 #### Task 2: Add Multi Command
 **Test Cases:**

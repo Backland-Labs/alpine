@@ -21,10 +21,10 @@ func TestRealWorkflowEngineCreation(t *testing.T) {
 			BaseBranch:      "main",
 		},
 	}
-	
+
 	// Create the real workflow engine
 	engine := NewRealWorkflowEngine(cfg, nil)
-	
+
 	// Verify the engine was created
 	assert.NotNil(t, engine)
 	assert.NotNil(t, engine.engine)
@@ -34,7 +34,7 @@ func TestRealWorkflowEngineCreation(t *testing.T) {
 func TestRunWorkflowWrapper(t *testing.T) {
 	// We can't easily test runWorkflow since it creates real dependencies
 	// but we can verify it exists and has the right signature
-	
+
 	// This is mainly a compilation test to ensure the function exists
 	var fn func(*cobra.Command, []string) error = runWorkflow
 	assert.NotNil(t, fn)
@@ -133,7 +133,7 @@ func TestRunWorkflowBareMode(t *testing.T) {
 
 			tt.setupMocks(deps)
 
-			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, tt.noWorktree, tt.fromFile, deps)
+			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, tt.noWorktree, tt.fromFile, false, deps)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -155,9 +155,9 @@ func TestRunWorkflowBareMode(t *testing.T) {
 // TestCreateWorkflowEngineWithErrors tests error cases in CreateWorkflowEngine
 func TestCreateWorkflowEngineWithErrors(t *testing.T) {
 	tests := []struct {
-		name            string
-		cfg             *config.Config
-		expectNilWtMgr  bool
+		name           string
+		cfg            *config.Config
+		expectNilWtMgr bool
 	}{
 		{
 			name: "worktree disabled",
@@ -175,7 +175,7 @@ func TestCreateWorkflowEngineWithErrors(t *testing.T) {
 				WorkDir: "/tmp",
 				Git: config.GitConfig{
 					WorktreeEnabled: true,
-					BaseBranch: "main",
+					BaseBranch:      "main",
 				},
 			},
 			expectNilWtMgr: false,
@@ -187,7 +187,7 @@ func TestCreateWorkflowEngineWithErrors(t *testing.T) {
 			engine, wtMgr := CreateWorkflowEngine(tt.cfg)
 
 			assert.NotNil(t, engine)
-			
+
 			if tt.expectNilWtMgr {
 				assert.Nil(t, wtMgr)
 			} else {

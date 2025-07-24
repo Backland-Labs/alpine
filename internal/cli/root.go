@@ -18,6 +18,7 @@ const (
 	noPlanKey     contextKey = "noPlan"
 	fromFileKey   contextKey = "fromFile"
 	noWorktreeKey contextKey = "noWorktree"
+	continueKey   contextKey = "continue"
 )
 
 const version = "0.2.0" // Bumped version for new implementation
@@ -33,6 +34,7 @@ func NewRootCommand() *cobra.Command {
 	var noPlan bool
 	var noWorktree bool
 	var fromFile string
+	var continueFlag bool
 
 	cmd := &cobra.Command{
 		Use:   "river <task-description>",
@@ -46,9 +48,17 @@ Examples:
   river "Implement user authentication"
   river "Fix bug in payment processing" --no-plan
   river --file task.md
+  river --continue                            # Continue from existing state
   river --no-plan --no-worktree              # Bare execution mode`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if showVersion {
+				return nil
+			}
+			// If --continue is provided, check for conflicts
+			if continueFlag {
+				if len(args) > 0 {
+					return fmt.Errorf("cannot use --continue with a task description")
+				}
 				return nil
 			}
 			// If --file is provided, we don't need args
@@ -79,12 +89,20 @@ Examples:
 	cmd.Flags().BoolVar(&noPlan, "no-plan", false, "Skip plan generation and execute directly")
 	cmd.Flags().BoolVar(&noWorktree, "no-worktree", false, "Disable git worktree creation")
 	cmd.Flags().StringVar(&fromFile, "file", "", "Read task description from a file")
+	cmd.Flags().BoolVar(&continueFlag, "continue", false, "Continue from existing state (equivalent to --no-plan --no-worktree)")
 
 	// Store flags in command context for runWorkflow
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		// If --continue is set, override noPlan and noWorktree
+		if continueFlag {
+			noPlan = true
+			noWorktree = true
+		}
+
 		ctx := context.WithValue(cmd.Context(), noPlanKey, noPlan)
 		ctx = context.WithValue(ctx, fromFileKey, fromFile)
 		ctx = context.WithValue(ctx, noWorktreeKey, noWorktree)
+		ctx = context.WithValue(ctx, continueKey, continueFlag)
 		cmd.SetContext(ctx)
 		return nil
 	}
@@ -100,6 +118,7 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 	fromFile, _ := cmd.Context().Value(fromFileKey).(string)
 	noPlan, _ := cmd.Context().Value(noPlanKey).(bool)
 	noWorktree, _ := cmd.Context().Value(noWorktreeKey).(bool)
+	continueFlag, _ := cmd.Context().Value(continueKey).(bool)
 
 	// Create real dependencies for production use
 	deps := NewRealDependencies()
@@ -119,5 +138,5 @@ func runWorkflow(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Use the testable workflow function (includes logger initialization)
-	return runWorkflowWithDependencies(ctx, args, noPlan, noWorktree, fromFile, deps)
+	return runWorkflowWithDependencies(ctx, args, noPlan, noWorktree, fromFile, continueFlag, deps)
 }
