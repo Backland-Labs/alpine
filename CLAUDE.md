@@ -76,6 +76,12 @@ golangci-lint run
 
 # Bare execution mode - continue from existing state or start fresh
 ./river --no-plan --no-worktree
+
+# Generate plan from GitHub issue
+./river plan gh-issue https://github.com/owner/repo/issues/123
+
+# Generate plan from GitHub issue using Claude Code
+./river plan --cc gh-issue https://github.com/owner/repo/issues/123
 ```
 
 ## How to Check Your Work
@@ -142,6 +148,9 @@ go build -o river cmd/river/main.go && ./river --help
 
 # Test plan generation (requires GEMINI_API_KEY)
 ./river plan "Add error handling to file operations"
+
+# Test gh-issue plan generation (requires gh CLI and authentication)
+./river plan gh-issue https://github.com/owner/repo/issues/1
 
 # Test worktree creation
 ./river "Add a test function" --no-plan
