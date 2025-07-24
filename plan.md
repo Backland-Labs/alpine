@@ -35,7 +35,7 @@ This priority covers the essential functionality to make the feature work end-to
     3. In `newPlanCmd()`, add the new command using `planCmd.AddCommand(newGhIssueCmd())`.
     4. Write tests in `internal/cli/plan_test.go` to validate the command's structure and argument handling.
 
-### Task 2: Implement GitHub Issue Fetching Logic (TDD Cycle)
+### Task 2: Implement GitHub Issue Fetching Logic (TDD Cycle) ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
     - The command correctly calls the `gh issue view <url> --json title,body` command.

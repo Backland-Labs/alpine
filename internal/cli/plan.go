@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -216,6 +217,41 @@ func filterEnvironment(env []string) []string {
 	return filtered
 }
 
+// fetchGitHubIssue fetches issue data from GitHub using the gh CLI
+func fetchGitHubIssue(url string) (title, body string, err error) {
+	// Execute gh command
+	cmd := exec.Command("gh", "issue", "view", url, "--json", "title,body")
+	
+	// Capture output
+	output, err := cmd.Output()
+	if err != nil {
+		// Check if gh is not found
+		if strings.Contains(err.Error(), "executable file not found") {
+			return "", "", fmt.Errorf("gh CLI not found. Please install from https://cli.github.com")
+		}
+		
+		// Check for exit error with stderr
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr := string(exitErr.Stderr)
+			return "", "", fmt.Errorf("gh command failed: %s", stderr)
+		}
+		
+		return "", "", fmt.Errorf("failed to execute gh command: %w", err)
+	}
+	
+	// Parse JSON output
+	var issue struct {
+		Title string `json:"title"`
+		Body  string `json:"body"`
+	}
+	
+	if err := json.Unmarshal(output, &issue); err != nil {
+		return "", "", fmt.Errorf("failed to parse gh output: %w", err)
+	}
+	
+	return issue.Title, issue.Body, nil
+}
+
 // newGhIssueCmd creates a new gh-issue subcommand
 func newGhIssueCmd() *cobra.Command {
 	return &cobra.Command{
@@ -233,12 +269,30 @@ Requirements:
   - You must have access to the specified GitHub issue`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_ = args[0] // url - will be used when implementing
-
-			// TODO: Implement GitHub issue fetching
-			// TODO: Respect --cc flag from parent command
-
-			return fmt.Errorf("gh-issue subcommand not yet implemented")
+			url := args[0]
+			
+			// Create printer for consistent output
+			printer := output.NewPrinter()
+			
+			// Fetch issue data
+			printer.Info("Fetching GitHub issue...")
+			title, body, err := fetchGitHubIssue(url)
+			if err != nil {
+				printer.Error("Failed to fetch issue: %v", err)
+				return fmt.Errorf("failed to fetch issue: %w", err)
+			}
+			
+			// Format task description
+			task := fmt.Sprintf("Task: %s\n\n%s", title, body)
+			
+			// Access parent command's --cc flag
+			ccFlag, _ := cmd.Parent().Flags().GetBool("cc")
+			
+			// Route to appropriate plan generation
+			if ccFlag {
+				return generatePlanWithClaude(task)
+			}
+			return generatePlan(task)
 		},
 	}
 }
