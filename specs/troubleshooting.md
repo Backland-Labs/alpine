@@ -20,12 +20,8 @@ This guide covers common issues and their solutions when using River.
 
 **Solution**:
 1. Check if another River instance is running: `ps aux | grep river`
-2. Remove stale state file if needed: `rm claude_state.json`
-3. Use absolute paths for state files to avoid conflicts:
-   ```bash
-   export RIVER_STATE_FILE=/tmp/my-task-state.json
-   river "My task"
-   ```
+2. Remove stale state file if needed: `rm -rf .claude/river/claude_state.json`
+3. State file location is now fixed at `.claude/river/claude_state.json` to avoid conflicts
 
 ### Task Not Progressing
 
@@ -38,8 +34,8 @@ This guide covers common issues and their solutions when using River.
    - Run with `RIVER_SHOW_OUTPUT=true` to see Claude's output
 
 2. **State file permissions**
-   - Check file permissions: `ls -la claude_state.json`
-   - Ensure write permissions: `chmod 644 claude_state.json`
+   - Check file permissions: `ls -la .claude/river/claude_state.json`
+   - Ensure write permissions: `chmod 644 .claude/river/claude_state.json`
 
 3. **Slash commands not working**
    - Verify Claude Code supports required slash commands
@@ -177,7 +173,7 @@ When reporting issues, include:
 
 1. **GitHub Issues**: https://github.com/[username]/river/issues
 2. **Debug Logs**: Run with `RIVER_VERBOSITY=debug` and attach output
-3. **State File**: Include `claude_state.json` content if relevant
+3. **State File**: Include `.claude/river/claude_state.json` content if relevant
 
 ### Quick Fixes Checklist
 

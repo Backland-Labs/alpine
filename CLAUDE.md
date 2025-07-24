@@ -42,6 +42,9 @@ Key specifications are located in the `specs/` directory:
 - [error-handling.md](specs/error-handling.md): Go error handling patterns
 - [configuration.md](specs/configuration.md): Environment variable configuration
 - [code-quality.md](specs/code-quality.md): Linting standards and code quality requirements
+- [claude-code-hooks](specs/claude-code-hooks.md): Hook scripts for Claude Code integration
+- [amp-cli.md](specs/amp-cli.md): Amp Code CLI integration as alternative to Claude Code
+- [gemini-cli.md](specs/gemini-cli.md): Gemini CLI integration for non-interactive AI assistance
 
 ## Development Commands
 

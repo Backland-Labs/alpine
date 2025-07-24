@@ -33,7 +33,7 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	}
 	todoFilePath = todoFile.Name()
 	if err := todoFile.Close(); err != nil {
-		os.Remove(todoFilePath)
+		_ = os.Remove(todoFilePath)
 		return "", nil, fmt.Errorf("failed to close todo file: %w", err)
 	}
 
@@ -83,9 +83,9 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	// Return cleanup function
 	cleanup = func() {
 		logger.Debug("Cleaning up TodoWrite hook")
-		os.Remove(todoFilePath)
-		os.Remove(hookScriptPath)
-		os.Remove(settingsPath)
+		_ = os.Remove(todoFilePath)
+		_ = os.Remove(hookScriptPath)
+		_ = os.Remove(settingsPath)
 		// Don't remove .claude directory - may contain user's own settings
 	}
 
@@ -101,8 +101,13 @@ func (e *Executor) copyHookScript(destPath string) error {
 	}
 
 	// Write script to destination
-	if err := os.WriteFile(destPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(destPath, []byte(scriptContent), 0644); err != nil {
 		return fmt.Errorf("failed to write hook script: %w", err)
+	}
+
+	// Explicitly set executable permissions
+	if err := os.Chmod(destPath, 0755); err != nil {
+		return fmt.Errorf("failed to set executable permissions: %w", err)
 	}
 
 	return nil
@@ -114,11 +119,22 @@ func (e *Executor) generateClaudeSettings(settingsPath, hookScriptPath string) e
 		Hooks: map[string]interface{}{
 			"PostToolUse": []toolMatcher{
 				{
-					Matcher: "TodoWrite",
+					Matcher: "",
 					Hooks: []map[string]interface{}{
 						{
-							"type":    "command",
 							"command": hookScriptPath,
+							"type":    "command",
+						},
+					},
+				},
+			},
+			"SubagentStop": []toolMatcher{
+				{
+					Matcher: "",
+					Hooks: []map[string]interface{}{
+						{
+							"command": hookScriptPath,
+							"type":    "command",
 						},
 					},
 				},

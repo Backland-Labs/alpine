@@ -9,7 +9,7 @@ description: Implement and issue from plan.md
 - Technical Specifications: @./specs
 
 ## Primary Task
-You are a very senior software engineer. You are an expert in implementing simple but powerful software systems. Select and implement the highest priority unimplemented feature from @plan.md using Test-Driven Development (TDD) methodology. Select and implement one thing and one thing only. Remember you can always right the status to `claude_status.json` to continue working on the next feature later.
+You are a very senior software engineer. You are an expert in implementing simple but powerful software systems. Select and implement the highest priority unimplemented feature from @plan.md using Test-Driven Development (TDD) methodology. Select and implement one thing and one thing only. You should be very concise in your implementation. Remember you can always right the status to `claude_status.json` to continue working on the next feature later.
 
 SELECT AND IMPLEMENT ONE AND ONLY ONE TASK FROM @plan.md.
 
@@ -18,6 +18,7 @@ Remember just because something is marked as implemented in @plan.md does not me
 USE UP TO 5 SUBAGENTS FOR THIS TASK!
 
 ## Step-by-Step Process
+- Always create a TODO list for the following steps.
 
 ### 1. Analysis Phase
 - Use a subagent to read `plan.md` to understand all planned features
@@ -67,8 +68,7 @@ feat: Implement [feature name] from plan.md
 When you learn something new about how to run the application or examples make sure you update @CLAUDE.md using a subagent but keep it brief. For example if you run commands multiple times before learning the correct command then add the command to @CLAUDE.md
 
 ## Output
-After completing a feature and committing the changes, create a status file called ``claude_state.json`` in 
-`.claude/river/`. This will provide a way to track the progress of the project. It should be in the format below:
+After completing a feature and committing the changes, create a status file called ``claude_state.json`` in  @.claude/river directory. This will provide a way to track the progress of the project. It should be in the format below:
 
 Here are the options for each key:
 - `current_step_description`: string - A short description of what was just completed.

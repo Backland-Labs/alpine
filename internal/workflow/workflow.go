@@ -38,7 +38,7 @@ func NewEngine(executor ClaudeExecutor, wtMgr gitx.WorktreeManager, cfg *config.
 		claudeExecutor: executor,
 		wtMgr:          wtMgr,
 		cfg:            cfg,
-		stateFile:      "claude_state.json",
+		stateFile:      cfg.StateFile,
 		printer:        output.NewPrinter(),
 	}
 }
@@ -244,14 +244,10 @@ func (e *Engine) waitForStateUpdate(ctx context.Context, previousState *core.Sta
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
-	timeout := time.After(5 * time.Minute) // 5 minute timeout for Claude execution
-
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-timeout:
-			return fmt.Errorf("timeout waiting for state update")
 		case <-ticker.C:
 			// Check if file has been modified
 			stat, err := os.Stat(e.stateFile)
@@ -321,9 +317,10 @@ func (e *Engine) createWorktree(ctx context.Context, taskDescription string) err
 		return fmt.Errorf("failed to change to worktree directory: %w", err)
 	}
 
-	// Update state file path to be in worktree
-	e.stateFile = "claude_state.json" // Now relative to worktree directory
-	logger.WithField("state_file", e.stateFile).Debug("Updated state file path")
+	// State file path remains constant
+	// The working directory has changed to the worktree, but the state file
+	// path remains relative to that directory
+	logger.WithField("state_file", e.stateFile).Debug("State file path in worktree")
 
 	e.printer.Info("Created worktree: %s (branch: %s)", e.wt.Path, e.wt.Branch)
 	return nil

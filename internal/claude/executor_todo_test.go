@@ -3,9 +3,9 @@ package claude
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/maxmcd/river/internal/config"
 	"github.com/maxmcd/river/internal/output"
@@ -14,10 +14,24 @@ import (
 func TestExecutor_executeWithTodoMonitoring(t *testing.T) {
 	// Test the executeWithTodoMonitoring functionality
 	t.Run("falls back to executeWithoutMonitoring on hook setup failure", func(t *testing.T) {
-		// Unset HOME to cause hook setup failure
-		oldHome := os.Getenv("HOME")
-		os.Unsetenv("HOME")
-		defer os.Setenv("HOME", oldHome)
+		// Create a test directory where we can't write files
+		readOnlyDir := t.TempDir()
+		// Change to that directory to make setupTodoHook fail when creating .claude dir
+		oldWd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get working directory: %v", err)
+		}
+		defer func() { _ = os.Chdir(oldWd) }()
+		
+		if err := os.Chdir(readOnlyDir); err != nil {
+			t.Fatalf("Failed to change directory: %v", err)
+		}
+		
+		// Make directory read-only to cause hook setup failure
+		if err := os.Chmod(readOnlyDir, 0555); err != nil {
+			t.Fatalf("Failed to make directory read-only: %v", err)
+		}
+		defer func() { _ = os.Chmod(readOnlyDir, 0755) }()
 
 		executor := &Executor{
 			config: &config.Config{
@@ -58,11 +72,18 @@ func TestExecutor_executeWithTodoMonitoring(t *testing.T) {
 		}
 	})
 
-	t.Run("sets RIVER_TODO_FILE environment variable", func(t *testing.T) {
+	t.Run("sets up todo monitoring infrastructure", func(t *testing.T) {
+		// Change to temp directory for test isolation
 		tmpDir := t.TempDir()
-		oldHome := os.Getenv("HOME")
-		os.Setenv("HOME", tmpDir)
-		defer os.Setenv("HOME", oldHome)
+		oldWd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get working directory: %v", err)
+		}
+		defer func() { _ = os.Chdir(oldWd) }()
+		
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change directory: %v", err)
+		}
 
 		executor := &Executor{
 			config: &config.Config{
@@ -71,48 +92,41 @@ func TestExecutor_executeWithTodoMonitoring(t *testing.T) {
 			printer: output.NewPrinterWithWriters(os.Stdout, os.Stderr, false),
 		}
 
-		// Mock command runner
-		executor.commandRunner = &mockCommandRunner{
-			runFunc: func(ctx context.Context, config ExecuteConfig) (string, error) {
-				// This won't be called since executeClaudeCommand is used in monitoring mode
-				return "", nil
-			},
+		// Test setupTodoHook directly to verify it creates the necessary files
+		todoFile, cleanup, err := executor.setupTodoHook()
+		if err != nil {
+			t.Fatalf("setupTodoHook failed: %v", err)
 		}
+		defer cleanup()
 
-		cfg := ExecuteConfig{
-			Prompt:    "test prompt",
-			StateFile: "test_state.json",
+		// Verify todo file was created
+		if _, err := os.Stat(todoFile); os.IsNotExist(err) {
+			t.Error("Todo file was not created")
 		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		// Run in goroutine since it would block
-		done := make(chan struct{})
-		go func() {
-			// We expect this to hang until cancelled since executeClaudeCommand
-			// needs a real Claude binary. We're just testing the setup phase.
-			executor.executeWithTodoMonitoring(ctx, cfg)
-			close(done)
-		}()
-
-		// Give it time to set up
-		time.Sleep(100 * time.Millisecond)
 
 		// Check if .claude directory was created
-		claudeDir := os.ExpandEnv("$HOME/.claude")
+		claudeDir := ".claude"
 		if _, err := os.Stat(claudeDir); os.IsNotExist(err) {
 			t.Error(".claude directory was not created")
 		}
 
-		// Cancel and clean up
-		cancel()
+		// Check if settings.local.json was created
+		settingsFile := filepath.Join(claudeDir, "settings.local.json")
+		if _, err := os.Stat(settingsFile); os.IsNotExist(err) {
+			t.Error("settings.local.json was not created")
+		}
 
-		select {
-		case <-done:
-			// Expected
-		case <-time.After(1 * time.Second):
-			t.Error("executeWithTodoMonitoring did not complete after cancellation")
+		// Check if hook script was created
+		hookScript := filepath.Join(claudeDir, "todo-monitor.rs")
+		if _, err := os.Stat(hookScript); os.IsNotExist(err) {
+			t.Error("todo-monitor.rs was not created")
+		}
+
+		// Verify the hook script is executable
+		if info, err := os.Stat(hookScript); err == nil {
+			if info.Mode()&0111 == 0 {
+				t.Error("Hook script is not executable")
+			}
 		}
 	})
 }
@@ -139,8 +153,8 @@ func TestExecutor_Execute_TodoMonitoring(t *testing.T) {
 		// Set HOME to ensure hook setup would succeed
 		tmpDir := t.TempDir()
 		oldHome := os.Getenv("HOME")
-		os.Setenv("HOME", tmpDir)
-		defer os.Setenv("HOME", oldHome)
+		_ = os.Setenv("HOME", tmpDir)
+		defer func() { _ = os.Setenv("HOME", oldHome) }()
 
 		cfg := ExecuteConfig{
 			Prompt:    "test prompt",

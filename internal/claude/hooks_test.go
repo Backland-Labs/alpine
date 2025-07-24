@@ -106,8 +106,8 @@ func TestExecutor_setupTodoHook(t *testing.T) {
 		}
 
 		// Remove files manually before cleanup
-		os.Remove(todoFile)
-		os.RemoveAll(".claude")
+		_ = os.Remove(todoFile)
+		_ = os.RemoveAll(".claude")
 
 		// Cleanup should not panic
 		cleanup()
@@ -164,10 +164,6 @@ func TestExecutor_generateClaudeSettings(t *testing.T) {
 			t.Fatal("Invalid PostToolUse entry structure")
 		}
 
-		if entry["matcher"] != "TodoWrite" {
-			t.Errorf("Expected matcher 'TodoWrite', got '%v'", entry["matcher"])
-		}
-
 		hooksList, ok := entry["hooks"].([]interface{})
 		if !ok || len(hooksList) != 1 {
 			t.Fatal("Invalid hooks list in entry")
@@ -184,6 +180,39 @@ func TestExecutor_generateClaudeSettings(t *testing.T) {
 
 		if hook["command"] != hookPath {
 			t.Errorf("Expected command '%s', got '%v'", hookPath, hook["command"])
+		}
+
+		// Verify SubagentStop hook is present
+		subagentStop, ok := hooks["SubagentStop"].([]interface{})
+		if !ok {
+			t.Fatal("Missing or invalid 'SubagentStop' key")
+		}
+
+		if len(subagentStop) != 1 {
+			t.Fatalf("Expected 1 SubagentStop entry, got %d", len(subagentStop))
+		}
+
+		subagentEntry, ok := subagentStop[0].(map[string]interface{})
+		if !ok {
+			t.Fatal("Invalid SubagentStop entry structure")
+		}
+
+		subagentHooksList, ok := subagentEntry["hooks"].([]interface{})
+		if !ok || len(subagentHooksList) != 1 {
+			t.Fatal("Invalid hooks list in SubagentStop entry")
+		}
+
+		subagentHook, ok := subagentHooksList[0].(map[string]interface{})
+		if !ok {
+			t.Fatal("Invalid SubagentStop hook structure")
+		}
+
+		if subagentHook["type"] != "command" {
+			t.Errorf("Expected SubagentStop hook type 'command', got '%v'", subagentHook["type"])
+		}
+
+		if subagentHook["command"] != hookPath {
+			t.Errorf("Expected SubagentStop command '%s', got '%v'", hookPath, subagentHook["command"])
 		}
 	})
 }

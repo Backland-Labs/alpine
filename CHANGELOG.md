@@ -5,6 +5,22 @@ All notable changes to the River CLI project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+#### State File Path Mismatch (#16)
+- **Fixed River hanging after task completion** - River now correctly monitors state file updates
+- **Removed RIVER_STATE_FILE environment variable** - State file location is now fixed at `.claude/river/claude_state.json`
+- **Resolved path mismatch** between River's monitoring location and Claude's write location
+- **Updated all tests and documentation** to reflect the fixed state file path
+
+### Changed
+
+#### Configuration
+- **Removed StateFile customization** - State file path is no longer configurable via environment variable
+- **Simplified state management** - Both worktree and bare modes use the same relative path
+
 ## [0.5.0] - 2025-07-23
 
 ### Added

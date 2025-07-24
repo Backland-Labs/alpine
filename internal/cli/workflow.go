@@ -9,11 +9,19 @@ import (
 )
 
 // runWorkflowWithDependencies is the testable version of runWorkflow with dependency injection
-func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, noWorktree bool, fromFile string, deps *Dependencies) error {
+func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, noWorktree bool, fromFile string, continueFlag bool, deps *Dependencies) error {
 	var taskDescription string
 
-	// Get task description from file or command line
-	if fromFile != "" {
+	// Check for --continue flag first
+	if continueFlag {
+		// Check if state file exists
+		if _, err := deps.FileReader.ReadFile("claude_state.json"); err != nil {
+			return fmt.Errorf("no existing state file found to continue from")
+		}
+		// Continue mode: empty task description
+		taskDescription = ""
+	} else if fromFile != "" {
+		// Get task description from file
 		content, err := deps.FileReader.ReadFile(fromFile)
 		if err != nil {
 			return fmt.Errorf("failed to read task file: %w", err)
