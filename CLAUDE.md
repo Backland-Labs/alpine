@@ -43,8 +43,6 @@ Key specifications are located in the `specs/` directory:
 - [configuration.md](specs/configuration.md): Environment variable configuration
 - [code-quality.md](specs/code-quality.md): Linting standards and code quality requirements
 - [claude-code-hooks](specs/claude-code-hooks.md): Hook scripts for Claude Code integration
-- [amp-cli.md](specs/amp-cli.md): Amp Code CLI integration as alternative to Claude Code
-- [gemini-cli.md](specs/gemini-cli.md): Gemini CLI integration for non-interactive AI assistance
 
 ## Development Commands
 
@@ -76,12 +74,6 @@ golangci-lint run
 
 # Bare execution mode - continue from existing state or start fresh
 ./river --no-plan --no-worktree
-
-# Generate plan from GitHub issue
-./river plan gh-issue https://github.com/owner/repo/issues/123
-
-# Generate plan from GitHub issue using Claude Code
-./river plan --cc gh-issue https://github.com/owner/repo/issues/123
 ```
 
 ## How to Check Your Work
@@ -145,12 +137,6 @@ gosec ./...
 ```bash
 # Build and test basic execution
 go build -o river cmd/river/main.go && ./river --help
-
-# Test plan generation (requires GEMINI_API_KEY)
-./river plan "Add error handling to file operations"
-
-# Test gh-issue plan generation (requires gh CLI and authentication)
-./river plan gh-issue https://github.com/owner/repo/issues/1
 
 # Test worktree creation
 ./river "Add a test function" --no-plan

@@ -32,12 +32,11 @@ go install ./cmd/river
 
 - Go 1.19 or higher
 - Claude Code CLI installed and configured (for execution)
-- Gemini API key set as `GEMINI_API_KEY` environment variable (for plan generation with Gemini)
 - MCP servers configured (if using specific tools)
 
 ### Installing Claude Code CLI
 
-To use River with Claude Code (for execution or plan generation with `--cc`), you need to install the Claude Code CLI:
+To use River with Claude Code, you need to install the Claude Code CLI:
 
 1. Visit the Claude Code website: [claude.ai/code](https://claude.ai/code)
 2. Follow the installation instructions for your platform
@@ -95,90 +94,8 @@ Flags:
       --no-plan       Skip plan generation and execute directly
       --no-worktree   Disable git worktree creation
   -v, --version       Show version information
-
-river plan [flags] <task>
-
-Flags:
-      --cc     Use Claude Code instead of Gemini for plan generation
-  -h, --help   help for plan
 ```
 
-## Plan Generation
-
-River supports two engines for generating implementation plans:
-
-### Gemini (Default)
-By default, River uses Gemini for plan generation. This requires a Gemini API key:
-
-```bash
-export GEMINI_API_KEY="your-api-key"
-river plan "Add user authentication to the web app"
-```
-
-### Claude Code (Alternative)
-You can use Claude Code for plan generation with the `--cc` flag:
-
-```bash
-river plan --cc "Add user authentication to the web app"
-```
-
-### Comparison: Gemini vs Claude Code
-
-| Feature | Gemini | Claude Code |
-|---------|--------|-------------|
-| Default option | ✓ | |
-| API key required | ✓ (GEMINI_API_KEY) | |
-| CLI installation required | | ✓ |
-| Output streaming | Real-time | Buffered |
-| Codebase context | Limited | Full (via `--add-dir .`) |
-| Multi-turn conversation | | ✓ |
-| Tool usage | | Read-only tools |
-| Typical speed | Fast | Slower (more analysis) |
-
-### Examples
-
-```bash
-# Generate a plan using Gemini (default)
-river plan "Implement caching layer for API responses"
-
-# Generate a plan using Claude Code
-river plan --cc "Implement caching layer for API responses"
-
-# Generate a plan from a file description
-echo "Refactor the authentication module to use JWT tokens" > task.md
-river plan --file task.md
-
-# Use Claude Code with file input
-river plan --cc --file task.md
-
-# Generate a plan from a GitHub issue
-river plan gh-issue https://github.com/owner/repo/issues/123
-
-# Use Claude Code to generate a plan from a GitHub issue
-river plan --cc gh-issue https://github.com/owner/repo/issues/123
-```
-
-### GitHub Issue Integration
-
-The `river plan gh-issue` subcommand allows you to generate implementation plans directly from GitHub issues. This feature uses the GitHub CLI (`gh`) to fetch issue details and generate a comprehensive plan.
-
-**Requirements:**
-- The `gh` CLI must be installed and authenticated
-- You must have access to the specified GitHub issue
-
-**Usage:**
-```bash
-# Basic usage with Gemini
-river plan gh-issue <github-issue-url>
-
-# Use Claude Code for plan generation
-river plan --cc gh-issue <github-issue-url>
-```
-
-The command will:
-1. Fetch the issue title and body using `gh issue view`
-2. Combine them into a task description
-3. Generate a plan using your chosen engine (Gemini or Claude Code)
 
 ## Configuration
 
@@ -301,29 +218,13 @@ river/
 
 ## Troubleshooting
 
-### Plan Generation Issues
-
-**Missing GEMINI_API_KEY error**
-```
-Error: GEMINI_API_KEY environment variable is not set
-```
-Solution: Set your Gemini API key:
-```bash
-export GEMINI_API_KEY="your-api-key"
-```
+### Common Issues
 
 **Claude Code CLI not found error**
 ```
 Error: Claude Code CLI not found. Please install from https://claude.ai/code
 ```
 Solution: Install Claude Code CLI following the instructions in the Prerequisites section.
-
-**Plan generation timeout**
-- Claude Code plan generation has a 5-minute timeout
-- For complex codebases, this may be exceeded
-- Try breaking down your task into smaller, more specific requirements
-
-### Common Issues
 
 **State file conflicts**
 - River uses `claude_state.json` to track progress
