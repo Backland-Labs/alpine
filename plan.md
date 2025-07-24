@@ -1,68 +1,122 @@
-# plan.md
+# plan-claude-cc.md
 
 ## Overview
 
-This document outlines the implementation plan for the `river review` command, a new feature for the River CLI orchestrator. The `review` command will enable users to get an AI-powered review of a `plan.md` file against the current state of the codebase.
+This document outlines the implementation plan for extending the `river plan` command to support Claude Code as an alternative to Gemini for plan generation. When the `--cc` flag is passed, River will use Claude Code instead of the Gemini model to generate plan.md files.
 
-**Issue Summary**: Users need a way to validate that a `plan.md` is still relevant and accurately reflects the work needed to be done in the codebase.
+**Issue Summary**: Users want the option to use Claude Code for plan generation, leveraging its advanced code understanding and multi-turn conversation capabilities.
+
 **Objectives**:
-- Create a new `river review` subcommand.
-- The command should accept a path to a `plan.md` file.
-- It will use an AI model (Gemini) to analyze the plan against the codebase.
-- The analysis will be streamed to the user's console.
+- Add a `--cc` flag to the `river plan` command
+- When `--cc` is used, execute Claude Code instead of Gemini for plan generation
+- Maintain backward compatibility (Gemini remains the default)
+- Reuse existing Claude Code integration infrastructure
+- Follow River's established patterns and architecture
 
-## P0: Core `review` Command Implementation
+## P0: Core `--cc` Flag Implementation
 
-### Task 1: Create the `review` command structure (TDD Cycle)
-
-- **Acceptance Criteria**:
-    - A new `review` command is available under `river`.
-    - The command is defined in `internal/cli/review.go` and `internal/cli/review_test.go`.
-    - It is registered in `internal/cli/root.go`.
-    - The command accepts exactly one argument, which is the path to the `plan.md` file.
-    - The command fails if the `plan.md` file does not exist.
-- **Test Cases**:
-    - `TestReviewCommandExists`: Verify the command is registered in the root command.
-    - `TestReviewCommand_RequiresOneArgument`: Test that the command returns an error if no arguments or more than one argument are provided.
-    - `TestReviewCommand_FileDoesNotExist`: Test that the command returns an error if the provided path to `plan.md` does not exist.
-- **Implementation Steps**:
-    1. Create `internal/cli/review.go` and `internal/cli/review_test.go`.
-    2. In `review.go`, create a `newReviewCmd` function that returns a `*cobra.Command`.
-    3. Configure the `cobra.Command` with `Use: "review <plan-file>"`, a `Short` and `Long` description, and `Args: cobra.ExactArgs(1)`.
-    4. Add a `RunE` function that checks if the file at the provided path exists.
-    5. In `root.go`, add the new command using `cmd.AddCommand(newReviewCmd().Command())`.
-    6. Write the corresponding tests in `review_test.go` to satisfy the test cases.
-- **Integration Points**:
-    - `internal/cli/root.go`: To register the new command.
-
-### Task 2: Implement the plan review logic (TDD Cycle)
+### Task 1: Add `--cc` flag to plan command (TDD Cycle)
 
 - **Acceptance Criteria**:
-    - The `review` command reads the content of the `plan.md` file.
-    - It constructs a prompt for the Gemini AI model, including the content of the `plan.md` and instructions to review it against the codebase.
-    - It executes the `gemini` CLI with the constructed prompt.
-    - The output of the `gemini` command is streamed to the console.
+    - The `plan` command accepts an optional `--cc` flag
+    - The flag is properly documented in the command help
+    - Flag state is accessible within the command's RunE function
+    - Default behavior (without flag) remains unchanged
 - **Test Cases**:
-    - `TestGenerateReviewPlan`: Test the logic for generating the review prompt.
-    - `TestExecuteReview`: Test the execution of the `gemini` command (this will be an integration test, or will require mocking `exec.Command`).
+    - `TestPlanCommand_CCFlagExists`: Verify the flag is registered on the command
+    - `TestPlanCommand_CCFlagDefault`: Verify flag defaults to false
+    - `TestPlanCommand_ParsesCCFlag`: Test that the flag value is correctly parsed
 - **Implementation Steps**:
-    1. Create a new function `generateReview` in `internal/cli/review.go` that takes the `plan.md` content as input.
-    2. This function will be similar to `generatePlan` in `internal/cli/plan.go`. It will:
-        - Check for the `GEMINI_API_KEY`.
-        - Create a new prompt template for the review in `prompts/prompt-review.md`.
-        - Read the template and inject the `plan.md` content.
-        - Execute the `gemini` CLI with the prompt, streaming the output to the console.
-    3. Update the `RunE` function in `review.go` to call `generateReview`.
-    4. Add tests for the new logic.
+    1. In `internal/cli/plan.go`, add a `ccFlag` boolean variable
+    2. In `newPlanCmd()`, add the flag using `cmd.Flags().BoolVar(&ccFlag, "cc", false, "Use Claude Code instead of Gemini for plan generation")`
+    3. Pass the `ccFlag` value to the `RunE` function closure
+    4. Write tests in `internal/cli/plan_test.go` to verify flag behavior
 - **Integration Points**:
-    - `exec.Command`: To call the `gemini` CLI.
-    - A new prompt file `prompts/prompt-review.md`.
+    - `internal/cli/plan.go`: Command definition and flag registration
+
+### Task 2: Implement Claude Code plan generation logic (TDD Cycle)
+
+- **Acceptance Criteria**:
+    - When `--cc` flag is set, the command uses Claude Code instead of Gemini
+    - Claude Code is executed with appropriate restrictions for planning
+    - The same prompt template (`prompts/prompt-plan.md`) is used initially
+    - Output is streamed to console similar to Gemini execution
+- **Test Cases**:
+    - `TestGeneratePlanWithClaude`: Test the Claude plan generation logic
+    - `TestPlanCommand_UsesClaudeWithCCFlag`: Integration test verifying Claude is called when flag is set
+- **Implementation Steps**:
+    1. Create `generatePlanWithClaude()` function in `internal/cli/plan.go`
+    2. This function will:
+        - Read the prompt template from `prompts/prompt-plan.md`
+        - Replace `{{TASK}}` with the user's task
+        - Create a restricted Claude executor with planning-appropriate tools
+        - Execute Claude CLI with the prompt
+        - Stream output to console
+    3. Update the `RunE` function to check `ccFlag` and call either `generatePlan()` or `generatePlanWithClaude()`
+    4. Add appropriate error handling and logging
+    5. Write comprehensive tests
+- **Integration Points**:
+    - `internal/claude/executor.go`: Reuse existing Claude executor infrastructure
+    - `prompts/prompt-plan.md`: Use existing prompt template
+
+### Task 3: Configure Claude Code for planning context (TDD Cycle)
+
+- **Acceptance Criteria**:
+    - Claude Code is executed with restricted tools appropriate for planning
+    - Read-only tools are allowed: Read, Grep, Glob, LS, WebSearch, WebFetch
+    - Modification tools are blocked: Write, Edit, MultiEdit, Bash, TodoWrite
+    - Claude has access to codebase context similar to Gemini's `--all-files`
+    - System prompt is adjusted to focus on planning tasks
+- **Test Cases**:
+    - `TestClaudePlanningToolRestrictions`: Verify correct tools are allowed/blocked
+    - `TestClaudePlanningSystemPrompt`: Test that appropriate system prompt is used
+    - `TestClaudePlanningWorkingDirectory`: Verify Claude executes in correct directory
+- **Implementation Steps**:
+    1. Define `planningAllowedTools` slice with read-only tools
+    2. Create a planning-specific system prompt that emphasizes:
+        - Creating comprehensive plan.md files
+        - Understanding codebase structure
+        - Following River's planning conventions
+    3. Configure Claude executor with:
+        - Custom allowed tools list
+        - Planning-specific system prompt
+        - Correct working directory (project root)
+        - No session persistence needed (single-shot execution)
+    4. Consider using `--add-dir .` to provide codebase context
+    5. Add tests to verify configuration
+- **Integration Points**:
+    - Tool configuration in Claude executor
+    - System prompt customization
+
+## P1: Enhanced Features
+
+### Task 4: Add progress indicators for Claude execution
+
+- **Acceptance Criteria**:
+    - User sees clear indication when Claude is being used vs Gemini
+    - Progress feedback during Claude execution
+- **Implementation Steps**:
+    1. Add startup message: "Generating plan using Claude Code..."
+    2. Consider adding spinner or progress indicator
+    3. Clear completion message when done
+
+## Implementation Notes
+
+1. **Backward Compatibility**: Gemini remains the default; `--cc` is opt-in
+2. **Error Handling**: Clear error messages for missing API keys or execution failures
+3. **Testing Strategy**: Mock CLI executions in unit tests; integration tests optional
+4. **Documentation**: Update CLI help text and README with new flag information
+5. **Tool Restrictions**: Critical to prevent Claude from modifying files during planning
+6. **Performance**: Claude may take longer than Gemini; user should be aware
 
 ## Success Criteria Checklist
 
-- [ ] `river review` command is implemented and available.
-- [ ] The command correctly handles file existence and argument validation.
-- [ ] The command successfully calls the Gemini CLI with the correct prompt.
-- [ ] The output from the Gemini CLI is displayed to the user.
-- [ ] All new code is covered by unit and integration tests.
-- [ ] The implementation follows the existing coding standards and patterns of the River project.
+- [ ] `--cc` flag is implemented and functional on `river plan` command
+- [ ] Claude Code executes successfully when flag is used
+- [ ] Gemini remains the default when flag is not specified
+- [ ] Appropriate tools are restricted during Claude planning
+- [ ] All tests pass including new test cases
+- [ ] Documentation is updated with new flag information
+- [ ] Error messages are clear and helpful
+- [ ] Output streaming works correctly for both engines
+- [ ] Code follows River's established patterns and quality standards
