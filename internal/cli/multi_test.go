@@ -28,9 +28,12 @@ func spawnRiverProcesses(ctx context.Context, pairs []PathTaskPair, output *byte
 	errChan := make(chan error, len(pairs))
 	var mu sync.Mutex
 	
-	for _, pair := range pairs {
+	// Always disable color in tests for predictable output
+	useColor := false
+	
+	for i, pair := range pairs {
 		wg.Add(1)
-		go func(p PathTaskPair) {
+		go func(index int, p PathTaskPair) {
 			defer wg.Done()
 			
 			select {
@@ -41,13 +44,18 @@ func spawnRiverProcesses(ctx context.Context, pairs []PathTaskPair, output *byte
 				// Use mockExecCommand instead of exec.Command
 				cmd := mockExecCommand("river", p.Task)
 				
+				// Extract project name and create prefix writers
+				projectName := ExtractProjectName(p.Path)
+				
 				// Create a buffer to capture this process's output
 				var procOutput bytes.Buffer
-				cmd.Stdout = &procOutput
-				cmd.Stderr = &procOutput
+				prefixWriter := NewPrefixWriter(&procOutput, projectName, useColor, index)
+				
+				cmd.Stdout = prefixWriter
+				cmd.Stderr = prefixWriter
 				
 				// For testing, write what directory we would run in
-				fmt.Fprintf(&procOutput, "Running in: %s\n", p.Path)
+				fmt.Fprintf(prefixWriter, "Running in: %s\n", p.Path)
 				
 				// Start the command
 				if err := cmd.Start(); err != nil {
@@ -83,7 +91,7 @@ func spawnRiverProcesses(ctx context.Context, pairs []PathTaskPair, output *byte
 					}
 				}
 			}
-		}(pair)
+		}(i, pair)
 	}
 	
 	// Wait for all goroutines to complete
@@ -266,12 +274,12 @@ exit 0
 		err = spawnRiverProcesses(ctx, pairs, &output)
 		assert.NoError(t, err)
 
-		// Verify output contains expected content
+		// Verify output contains expected content with prefixes
 		outputStr := output.String()
-		assert.Contains(t, outputStr, "Running in: /tmp/frontend")
-		assert.Contains(t, outputStr, "Task: upgrade React")
-		assert.Contains(t, outputStr, "Running in: /tmp/backend")
-		assert.Contains(t, outputStr, "Task: add authentication")
+		assert.Contains(t, outputStr, "[frontend] Running in: /tmp/frontend")
+		assert.Contains(t, outputStr, "[frontend] Task: upgrade React")
+		assert.Contains(t, outputStr, "[backend] Running in: /tmp/backend")
+		assert.Contains(t, outputStr, "[backend] Task: add authentication")
 	})
 
 	t.Run("ProcessTimeout", func(t *testing.T) {
@@ -324,9 +332,9 @@ exit 1
 		var output bytes.Buffer
 		err = spawnRiverProcesses(context.Background(), pairs, &output)
 		
-		// Should report the error
+		// Should report the error with prefix
 		assert.Error(t, err)
-		assert.Contains(t, output.String(), "Error: Something went wrong")
+		assert.Contains(t, output.String(), "[test] Error: Something went wrong")
 	})
 
 	t.Run("MultipleProcessesParallel", func(t *testing.T) {
@@ -380,6 +388,101 @@ echo "[$1] Finished at: $(date +%s.%N)"
 		assert.Contains(t, outputStr, "[/tmp/proj1] Started")
 		assert.Contains(t, outputStr, "[/tmp/proj2] Started")
 		assert.Contains(t, outputStr, "[/tmp/proj3] Started")
+	})
+
+	t.Run("PrefixedOutput", func(t *testing.T) {
+		// Create a helper script that outputs multiple lines
+		helperScript := filepath.Join(t.TempDir(), "test-river-prefix")
+		helperContent := `#!/bin/bash
+echo "Line 1 for task: $1"
+echo "Line 2 for task: $1"
+echo "Error message" >&2
+echo "Line 3 for task: $1"
+`
+		err := os.WriteFile(helperScript, []byte(helperContent), 0755)
+		require.NoError(t, err)
+
+		mockExecCommand = func(name string, args ...string) *exec.Cmd {
+			return exec.Command(helperScript, args...)
+		}
+
+		pairs := []PathTaskPair{
+			{Path: "/tmp/project-a", Task: "task A"},
+			{Path: "/tmp/project-b", Task: "task B"},
+		}
+
+		var output bytes.Buffer
+		err = spawnRiverProcesses(context.Background(), pairs, &output)
+		assert.NoError(t, err)
+
+		// Verify all lines are properly prefixed
+		outputStr := output.String()
+		
+		// Check project-a output
+		assert.Contains(t, outputStr, "[project-a] Line 1 for task: task A")
+		assert.Contains(t, outputStr, "[project-a] Line 2 for task: task A")
+		assert.Contains(t, outputStr, "[project-a] Error message")
+		assert.Contains(t, outputStr, "[project-a] Line 3 for task: task A")
+		
+		// Check project-b output
+		assert.Contains(t, outputStr, "[project-b] Line 1 for task: task B")
+		assert.Contains(t, outputStr, "[project-b] Line 2 for task: task B")
+		assert.Contains(t, outputStr, "[project-b] Error message")
+		assert.Contains(t, outputStr, "[project-b] Line 3 for task: task B")
+		
+		// Verify no unprefixed lines (except empty lines)
+		lines := bytes.Split(output.Bytes(), []byte("\n"))
+		for _, line := range lines {
+			if len(line) > 0 {
+				// Every non-empty line should start with a prefix
+				assert.True(t, bytes.HasPrefix(line, []byte("[project-a]")) || 
+					bytes.HasPrefix(line, []byte("[project-b]")),
+					"Line should have prefix: %s", string(line))
+			}
+		}
+	})
+
+	t.Run("ColorCycling", func(t *testing.T) {
+		// Test that colors cycle through for multiple projects
+		helperScript := filepath.Join(t.TempDir(), "test-river-colors")
+		helperContent := `#!/bin/bash
+echo "Output for $1"
+`
+		err := os.WriteFile(helperScript, []byte(helperContent), 0755)
+		require.NoError(t, err)
+
+		mockExecCommand = func(name string, args ...string) *exec.Cmd {
+			return exec.Command(helperScript, args...)
+		}
+
+		// Create more projects than available colors to test cycling
+		pairs := []PathTaskPair{
+			{Path: "/tmp/project1", Task: "task1"},
+			{Path: "/tmp/project2", Task: "task2"},
+			{Path: "/tmp/project3", Task: "task3"},
+			{Path: "/tmp/project4", Task: "task4"},
+			{Path: "/tmp/project5", Task: "task5"},
+			{Path: "/tmp/project6", Task: "task6"},
+			{Path: "/tmp/project7", Task: "task7"}, // This should cycle back to first color
+			{Path: "/tmp/project8", Task: "task8"}, // This should use second color
+		}
+
+		// For color testing, we need to check the actual implementation
+		// Since colors are disabled in test helper, let's verify the color indices are used correctly
+		for i, pair := range pairs {
+			projectName := ExtractProjectName(pair.Path)
+			// Create a prefix writer with colors enabled to verify color cycling
+			pw := NewPrefixWriter(&bytes.Buffer{}, projectName, true, i)
+			
+			// The color index should cycle through available colors
+			expectedColorIndex := i % len(prefixColors)
+			actualColor := pw.colorCode
+			expectedColor := prefixColors[expectedColorIndex]
+			
+			assert.Equal(t, expectedColor, actualColor, 
+				"Project %s (index %d) should use color index %d", 
+				projectName, i, expectedColorIndex)
+		}
 	})
 }
 

@@ -69,7 +69,7 @@ river --continue
 
 ### P1: Basic Usability
 
-#### Task 4: Prefixed Output
+#### Task 4: Prefixed Output ✅ IMPLEMENTED
 **Test Cases:**
 - Each agent's output prefixed with project name
 - `[frontend] Starting upgrade to React 18...`
@@ -79,6 +79,14 @@ river --continue
 - Wrap stdout/stderr with prefix writer
 - Extract project name from path
 - Add basic ANSI colors
+
+**Status:** Implemented in v0.3.0
+- Added PrefixWriter to wrap stdout/stderr streams
+- Automatic project name extraction from directory paths
+- Color support with cycling through 6 distinct ANSI colors
+- Integrated with SpawnRiverProcesses for automatic prefixing
+- Comprehensive test coverage for prefix formatting and color assignment
+- Thread-safe implementation for concurrent output streams
 
 #### Task 5: Ctrl+C Handling
 **Test Cases:**

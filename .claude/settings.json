@@ -3,18 +3,33 @@
     "allow": [
       "Bash(ls:*)",
       "Bash(find:*)",
-      "mcp__context7__resolve-library-id",
-      "mcp__context7__get-library-docs",
       "WebFetch(domain:docs.anthropic.com)",
-      "Bash(chmod:*)",
-      "Bash(uv add:*)",
-      "Bash(uv run:*)",
-      "mcp__linear-server__get_issue",
-      "mcp__linear-server__list_issues",
-      "mcp__linear-server__update_issue",
-      "mcp__linear-server__list_issue_statuses",
-      "mcp__linear-server__*"
+      "Bash(chmod:*)"
     ],
     "deny": ["rm:*"]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/max/code/river/.claude/todo-monitor.rs"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/max/code/river/.claude/todo-monitor.rs"
+          }
+        ]
+      }
+    ]
   }
 }

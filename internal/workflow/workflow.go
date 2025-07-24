@@ -38,7 +38,7 @@ func NewEngine(executor ClaudeExecutor, wtMgr gitx.WorktreeManager, cfg *config.
 		claudeExecutor: executor,
 		wtMgr:          wtMgr,
 		cfg:            cfg,
-		stateFile:      "claude_state.json",
+		stateFile:      cfg.StateFile,
 		printer:        output.NewPrinter(),
 	}
 }

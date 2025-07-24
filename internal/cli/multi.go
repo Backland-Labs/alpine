@@ -123,24 +123,34 @@ func SpawnRiverProcesses(pairs []PathTaskPair) error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(pairs))
 	
-	for _, pair := range pairs {
+	// Determine if we should use color based on terminal support
+	useColor := isTerminalColor()
+	
+	for i, pair := range pairs {
 		wg.Add(1)
 		
-		go func(p PathTaskPair) {
+		go func(index int, p PathTaskPair) {
 			defer wg.Done()
+			
+			// Extract project name from path
+			projectName := ExtractProjectName(p.Path)
+			
+			// Create prefix writers for stdout and stderr
+			stdoutWriter := NewPrefixWriter(os.Stdout, projectName, useColor, index)
+			stderrWriter := NewPrefixWriter(os.Stderr, projectName, useColor, index)
 			
 			// Create the River command
 			cmd := exec.Command("river", p.Task)
 			cmd.Dir = p.Path
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
+			cmd.Stdout = stdoutWriter
+			cmd.Stderr = stderrWriter
 			cmd.Stdin = os.Stdin
 			
 			// Run the command
 			if err := cmd.Run(); err != nil {
 				errChan <- fmt.Errorf("failed to run River in %s: %w", p.Path, err)
 			}
-		}(pair)
+		}(i, pair)
 	}
 	
 	// Wait for all processes to complete
@@ -156,4 +166,20 @@ func SpawnRiverProcesses(pairs []PathTaskPair) error {
 	}
 	
 	return firstErr
+}
+
+// isTerminalColor checks if stdout is a terminal with color support
+func isTerminalColor() bool {
+	// Re-use the logic from the output package
+	// Check if NO_COLOR env var is set
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+
+	// Check if stdout is a terminal
+	fileInfo, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return (fileInfo.Mode() & os.ModeCharDevice) != 0
 }
