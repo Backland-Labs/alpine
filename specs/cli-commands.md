@@ -5,8 +5,6 @@
 ```
 river [flags] <task-description>
 river [flags] --file <file-path>
-river plan [flags] <task-description>
-river plan [flags] gh-issue <github-issue-url>
 river --help
 river --version
 ```
@@ -23,12 +21,6 @@ river --no-plan "Fix bug in payment processing"
 # Read task from file
 river --file task.md
 
-# Generate plan using Gemini (default)
-river plan "Implement caching layer"
-
-# Generate plan using Claude Code
-river plan --cc "Implement caching layer"
-
 # Show help
 river --help
 
@@ -43,15 +35,6 @@ river --version
 - `--file <path>` - Read task description from a file
 - `--help` - Show help message
 - `--version` - Show version information
-
-### river plan command
-- `--cc` - Use Claude Code instead of Gemini for plan generation
-- `--help` - Show help message
-
-### river plan gh-issue subcommand
-- Accepts a GitHub issue URL as the sole argument
-- Inherits `--cc` flag from parent `plan` command
-- `--help` - Show help message
 
 ## Behavior
 
@@ -68,31 +51,6 @@ river --version
 3. Runs Claude Code iteratively based on state
 4. Updates `claude_state.json` after each step
 5. Continues until status is "completed"
-
-### river plan command
-1. Accepts task description from command line
-2. By default, uses Gemini CLI for plan generation (requires GEMINI_API_KEY)
-3. With `--cc` flag, uses Claude Code for plan generation
-4. Reads prompt template from `prompts/prompt-plan.md`
-5. Outputs plan.md file in the current directory
-6. Claude Code execution includes:
-   - Read-only tools (Read, Grep, Glob, LS, WebSearch, WebFetch)
-   - Full codebase context via `--add-dir .`
-   - 5-minute timeout
-   - Planning-specific system prompt
-
-### river plan gh-issue subcommand
-1. Accepts a GitHub issue URL as the sole argument
-2. Uses `gh issue view <url> --json title,body` to fetch issue data
-3. Requires `gh` CLI to be installed and authenticated
-4. Combines issue title and body into a task description format: `Task: <title>\n\n<body>`
-5. Passes the combined task description to the plan generation engine
-6. Respects the `--cc` flag from parent command for engine selection
-7. Outputs plan.md file based on the GitHub issue content
-8. Error handling includes:
-   - Clear message if `gh` CLI is not found
-   - Proper error propagation from `gh` command failures
-   - JSON parsing error handling
 
 ## Output
 

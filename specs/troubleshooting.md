@@ -94,8 +94,8 @@ chmod 644 my-task.md
    ```
 
 2. Check for typos in variable names:
-   - ✅ `RIVER_WORK_DIR`
-   - ❌ `RIVER_WORKDIR`
+   - ✅ `RIVER_WORKDIR`
+   - ❌ `RIVER_WORK_DIR`
 
 3. Export variables properly:
    ```bash

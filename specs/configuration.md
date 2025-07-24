@@ -37,6 +37,14 @@ River configuration controls runtime behavior and output settings. Configuration
   - `true`: Shows sticky header with current task and scrolling log of recent tool calls
   - `false`: Disables real-time tool usage display
 
+**RIVER_SHOW_TODO_UPDATES**
+- Display TODO progress tracking from Claude
+- Values: `true`, `false`
+- Default: `true`
+- Behavior:
+  - `true`: Shows TODO list changes and progress during execution
+  - `false`: Disables TODO progress display
+
 ### State File Settings
 
 **State File Location**
@@ -49,23 +57,55 @@ River configuration controls runtime behavior and output settings. Configuration
 - Values: `true`, `false`
 - Default: `true`
 
+### Git Worktree Settings
+
+**RIVER_GIT_ENABLED**
+- Enable Git worktree support for isolated execution
+- Values: `true`, `false`
+- Default: `true`
+- Behavior:
+  - `true`: Creates an isolated Git worktree for Claude execution
+  - `false`: Executes Claude in the current directory
+
+**RIVER_GIT_BASE_BRANCH**
+- Base branch for creating worktrees
+- Default: `main`
+- Example values: `main`, `master`, `develop`
+
+**RIVER_GIT_AUTO_CLEANUP**
+- Automatically cleanup worktrees after completion
+- Values: `true`, `false`
+- Default: `true`
+- Behavior:
+  - `true`: Removes worktree when River completes successfully
+  - `false`: Preserves worktree for manual inspection
+
 ## Examples
 
 ```bash
 # Debug mode
 export RIVER_VERBOSITY=debug
-river ABC-123
+river "Implement feature"
 
 # Quiet mode, keep state file
 export RIVER_SHOW_OUTPUT=false
 export RIVER_AUTO_CLEANUP=false
-river ABC-123
+river "Fix bug"
 
 # Run in different directory
 export RIVER_WORKDIR=/path/to/project
-river ABC-123
+river "Refactor code"
 
 # Disable real-time tool updates
 export RIVER_SHOW_TOOL_UPDATES=false
-river ABC-123
+river "Add tests"
+
+# Disable worktree isolation, use develop branch
+export RIVER_GIT_ENABLED=false
+export RIVER_GIT_BASE_BRANCH=develop
+river "Quick fix"
+
+# Keep worktree for inspection
+export RIVER_GIT_AUTO_CLEANUP=false
+river "Debug issue"
 ```

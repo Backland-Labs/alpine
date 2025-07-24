@@ -57,6 +57,7 @@ All tasks will be implemented following Test-Driven Development (TDD) principles
 ### Task 4: Update `README.md` and `CLAUDE.md`
 
 - **Priority**: P2
+- **Status**: ✅ IMPLEMENTED (2025-07-24)
 - **Acceptance Criteria**: The `README.md` and `CLAUDE.md` files are updated to accurately reflect the current state of the project, with all references to removed features (like Gemini plan generation) deleted.
 - **Test Cases**: N/A (documentation).
 - **Implementation Steps**:
@@ -67,6 +68,7 @@ All tasks will be implemented following Test-Driven Development (TDD) principles
 ### Task 5: Update `specs` directory
 
 - **Priority**: P2
+- **Status**: ✅ IMPLEMENTED (2025-07-24)
 - **Acceptance Criteria**: The `specs` directory is cleaned up, and the remaining specification files are updated to be consistent with the current codebase.
 - **Test Cases**: N/A (documentation).
 - **Implementation Steps**:
@@ -79,7 +81,7 @@ All tasks will be implemented following Test-Driven Development (TDD) principles
 
 - [ ] All dead code and unused files listed in P0 tasks are removed.
 - [ ] The `internal/claude/executor.go` file is successfully refactored, and all tests pass.
-- [ ] `README.md` and `CLAUDE.md` are updated and accurate.
-- [ ] The `specs` directory is cleaned up and all remaining files are up-to-date.
+- [x] `README.md` and `CLAUDE.md` are updated and accurate.
+- [x] The `specs` directory is cleaned up and all remaining files are up-to-date.
 - [ ] The entire project builds successfully (`go build ./...`) and all tests pass (`go test ./...`).
 - [ ] The linter passes without any warnings (`golangci-lint run`).
