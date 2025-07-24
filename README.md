@@ -86,7 +86,6 @@ River uses environment variables for configuration:
 | `RIVER_WORK_DIR` | Working directory for execution | Current directory |
 | `RIVER_VERBOSITY` | Logging level (debug, verbose, normal) | normal |
 | `RIVER_SHOW_OUTPUT` | Show Claude output (true/false) | true |
-| `RIVER_STATE_FILE` | Path to state file | claude_state.json |
 | `RIVER_AUTO_CLEANUP` | Auto-cleanup state file on completion | true |
 
 Example configuration:

@@ -13,7 +13,6 @@ func TestNewConfig(t *testing.T) {
 		"RIVER_WORKDIR",
 		"RIVER_VERBOSITY",
 		"RIVER_SHOW_OUTPUT",
-		"RIVER_STATE_FILE",
 		"RIVER_AUTO_CLEANUP",
 		"RIVER_GIT_ENABLED",
 		"RIVER_GIT_BASE_BRANCH",
@@ -78,7 +77,7 @@ func TestConfigFromEnvironment(t *testing.T) {
 	_ = os.Setenv("RIVER_WORKDIR", testWorkDir)
 	_ = os.Setenv("RIVER_VERBOSITY", "debug")
 	_ = os.Setenv("RIVER_SHOW_OUTPUT", "false")
-	_ = os.Setenv("RIVER_STATE_FILE", "/custom/state.json")
+	// RIVER_STATE_FILE is no longer configurable
 	_ = os.Setenv("RIVER_AUTO_CLEANUP", "false")
 	_ = os.Setenv("RIVER_GIT_ENABLED", "false")
 	_ = os.Setenv("RIVER_GIT_BASE_BRANCH", "develop")
@@ -90,7 +89,7 @@ func TestConfigFromEnvironment(t *testing.T) {
 		_ = os.Unsetenv("RIVER_WORKDIR")
 		_ = os.Unsetenv("RIVER_VERBOSITY")
 		_ = os.Unsetenv("RIVER_SHOW_OUTPUT")
-		_ = os.Unsetenv("RIVER_STATE_FILE")
+		// RIVER_STATE_FILE is no longer used
 		_ = os.Unsetenv("RIVER_AUTO_CLEANUP")
 		_ = os.Unsetenv("RIVER_GIT_ENABLED")
 		_ = os.Unsetenv("RIVER_GIT_BASE_BRANCH")
@@ -115,8 +114,9 @@ func TestConfigFromEnvironment(t *testing.T) {
 		t.Error("ShowOutput = true, want false")
 	}
 
-	if cfg.StateFile != "/custom/state.json" {
-		t.Errorf("StateFile = %q, want %q", cfg.StateFile, "/custom/state.json")
+	expectedStateFile := filepath.Join(".claude", "river", "claude_state.json")
+	if cfg.StateFile != expectedStateFile {
+		t.Errorf("StateFile = %q, want %q", cfg.StateFile, expectedStateFile)
 	}
 
 	if cfg.AutoCleanup {
@@ -310,47 +310,21 @@ func TestValidateBooleanFields(t *testing.T) {
 	}
 }
 
-// TestStateFilePath tests that state file paths can be both relative and absolute
-func TestStateFilePath(t *testing.T) {
-	tests := []struct {
-		name      string
-		stateFile string
-		wantErr   bool
-	}{
-		{
-			name:      "relative path",
-			stateFile: "./my_state.json",
-			wantErr:   false,
-		},
-		{
-			name:      "absolute path",
-			stateFile: "/tmp/my_state.json",
-			wantErr:   false,
-		},
-		{
-			name:      "nested relative path",
-			stateFile: "./nested/dir/state.json",
-			wantErr:   false,
-		},
+// TestStateFileIsFixed tests that state file is always at a fixed location
+func TestStateFileIsFixed(t *testing.T) {
+	// Try to set RIVER_STATE_FILE - it should be ignored
+	_ = os.Setenv("RIVER_STATE_FILE", "/custom/path/state.json")
+	defer os.Unsetenv("RIVER_STATE_FILE")
+
+	cfg, err := New()
+	if err != nil {
+		t.Fatalf("New() returned unexpected error: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_ = os.Setenv("RIVER_STATE_FILE", tt.stateFile)
-			defer func() {
-				_ = os.Unsetenv("RIVER_STATE_FILE")
-			}()
-
-			cfg, err := New()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if err == nil && cfg.StateFile != tt.stateFile {
-				t.Errorf("StateFile = %q, want %q", cfg.StateFile, tt.stateFile)
-			}
-		})
+	// State file should always be at the fixed location
+	expectedStateFile := filepath.Join(".claude", "river", "claude_state.json")
+	if cfg.StateFile != expectedStateFile {
+		t.Errorf("StateFile = %q, want %q (should ignore RIVER_STATE_FILE env var)", cfg.StateFile, expectedStateFile)
 	}
 }
 

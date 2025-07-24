@@ -31,10 +31,10 @@ River configuration controls runtime behavior and output settings. Configuration
 
 ### State File Settings
 
-**RIVER_STATE_FILE**
-- Path to state file
-- Default: `./claude_state.json`
-- Can be relative or absolute path
+**State File Location**
+- Fixed at `.claude/river/claude_state.json`
+- Directory created automatically when workflow starts
+- No longer configurable via environment variable
 
 **RIVER_AUTO_CLEANUP**
 - Delete state file on successful completion
@@ -44,9 +44,8 @@ River configuration controls runtime behavior and output settings. Configuration
 ## Examples
 
 ```bash
-# Debug mode with custom state file
+# Debug mode
 export RIVER_VERBOSITY=debug
-export RIVER_STATE_FILE=/tmp/river-state.json
 river ABC-123
 
 # Quiet mode, keep state file

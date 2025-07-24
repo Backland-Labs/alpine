@@ -271,7 +271,6 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 
 	// Set environment variables
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("RIVER_STATE_FILE=%s", config.StateFile))
 
 	return cmd
 }

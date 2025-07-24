@@ -317,9 +317,10 @@ func (e *Engine) createWorktree(ctx context.Context, taskDescription string) err
 		return fmt.Errorf("failed to change to worktree directory: %w", err)
 	}
 
-	// Update state file path to be in worktree
-	e.stateFile = "claude_state.json" // Now relative to worktree directory
-	logger.WithField("state_file", e.stateFile).Debug("Updated state file path")
+	// State file path remains constant
+	// The working directory has changed to the worktree, but the state file
+	// path remains relative to that directory
+	logger.WithField("state_file", e.stateFile).Debug("State file path in worktree")
 
 	e.printer.Info("Created worktree: %s (branch: %s)", e.wt.Path, e.wt.Branch)
 	return nil

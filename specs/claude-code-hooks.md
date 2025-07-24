@@ -427,7 +427,7 @@ func (e *Executor) configureHooks() error {
 func (e *Executor) exportStateForHooks() {
     os.Setenv("RIVER_CURRENT_STEP", e.state.CurrentStepDescription)
     os.Setenv("RIVER_STATUS", e.state.Status)
-    os.Setenv("RIVER_STATE_FILE", e.stateFilePath)
+    // State file location is fixed at .claude/river/claude_state.json
 }
 ```
 

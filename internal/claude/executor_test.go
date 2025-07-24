@@ -174,9 +174,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"--append-system-prompt",
 				"-p", "test prompt",
 			},
-			expectedEnvSet: map[string]bool{
-				"RIVER_STATE_FILE": true,
-			},
+			expectedEnvSet: map[string]bool{},
 		},
 		{
 			name: "command with multiple MCP servers",
@@ -193,9 +191,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"--append-system-prompt",
 				"-p", "test prompt",
 			},
-			expectedEnvSet: map[string]bool{
-				"RIVER_STATE_FILE": true,
-			},
+			expectedEnvSet: map[string]bool{},
 		},
 		{
 			name: "command with custom system prompt",
@@ -210,9 +206,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"--append-system-prompt", "Custom system prompt",
 				"-p", "test prompt",
 			},
-			expectedEnvSet: map[string]bool{
-				"RIVER_STATE_FILE": true,
-			},
+			expectedEnvSet: map[string]bool{},
 		},
 		{
 			name: "command with tools restriction",
@@ -227,9 +221,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"--append-system-prompt",
 				"-p", "test prompt",
 			},
-			expectedEnvSet: map[string]bool{
-				"RIVER_STATE_FILE": true,
-			},
+			expectedEnvSet: map[string]bool{},
 		},
 	}
 
