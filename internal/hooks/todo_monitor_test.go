@@ -23,7 +23,7 @@ func TestTodoMonitorConsoleOutput(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join(tmpDir, "todo-monitor.rs")
-	
+
 	// Write the script to a file
 	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
 		t.Fatalf("Failed to write script: %v", err)
@@ -84,11 +84,24 @@ func TestTodoMonitorConsoleOutput(t *testing.T) {
 				"tool_name": "Grep",
 				"tool_input": map[string]interface{}{
 					"pattern": "func Test",
-					"path": "internal/",
+					"path":    "internal/",
 				},
 			},
 			expectedOutput: []string{
 				"[GREP] Searching for 'func Test' in internal/",
+			},
+		},
+		{
+			name: "Task tool",
+			input: map[string]interface{}{
+				"tool_name": "Task",
+				"tool_input": map[string]interface{}{
+					"description": "Find timeout functionality code",
+					"prompt":      "Search for code related to timeout waiting for state update",
+				},
+			},
+			expectedOutput: []string{
+				"[TASK] Launching agent: Find timeout functionality code",
 			},
 		},
 		{
@@ -119,15 +132,15 @@ func TestTodoMonitorConsoleOutput(t *testing.T) {
 			// Run the script
 			cmd := exec.Command(scriptPath)
 			cmd.Stdin = bytes.NewReader(inputJSON)
-			
+
 			// Capture stderr (where the output goes)
 			var stderr bytes.Buffer
 			cmd.Stderr = &stderr
-			
+
 			// Capture stdout as well for debugging
 			var stdout bytes.Buffer
 			cmd.Stdout = &stdout
-			
+
 			// Run the command
 			if err := cmd.Run(); err != nil {
 				t.Fatalf("Script execution failed: %v\nStderr: %s\nStdout: %s", err, stderr.String(), stdout.String())
@@ -135,7 +148,7 @@ func TestTodoMonitorConsoleOutput(t *testing.T) {
 
 			// Check the output
 			output := stderr.String()
-			
+
 			// Verify all expected strings are present
 			for _, expected := range tt.expectedOutput {
 				if !strings.Contains(output, expected) {
@@ -162,7 +175,7 @@ func TestTodoMonitorInvalidJSON(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join(tmpDir, "todo-monitor.rs")
-	
+
 	// Write the script to a file
 	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
 		t.Fatalf("Failed to write script: %v", err)
@@ -171,7 +184,7 @@ func TestTodoMonitorInvalidJSON(t *testing.T) {
 	// Test with invalid JSON
 	cmd := exec.Command(scriptPath)
 	cmd.Stdin = strings.NewReader("not valid json")
-	
+
 	// Should exit gracefully without error
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Script should handle invalid JSON gracefully, but got error: %v", err)
@@ -190,15 +203,15 @@ func TestTodoMonitorFileWrite(t *testing.T) {
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join(tmpDir, "todo-monitor.rs")
 	todoFilePath := filepath.Join(tmpDir, "current-todo.txt")
-	
+
 	// Write the script to a file
 	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
 		t.Fatalf("Failed to write script: %v", err)
 	}
 
 	// Set the environment variable
-	os.Setenv("RIVER_TODO_FILE", todoFilePath)
-	defer os.Unsetenv("RIVER_TODO_FILE")
+	_ = os.Setenv("RIVER_TODO_FILE", todoFilePath)
+	defer func() { _ = os.Unsetenv("RIVER_TODO_FILE") }()
 
 	// Prepare input with an in-progress task
 	input := map[string]interface{}{
@@ -221,7 +234,7 @@ func TestTodoMonitorFileWrite(t *testing.T) {
 	cmd := exec.Command(scriptPath)
 	cmd.Stdin = bytes.NewReader(inputJSON)
 	cmd.Env = append(os.Environ(), "RIVER_TODO_FILE="+todoFilePath)
-	
+
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Script execution failed: %v", err)
 	}
