@@ -44,26 +44,32 @@ This document outlines the implementation plan for extending the `river plan` co
 - All tests passing with 100% coverage for the new flag functionality
 - The ccFlag variable is captured in the RunE closure for future routing logic
 
-### Task 2: Implement flag-based routing logic (TDD Cycle)
+### Task 2: Implement flag-based routing logic (TDD Cycle) ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
-    - When `--cc` flag is false (default), `generatePlan()` is called
-    - When `--cc` flag is true, `generatePlanWithClaude()` is called
-    - Proper error propagation from both functions
-    - Log messages indicate which engine is being used
+    - When `--cc` flag is false (default), `generatePlan()` is called ✅
+    - When `--cc` flag is true, `generatePlanWithClaude()` is called ✅
+    - Proper error propagation from both functions ✅
+    - Log messages indicate which engine is being used ✅
 - **Test Cases**:
-    - `TestPlanCommand_RouteToGeminiByDefault`: Verify default behavior calls Gemini
-    - `TestPlanCommand_RouteToClaude`: Verify --cc flag routes to Claude
-    - `TestPlanCommand_ErrorPropagation`: Test error handling from both paths
+    - `TestPlanCommand_RouteToGeminiByDefault`: Verify default behavior calls Gemini ✅
+    - `TestPlanCommand_RouteToClaude`: Verify --cc flag routes to Claude ✅
+    - `TestPlanCommand_ErrorPropagation`: Test error handling from both paths ✅
 - **Implementation Steps**:
-    1. Update the `RunE` function in `newPlanCmd()` to check the `ccFlag` value
-    2. Add logging to indicate which engine is being used
-    3. Call appropriate function based on flag value
-    4. Ensure errors are properly propagated
-    5. Write tests using mock command runners
+    1. Update the `RunE` function in `newPlanCmd()` to check the `ccFlag` value ✅
+    2. Add logging to indicate which engine is being used ✅
+    3. Call appropriate function based on flag value ✅
+    4. Ensure errors are properly propagated ✅
+    5. Write tests using mock command runners ✅
 - **Integration Points**:
-    - Command routing logic in `RunE` function
-    - Error handling patterns consistent with River's architecture
+    - Command routing logic in `RunE` function ✅
+    - Error handling patterns consistent with River's architecture ✅
+
+**Implementation Notes**: 
+- Successfully implemented flag-based routing logic in the RunE function
+- Added proper logging to indicate which engine is being used
+- All tests passing with proper error propagation
+- The routing correctly calls generatePlan() for Gemini (default) or generatePlanWithClaude() when --cc flag is used
 
 ### Task 3: Implement Claude Code plan generation logic (TDD Cycle) ✅ IMPLEMENTED
 
@@ -107,15 +113,15 @@ This document outlines the implementation plan for extending the `river plan` co
 - Tests updated to reflect implementation
 - Refactored to use modern os package instead of deprecated ioutil
 
-### Task 4: Configure Claude Code for planning context (TDD Cycle)
+### Task 4: Configure Claude Code for planning context (TDD Cycle) ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
-    - Claude Code is executed with restricted tools appropriate for planning
-    - Read-only tools are explicitly defined and allowed
-    - Modification tools are blocked
-    - Claude has access to codebase context via `--add-dir .` flag
-    - System prompt is adjusted to focus on planning tasks
-    - Working directory is set to project root
+    - Claude Code is executed with restricted tools appropriate for planning ✅
+    - Read-only tools are explicitly defined and allowed ✅
+    - Modification tools are blocked ✅
+    - Claude has access to codebase context via `--add-dir .` flag ✅
+    - System prompt is adjusted to focus on planning tasks ✅
+    - Working directory is set to project root ✅
 - **Test Cases**:
     - `TestClaudePlanningToolRestrictions`: Verify correct tools are allowed/blocked
     - `TestClaudePlanningSystemPrompt`: Test that appropriate system prompt is used
@@ -150,17 +156,23 @@ This document outlines the implementation plan for extending the `river plan` co
         - `--add-dir .` for codebase access
     6. Add comprehensive tests to verify configuration
 - **Integration Points**:
-    - Tool configuration via ExecuteConfig.AllowedTools
-    - System prompt via ExecuteConfig.SystemPrompt
-    - Codebase context via additional Claude CLI args
+    - Tool configuration via ExecuteConfig.AllowedTools ✅
+    - System prompt via ExecuteConfig.SystemPrompt ✅
+    - Codebase context via additional Claude CLI args ✅
 
-### Task 5: Add integration test infrastructure (TDD Cycle)
+**Implementation Notes**: 
+- Extended ExecuteConfig struct with AdditionalArgs field to support custom CLI arguments
+- Updated generatePlanWithClaude to use AdditionalArgs: []string{"--add-dir", "."}
+- Claude Code now receives full codebase context during plan generation
+- All tool restrictions and system prompts are properly configured as specified
+
+### Task 5: Add integration test infrastructure (TDD Cycle) ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
-    - Mock command runner can be injected for testing
-    - Tests can verify Claude CLI arguments without actual execution
-    - Test coverage includes all execution paths
-    - No actual Claude or Gemini CLI calls in unit tests
+    - Mock command runner can be injected for testing ✅
+    - Tests can verify Claude CLI arguments without actual execution ✅
+    - Test coverage includes all execution paths ✅
+    - No actual Claude or Gemini CLI calls in unit tests ✅
 - **Test Cases**:
     - `TestGeneratePlanWithClaude_MockRunner`: Test with injected mock runner
     - `TestGeneratePlanWithClaude_ArgumentValidation`: Verify CLI args
@@ -172,8 +184,14 @@ This document outlines the implementation plan for extending the `river plan` co
     4. Create comprehensive integration tests
     5. Ensure test coverage > 80% for new code
 - **Integration Points**:
-    - Test infrastructure in `internal/cli/plan_test.go`
-    - Mock patterns consistent with existing tests
+    - Test infrastructure in `internal/cli/plan_test.go` ✅
+    - Mock patterns consistent with existing tests ✅
+
+**Implementation Notes**: 
+- All test infrastructure is in place with comprehensive mock implementations
+- Tests verify Claude CLI arguments without actual execution
+- Mock executor and command runners provide full test coverage
+- Integration tests validate the complete flow from flag parsing to execution
 
 ## P1: Enhanced Features
 
@@ -251,37 +269,37 @@ This document outlines the implementation plan for extending the `river plan` co
 
 ## Success Criteria Checklist
 
-- [ ] `--cc` flag is implemented and functional on `river plan` command
-- [ ] Flag defaults to false (Gemini remains default)
-- [ ] Flag is properly documented in command help text
-- [ ] Claude Code executes successfully when flag is used
-- [ ] Correct routing logic based on flag value
-- [ ] Appropriate tools are restricted during Claude planning:
-  - [ ] Only read-only tools allowed (Read, Grep, Glob, LS, WebSearch, WebFetch)
-  - [ ] Modification tools blocked (Write, Edit, Bash, TodoWrite)
-- [ ] Claude receives proper codebase context via `--add-dir .`
-- [ ] Custom planning system prompt is applied
-- [ ] Temporary state file is created and cleaned up
-- [ ] All new tests pass with > 80% coverage:
-  - [ ] Flag parsing tests
-  - [ ] Routing logic tests
-  - [ ] Claude executor configuration tests
-  - [ ] Mock execution tests
-- [ ] Error handling is comprehensive:
-  - [ ] Missing Claude CLI error
-  - [ ] Missing GEMINI_API_KEY error (when using Gemini)
-  - [ ] Timeout handling
-  - [ ] Execution failure messages
-- [ ] Documentation is updated:
-  - [ ] CLI help text mentions both engines
+- [x] `--cc` flag is implemented and functional on `river plan` command
+- [x] Flag defaults to false (Gemini remains default)
+- [x] Flag is properly documented in command help text
+- [x] Claude Code executes successfully when flag is used
+- [x] Correct routing logic based on flag value
+- [x] Appropriate tools are restricted during Claude planning:
+  - [x] Only read-only tools allowed (Read, Grep, Glob, LS, WebSearch, WebFetch)
+  - [x] Modification tools blocked (Write, Edit, Bash, TodoWrite)
+- [x] Claude receives proper codebase context via `--add-dir .`
+- [x] Custom planning system prompt is applied
+- [x] Temporary state file is created and cleaned up
+- [x] All new tests pass with > 80% coverage:
+  - [x] Flag parsing tests
+  - [x] Routing logic tests
+  - [x] Claude executor configuration tests
+  - [x] Mock execution tests
+- [x] Error handling is comprehensive:
+  - [x] Missing Claude CLI error
+  - [x] Missing GEMINI_API_KEY error (when using Gemini)
+  - [x] Timeout handling
+  - [x] Execution failure messages
+- [x] Documentation is updated:
+  - [x] CLI help text mentions both engines
   - [ ] README includes `--cc` flag usage
   - [ ] Installation instructions for Claude Code
-- [ ] Output streaming works correctly for both engines
-- [ ] Performance is acceptable (5-minute timeout)
-- [ ] Code follows River's established patterns:
-  - [ ] Uses existing claude.Executor infrastructure
-  - [ ] Consistent error handling
-  - [ ] Proper logging throughout
-  - [ ] Mock-friendly design for testing
-- [ ] All existing tests continue to pass
-- [ ] `go fmt` and `golangci-lint` pass without issues
+- [x] Output streaming works correctly for both engines
+- [x] Performance is acceptable (5-minute timeout)
+- [x] Code follows River's established patterns:
+  - [x] Uses existing claude.Executor infrastructure
+  - [x] Consistent error handling
+  - [x] Proper logging throughout
+  - [x] Mock-friendly design for testing
+- [x] All existing tests continue to pass
+- [x] `go fmt` and `golangci-lint` pass without issues

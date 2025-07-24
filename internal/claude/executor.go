@@ -31,6 +31,9 @@ type ExecuteConfig struct {
 
 	// Timeout for the Claude execution (optional, defaults to no timeout)
 	Timeout time.Duration
+
+	// AdditionalArgs allows passing custom CLI arguments to Claude (optional)
+	AdditionalArgs []string
 }
 
 // Executor handles execution of Claude commands
@@ -251,6 +254,11 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 	// Note: Claude CLI doesn't have a --project flag
 	// It uses the current working directory by default
 	// TODO: Consider using --add-dir flag or changing working directory
+
+	// Add any additional arguments
+	if len(config.AdditionalArgs) > 0 {
+		args = append(args, config.AdditionalArgs...)
+	}
 
 	// Add the prompt with -p flag
 	args = append(args, "-p", config.Prompt)

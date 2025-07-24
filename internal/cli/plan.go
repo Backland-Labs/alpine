@@ -127,7 +127,9 @@ func generatePlanWithClaude(task string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create temporary state file: %w", err)
 	}
-	defer os.Remove(stateFile.Name()) // Clean up after execution
+	defer func() {
+		_ = os.Remove(stateFile.Name()) // Clean up after execution
+	}()
 
 	// Write initial state content
 	initialState := `{"current_step_description": "Generating plan", "next_step_prompt": "", "status": "running"}`
@@ -155,11 +157,9 @@ func generatePlanWithClaude(task string) error {
 			"Follow TDD principles and River's planning conventions.",
 		// 5-minute timeout for plan generation
 		Timeout: 5 * time.Minute,
+		// Add current directory for codebase context
+		AdditionalArgs: []string{"--add-dir", "."},
 	}
-
-	// Note: We need to add --add-dir . for codebase context
-	// This requires extending ExecuteConfig or modifying the executor
-	// For now, we'll execute Claude with the current configuration
 
 	// Create context with timeout
 	ctx := context.Background()
@@ -170,10 +170,10 @@ func generatePlanWithClaude(task string) error {
 	if err != nil {
 		// Check for specific error types
 		if execErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("Claude Code execution failed with exit code %d", execErr.ExitCode())
+			return fmt.Errorf("claude Code execution failed with exit code %d", execErr.ExitCode())
 		}
 		if strings.Contains(err.Error(), "executable file not found") {
-			return fmt.Errorf("Claude Code CLI not found. Please install from https://claude.ai/download")
+			return fmt.Errorf("claude Code CLI not found. Please install from https://claude.ai/download")
 		}
 		return fmt.Errorf("failed to execute Claude Code: %w", err)
 	}

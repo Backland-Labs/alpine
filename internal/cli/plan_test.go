@@ -36,6 +36,7 @@ func TestPlanCommand(t *testing.T) {
 		ccFlag := planCmd.Flag("cc")
 		if ccFlag == nil {
 			t.Error("--cc flag not found on plan command")
+			return
 		}
 
 		if ccFlag.Usage != "Use Claude Code instead of Gemini for plan generation" {
@@ -359,7 +360,7 @@ func TestPlanCommand_RoutingLogic(t *testing.T) {
 		}
 
 		// Close writer and read output
-		w.Close()
+		_ = w.Close()
 		var buf bytes.Buffer
 		_, _ = buf.ReadFrom(r)
 		outputStr := buf.String()
@@ -385,7 +386,7 @@ func TestPlanCommand_RoutingLogic(t *testing.T) {
 		}
 
 		// Close writer and read output
-		w.Close()
+		_ = w.Close()
 		var buf bytes.Buffer
 		_, _ = buf.ReadFrom(r)
 		outputStr := buf.String()

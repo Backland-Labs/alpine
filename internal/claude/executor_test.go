@@ -223,6 +223,22 @@ func TestExecutor_buildCommand(t *testing.T) {
 			},
 			expectedEnvSet: map[string]bool{},
 		},
+		{
+			name: "command with additional args",
+			config: ExecuteConfig{
+				Prompt:         "test prompt",
+				StateFile:      "/tmp/state.json",
+				AdditionalArgs: []string{"--add-dir", ".", "--verbose"},
+			},
+			expectedArgs: []string{
+				"--output-format", "text",
+				"--allowedTools",
+				"--append-system-prompt",
+				"--add-dir", ".", "--verbose",
+				"-p", "test prompt",
+			},
+			expectedEnvSet: map[string]bool{},
+		},
 	}
 
 	for _, tt := range tests {
