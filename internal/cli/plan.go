@@ -94,22 +94,20 @@ func generatePlan(task string) error {
 	env := filterEnvironment(os.Environ())
 	cmd.Env = env
 
-	// Capture output
-	output, err := cmd.Output()
+	// Let Gemini output directly to stdout/stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Execute the command
+	err = cmd.Run()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("gemini command failed: %w\nstderr: %s", err, exitErr.Stderr)
+			return fmt.Errorf("gemini command failed with exit code %d", exitErr.ExitCode())
 		}
 		return fmt.Errorf("failed to execute gemini command: %w", err)
 	}
 
-	// Write output to plan.md
-	err = os.WriteFile("plan.md", output, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write plan.md: %w", err)
-	}
-
-	fmt.Println("Plan generated successfully and saved to plan.md")
+	fmt.Println("\nPlan generation completed.")
 	return nil
 }
 

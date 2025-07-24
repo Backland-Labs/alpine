@@ -133,8 +133,8 @@ func TestGeneratePlan(t *testing.T) {
 		t.Skip("Skipping until generatePlan is refactored for testability")
 	})
 
-	// Test successful output writing
-	t.Run("successful output writing", func(t *testing.T) {
+	// Test successful execution
+	t.Run("successful execution", func(t *testing.T) {
 		// Set a dummy API key for this test
 		originalKey := os.Getenv("GEMINI_API_KEY")
 		defer func() {
@@ -142,8 +142,8 @@ func TestGeneratePlan(t *testing.T) {
 		}()
 		_ = os.Setenv("GEMINI_API_KEY", "test-key")
 
-		// This test will verify that the output from Gemini is correctly
-		// written to plan.md
+		// This test will verify that Gemini is executed correctly
+		// and allowed to handle file creation directly
 		t.Skip("Skipping until generatePlan is refactored for testability")
 	})
 }
