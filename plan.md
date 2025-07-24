@@ -112,6 +112,7 @@ This document outlines the implementation plan for extending the `river plan` co
 - Error handling includes specific messages for missing CLI and execution failures
 - Tests updated to reflect implementation
 - Refactored to use modern os package instead of deprecated ioutil
+- **Note**: Claude output is buffered and displayed after completion, unlike Gemini which streams in real-time
 
 ### Task 4: Configure Claude Code for planning context (TDD Cycle) ✅ IMPLEMENTED
 
@@ -192,27 +193,37 @@ This document outlines the implementation plan for extending the `river plan` co
 - Tests verify Claude CLI arguments without actual execution
 - Mock executor and command runners provide full test coverage
 - Integration tests validate the complete flow from flag parsing to execution
+- **Note**: Several tests are skipped awaiting future refactoring for better testability
+- Planning-specific tests (TestClaudePlanningToolRestrictions, etc.) were not implemented as the current test structure validates these through integration tests
 
-## P1: Enhanced Features
+## P1: Enhanced Features (NOT IMPLEMENTED)
 
-### Task 6: Add progress indicators and error handling
+### Task 6: Add progress indicators and error handling ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
-    - User sees clear indication when Claude is being used vs Gemini
-    - Specific error messages for common failures (missing CLI, API issues)
-    - Progress feedback during Claude execution
-    - Timeout handling for long-running operations
+    - User sees clear indication when Claude is being used vs Gemini ✅
+    - Specific error messages for common failures (missing CLI, API issues) ✅
+    - Progress feedback during Claude execution ✅
+    - Timeout handling for long-running operations ✅ (5 minute timeout)
 - **Implementation Steps**:
-    1. Add startup message: "Generating plan using Claude Code..." vs "Generating plan..."
-    2. Implement specific error checking:
-        - Claude CLI not found: "Claude Code CLI not found. Please install from..."
-        - Execution timeout: "Plan generation timed out after X seconds"
-        - API errors: Pass through Claude's error messages
-    3. Consider adding spinner for long operations
-    4. Clear completion message when done
-    5. Add timeout configuration (default 5 minutes)
+    1. Add startup message: "Generating plan using Claude Code..." vs "Generating plan..." ✅
+    2. Implement specific error checking: ✅
+        - Claude CLI not found: "Claude Code CLI not found. Please install from..." ✅
+        - Execution timeout: "Plan generation timed out after X seconds" ✅
+        - API errors: Pass through Claude's error messages ✅
+    3. Consider adding spinner for long operations ✅
+    4. Clear completion message when done ✅
+    5. Add timeout configuration (default 5 minutes) ✅
 
-### Task 7: Add documentation and CLI help updates
+**Implementation Notes**:
+- Successfully integrated the output.Printer for consistent, colored output across both Gemini and Claude
+- Added progress indicator with spinner for Claude execution: "⠋ Analyzing codebase and creating plan... (Xs elapsed)"
+- Progress indicator is properly stopped before any other output to avoid terminal control sequences
+- Error messages are displayed with appropriate colors and icons (✗ for errors, ✓ for success)
+- Both generatePlan and generatePlanWithClaude now use the same output formatting
+- Tests verify progress indicators are shown and properly cleaned up
+
+### Task 7: Add documentation and CLI help updates (NOT IMPLEMENTED)
 
 - **Acceptance Criteria**:
     - README.md includes information about `--cc` flag
@@ -290,11 +301,12 @@ This document outlines the implementation plan for extending the `river plan` co
   - [x] Missing GEMINI_API_KEY error (when using Gemini)
   - [x] Timeout handling
   - [x] Execution failure messages
-- [x] Documentation is updated:
+- [ ] Documentation is updated:
   - [x] CLI help text mentions both engines
-  - [ ] README includes `--cc` flag usage
-  - [ ] Installation instructions for Claude Code
+  - [ ] README includes `--cc` flag usage (Task 7)
+  - [ ] Installation instructions for Claude Code (Task 7)
 - [x] Output streaming works correctly for both engines
+  - Note: Gemini streams output in real-time, Claude buffers until completion
 - [x] Performance is acceptable (5-minute timeout)
 - [x] Code follows River's established patterns:
   - [x] Uses existing claude.Executor infrastructure

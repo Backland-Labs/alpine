@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/maxmcd/river/internal/claude"
+	"github.com/maxmcd/river/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -43,8 +44,6 @@ the plan using Claude Code instead.`,
 
 			// Route based on --cc flag
 			if ccFlag {
-				// Log that we're using Claude Code
-				fmt.Println("Generating plan using Claude Code...")
 				return generatePlanWithClaude(task)
 			} else {
 				// Default to Gemini (existing behavior)
@@ -66,11 +65,15 @@ func (pc *planCmd) Command() *cobra.Command {
 
 // generatePlan generates an implementation plan using Gemini CLI
 func generatePlan(task string) error {
+	// Create printer for consistent output
+	printer := output.NewPrinter()
+
 	// Notify user that plan generation is starting
-	fmt.Println("Generating plan...")
+	printer.Info("Generating plan...")
 
 	// Check if GEMINI_API_KEY is set
 	if os.Getenv("GEMINI_API_KEY") == "" {
+		printer.Error("GEMINI_API_KEY not set")
 		return fmt.Errorf("GEMINI_API_KEY not set")
 	}
 
@@ -78,6 +81,7 @@ func generatePlan(task string) error {
 	promptPath := filepath.Join("prompts", "prompt-plan.md")
 	promptTemplate, err := os.ReadFile(promptPath)
 	if err != nil {
+		printer.Error("Failed to read prompt template: %v", err)
 		return fmt.Errorf("failed to read prompt template: %w", err)
 	}
 
@@ -100,17 +104,22 @@ func generatePlan(task string) error {
 	err = cmd.Run()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
+			printer.Error("Gemini command failed with exit code %d", exitErr.ExitCode())
 			return fmt.Errorf("gemini command failed with exit code %d", exitErr.ExitCode())
 		}
+		printer.Error("Failed to execute gemini command: %v", err)
 		return fmt.Errorf("failed to execute gemini command: %w", err)
 	}
 
-	fmt.Println("\nPlan generation completed.")
+	printer.Success("Plan generation completed")
 	return nil
 }
 
 // generatePlanWithClaude generates an implementation plan using Claude Code
 func generatePlanWithClaude(task string) error {
+	// Create printer for progress indicator
+	printer := output.NewPrinter()
+
 	// Read the prompt template
 	promptPath := filepath.Join("prompts", "prompt-plan.md")
 	promptTemplate, err := os.ReadFile(promptPath)
@@ -164,21 +173,32 @@ func generatePlanWithClaude(task string) error {
 	// Create context with timeout
 	ctx := context.Background()
 
+	// Start progress indicator
+	printer.Info("Generating plan using Claude Code...")
+	progress := printer.StartProgress("Analyzing codebase and creating plan")
+	defer progress.Stop()
+
 	// Execute Claude
-	fmt.Println("Generating plan using Claude Code...")
 	_, err = executor.Execute(ctx, config)
+
+	// Stop progress before printing any messages
+	progress.Stop()
+
 	if err != nil {
 		// Check for specific error types
 		if execErr, ok := err.(*exec.ExitError); ok {
+			printer.Error("Claude Code execution failed with exit code %d", execErr.ExitCode())
 			return fmt.Errorf("claude Code execution failed with exit code %d", execErr.ExitCode())
 		}
 		if strings.Contains(err.Error(), "executable file not found") {
+			printer.Error("Claude Code CLI not found. Please install from https://claude.ai/download")
 			return fmt.Errorf("claude Code CLI not found. Please install from https://claude.ai/download")
 		}
+		printer.Error("Failed to execute Claude Code: %v", err)
 		return fmt.Errorf("failed to execute Claude Code: %w", err)
 	}
 
-	fmt.Println("\nPlan generation completed.")
+	printer.Success("Plan generation completed")
 	return nil
 }
 
