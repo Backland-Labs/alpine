@@ -181,6 +181,29 @@ func TestExecutor_generateClaudeSettings(t *testing.T) {
 		if hook["command"] != hookPath {
 			t.Errorf("Expected command '%s', got '%v'", hookPath, hook["command"])
 		}
+
+		// Verify SubagentStop hook is present
+		subagentStop, ok := hooks["SubagentStop"].([]interface{})
+		if !ok {
+			t.Fatal("Missing or invalid 'SubagentStop' key")
+		}
+
+		if len(subagentStop) != 1 {
+			t.Fatalf("Expected 1 SubagentStop entry, got %d", len(subagentStop))
+		}
+
+		subagentHook, ok := subagentStop[0].(map[string]interface{})
+		if !ok {
+			t.Fatal("Invalid SubagentStop hook structure")
+		}
+
+		if subagentHook["type"] != "command" {
+			t.Errorf("Expected SubagentStop hook type 'command', got '%v'", subagentHook["type"])
+		}
+
+		if subagentHook["command"] != hookPath {
+			t.Errorf("Expected SubagentStop command '%s', got '%v'", hookPath, subagentHook["command"])
+		}
 	})
 }
 

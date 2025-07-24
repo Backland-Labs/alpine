@@ -24,6 +24,14 @@ fn main() -> io::Result<()> {
     // Get timestamp
     let timestamp = Local::now().format("%H:%M:%S").to_string();
     
+    // Check if this is a subagent:stop event
+    if let Some(hook_event) = data["hook_event_name"].as_str() {
+        if hook_event == "SubagentStop" {
+            handle_subagent_stop(&data, &timestamp);
+            return Ok(());
+        }
+    }
+    
     // Check both possible field names for tool name (for compatibility)
     let tool_name = data["tool_name"].as_str()
         .or_else(|| data["tool"].as_str())
@@ -164,5 +172,20 @@ fn handle_todo_write(data: &Value, timestamp: &str, tool_input: Option<&serde_js
                 }
             }
         }
+    }
+}
+
+fn handle_subagent_stop(data: &Value, timestamp: &str) {
+    // Extract subagent stop information
+    let session_id = data["session_id"].as_str().unwrap_or("unknown");
+    let transcript_path = data["transcript_path"].as_str().unwrap_or("unknown");
+    let stop_hook_active = data["stop_hook_active"].as_bool().unwrap_or(false);
+    
+    eprintln!("[{}] [AGENT] Subagent completed - Session: {}", timestamp, session_id);
+    
+    // Only process transcript if stop_hook_active is false to prevent loops
+    if !stop_hook_active && transcript_path != "unknown" {
+        // Could process the transcript file here if needed
+        eprintln!("[{}] [AGENT] Transcript saved to: {}", timestamp, transcript_path);
     }
 }

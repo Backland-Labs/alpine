@@ -123,6 +123,12 @@ func (e *Executor) generateClaudeSettings(settingsPath, hookScriptPath string) e
 					},
 				},
 			},
+			"SubagentStop": []map[string]interface{}{
+				{
+					"command": hookScriptPath,
+					"type":    "command",
+				},
+			},
 		},
 	}
 
