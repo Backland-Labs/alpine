@@ -1,4 +1,2 @@
 {"contextFileName": "CLAUDE.md",
-"excludeTools": ["ShellTool(rm -rf)"],
-"coreTools": ["ReadFileTool", "GlobTool", "WriteFileTool", "GrepTool", "ReadManyFilesTool", "LSTool", "ShellTool", "WebFetchTool", "WebSearchTool", "MemoryTool"]
-}
+"excludeTools": ["ShellTool(rm -rf)"]}

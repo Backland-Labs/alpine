@@ -67,7 +67,7 @@ func generatePlan(task string) error {
 	prompt = strings.ReplaceAll(prompt, "{{TASK}}", task)
 
 	// Execute Gemini CLI in non-interactive mode
-	cmd := exec.Command("gemini", "--all-files", "-p", prompt)
+	cmd := exec.Command("gemini", "--all-files", "-y", "-p", prompt)
 
 	// Filter environment to remove CI variables that might trigger interactive mode
 	env := filterEnvironment(os.Environ())
