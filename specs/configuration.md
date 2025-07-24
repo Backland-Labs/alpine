@@ -29,6 +29,14 @@ River configuration controls runtime behavior and output settings. Configuration
 - Values: `true`, `false`
 - Default: `true`
 
+**RIVER_SHOW_TOOL_UPDATES**
+- Display real-time tool usage information from Claude
+- Values: `true`, `false`
+- Default: `true`
+- Behavior:
+  - `true`: Shows sticky header with current task and scrolling log of recent tool calls
+  - `false`: Disables real-time tool usage display
+
 ### State File Settings
 
 **State File Location**
@@ -55,5 +63,9 @@ river ABC-123
 
 # Run in different directory
 export RIVER_WORKDIR=/path/to/project
+river ABC-123
+
+# Disable real-time tool updates
+export RIVER_SHOW_TOOL_UPDATES=false
 river ABC-123
 ```
