@@ -191,7 +191,7 @@ func (e *Executor) executeClaudeCommand(ctx context.Context, config ExecuteConfi
 	cmd.Env = append(cmd.Env, fmt.Sprintf("RIVER_TODO_FILE=%s", todoFile))
 
 	// Check if we should capture stderr for tool logs
-	if e.config != nil && e.config.ShowTodoUpdates && e.printer != nil {
+	if e.config != nil && e.config.ShowToolUpdates && e.printer != nil {
 		return e.executeWithStderrCapture(ctx, cmd)
 	}
 

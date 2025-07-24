@@ -79,7 +79,7 @@ This priority covers the essential functionality to capture, manage, and display
 
 ## P1: Configuration and Usability
 
-### Task 4: Add Configuration Flag (TDD Cycle)
+### Task 4: Add Configuration Flag (TDD Cycle) ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
     - A new configuration option, `ShowToolUpdates` (e.g., `RIVER_SHOW_TOOL_UPDATES`), is available.

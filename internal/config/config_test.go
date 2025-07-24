@@ -18,6 +18,7 @@ func TestNewConfig(t *testing.T) {
 		"RIVER_GIT_BASE_BRANCH",
 		"RIVER_GIT_AUTO_CLEANUP",
 		"RIVER_SHOW_TODO_UPDATES",
+		"RIVER_SHOW_TOOL_UPDATES",
 	}
 	for _, env := range envVars {
 		_ = os.Unsetenv(env)
@@ -68,6 +69,11 @@ func TestNewConfig(t *testing.T) {
 	if !cfg.ShowTodoUpdates {
 		t.Error("ShowTodoUpdates = false, want true")
 	}
+
+	// Test ShowToolUpdates default
+	if !cfg.ShowToolUpdates {
+		t.Error("ShowToolUpdates = false, want true")
+	}
 }
 
 // TestConfigFromEnvironment tests loading configuration from environment variables
@@ -83,6 +89,7 @@ func TestConfigFromEnvironment(t *testing.T) {
 	_ = os.Setenv("RIVER_GIT_BASE_BRANCH", "develop")
 	_ = os.Setenv("RIVER_GIT_AUTO_CLEANUP", "false")
 	_ = os.Setenv("RIVER_SHOW_TODO_UPDATES", "false")
+	_ = os.Setenv("RIVER_SHOW_TOOL_UPDATES", "false")
 
 	defer func() {
 		// Clean up
@@ -95,6 +102,7 @@ func TestConfigFromEnvironment(t *testing.T) {
 		_ = os.Unsetenv("RIVER_GIT_BASE_BRANCH")
 		_ = os.Unsetenv("RIVER_GIT_AUTO_CLEANUP")
 		_ = os.Unsetenv("RIVER_SHOW_TODO_UPDATES")
+		_ = os.Unsetenv("RIVER_SHOW_TOOL_UPDATES")
 	}()
 
 	cfg, err := New()
@@ -139,6 +147,87 @@ func TestConfigFromEnvironment(t *testing.T) {
 	// Test ShowTodoUpdates
 	if cfg.ShowTodoUpdates {
 		t.Error("ShowTodoUpdates = true, want false")
+	}
+
+	// Test ShowToolUpdates
+	if cfg.ShowToolUpdates {
+		t.Error("ShowToolUpdates = true, want false")
+	}
+}
+
+// TestConfig_ShowToolUpdatesDefault tests that ShowToolUpdates defaults to true
+func TestConfig_ShowToolUpdatesDefault(t *testing.T) {
+	// Clear the environment variable to test default
+	_ = os.Unsetenv("RIVER_SHOW_TOOL_UPDATES")
+
+	cfg, err := New()
+	if err != nil {
+		t.Fatalf("New() returned unexpected error: %v", err)
+	}
+
+	// ShowToolUpdates should default to true
+	if !cfg.ShowToolUpdates {
+		t.Error("ShowToolUpdates = false, want true (default)")
+	}
+}
+
+// TestConfig_ShowToolUpdatesEnvVar tests that RIVER_SHOW_TOOL_UPDATES correctly sets the config value
+func TestConfig_ShowToolUpdatesEnvVar(t *testing.T) {
+	tests := []struct {
+		name      string
+		envValue  string
+		wantValue bool
+		wantErr   bool
+	}{
+		{
+			name:      "set to false",
+			envValue:  "false",
+			wantValue: false,
+			wantErr:   false,
+		},
+		{
+			name:      "set to true",
+			envValue:  "true",
+			wantValue: true,
+			wantErr:   false,
+		},
+		{
+			name:     "invalid value",
+			envValue: "maybe",
+			wantErr:  true,
+		},
+		{
+			name:      "empty value uses default",
+			envValue:  "",
+			wantValue: true, // Should use default (true)
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set or unset the environment variable
+			if tt.envValue == "" {
+				_ = os.Unsetenv("RIVER_SHOW_TOOL_UPDATES")
+			} else {
+				_ = os.Setenv("RIVER_SHOW_TOOL_UPDATES", tt.envValue)
+			}
+
+			// Clean up after test
+			defer func() {
+				_ = os.Unsetenv("RIVER_SHOW_TOOL_UPDATES")
+			}()
+
+			cfg, err := New()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err == nil && cfg.ShowToolUpdates != tt.wantValue {
+				t.Errorf("ShowToolUpdates = %v, want %v", cfg.ShowToolUpdates, tt.wantValue)
+			}
+		})
 	}
 }
 
