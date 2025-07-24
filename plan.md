@@ -55,7 +55,7 @@ This priority covers the essential functionality to make the feature work end-to
     6. Return the title and body.
     7. Create an interface for command execution to allow for mocking in tests.
 
-### Task 3: Integrate Issue Fetching with Plan Generation (TDD Cycle)
+### Task 3: Integrate Issue Fetching with Plan Generation (TDD Cycle) ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
     - The fetched issue title and body are combined into a single task description string.
@@ -73,7 +73,7 @@ This priority covers the essential functionality to make the feature work end-to
 
 ## P1: Documentation and Usability
 
-### Task 4: Update Documentation and CLI Help
+### Task 4: Update Documentation and CLI Help ✅ IMPLEMENTED
 
 - **Acceptance Criteria**:
     - The `README.md` file is updated to include instructions for the `river plan gh-issue` command.
@@ -86,12 +86,12 @@ This priority covers the essential functionality to make the feature work end-to
 
 ## Success Criteria Checklist
 
-- [ ] A new `river plan gh-issue <url>` command is implemented and functional.
-- [ ] The command correctly fetches issue data from GitHub using the `gh` CLI.
-- [ ] The fetched data is used to generate a `plan.md` file.
-- [ ] The `--cc` flag is respected for choosing the planning engine.
-- [ ] Errors (e.g., `gh` not found, invalid URL) are handled gracefully.
-- [ ] Unit tests are written for all new logic, with external commands mocked.
-- [ ] Documentation is updated to reflect the new feature.
-- [ ] All existing tests continue to pass.
-- [ ] `go fmt` and `golangci-lint` pass without issues.
+- [x] A new `river plan gh-issue <url>` command is implemented and functional.
+- [x] The command correctly fetches issue data from GitHub using the `gh` CLI.
+- [x] The fetched data is used to generate a `plan.md` file.
+- [x] The `--cc` flag is respected for choosing the planning engine.
+- [x] Errors (e.g., `gh` not found, invalid URL) are handled gracefully.
+- [x] Unit tests are written for all new logic, with external commands mocked.
+- [x] Documentation is updated to reflect the new feature.
+- [x] All existing tests continue to pass.
+- [x] `go fmt` and `golangci-lint` pass without issues.
