@@ -40,6 +40,7 @@ All tasks will be implemented following Test-Driven Development (TDD) principles
 ### Task 3: Refactor `internal/claude/executor.go`
 
 - **Priority**: P1
+- **Status**: ✅ IMPLEMENTED (2025-07-24)
 - **Acceptance Criteria**: The `executor.go` file is refactored for improved clarity and reduced complexity. The logic for different execution paths (with/without monitoring, with/without stderr capture) should be streamlined. All existing tests must pass.
 - **Test Cases**:
     - All existing tests in `executor_test.go`, `executor_stderr_test.go`, and `executor_todo_test.go` must pass after refactoring.

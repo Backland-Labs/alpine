@@ -11,9 +11,9 @@ import (
 	"github.com/maxmcd/river/internal/output"
 )
 
-func TestExecutor_executeWithTodoMonitoring(t *testing.T) {
-	// Test the executeWithTodoMonitoring functionality
-	t.Run("falls back to executeWithoutMonitoring on hook setup failure", func(t *testing.T) {
+func TestExecutor_TodoMonitoring(t *testing.T) {
+	// Test the TODO monitoring functionality in the unified execution pipeline
+	t.Run("disables monitoring on hook setup failure", func(t *testing.T) {
 		// Create a test directory where we can't write files
 		readOnlyDir := t.TempDir()
 		// Change to that directory to make setupTodoHook fail when creating .claude dir
@@ -55,7 +55,7 @@ func TestExecutor_executeWithTodoMonitoring(t *testing.T) {
 		}
 
 		ctx := context.Background()
-		result, err := executor.executeWithTodoMonitoring(ctx, cfg)
+		result, err := executor.Execute(ctx, cfg)
 
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
@@ -65,10 +65,10 @@ func TestExecutor_executeWithTodoMonitoring(t *testing.T) {
 			t.Errorf("Expected 'success', got %s", result)
 		}
 
-		// Since hook setup fails, it should fall back to executeWithoutMonitoring
-		// which uses the command runner
+		// Since hook setup fails due to read-only directory, 
+		// monitoring should be disabled and command runner should be called
 		if !withoutMonitoringCalled {
-			t.Error("Expected fallback to executeWithoutMonitoring")
+			t.Error("Expected command runner to be called when monitoring setup fails")
 		}
 	})
 

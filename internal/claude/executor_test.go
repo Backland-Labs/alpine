@@ -247,7 +247,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			exec := &Executor{}
-			cmd := exec.buildCommand(tt.config)
+			cmd, _ := exec.buildCommand(tt.config)
 
 			// Check that the base command is correct
 			if cmd.Path != "claude" && !strings.HasSuffix(cmd.Path, "/claude") {
@@ -335,7 +335,7 @@ func TestExecutor_BuildCommand_SetsWorkingDirectory(t *testing.T) {
 			t.Fatalf("failed to get working directory: %v", err)
 		}
 
-		cmd := exec.buildCommand(config)
+		cmd, _ := exec.buildCommand(config)
 
 		// Verify cmd.Dir is set to the current working directory
 		if cmd.Dir != expectedDir {
@@ -357,7 +357,7 @@ func TestExecutor_BuildCommand_WorkingDirectoryError(t *testing.T) {
 			StateFile: "/tmp/state.json",
 		}
 
-		cmd := exec.buildCommand(config)
+		cmd, _ := exec.buildCommand(config)
 
 		// Even without mocking os.Getwd error, we can verify the command is built
 		if cmd == nil {
@@ -385,7 +385,7 @@ func TestExecutor_CommandRunner_PreservesDirectory(t *testing.T) {
 		}
 
 		// Build the base command to get expected directory
-		baseCmd := exec.buildCommand(config)
+		baseCmd, _ := exec.buildCommand(config)
 
 		// Note: Since we can't easily mock exec.CommandContext,
 		// this test documents the expected behavior.
@@ -413,7 +413,7 @@ func TestExecutor_WorkingDirectoryFallback(t *testing.T) {
 
 		// Build command - even if we can't mock os.Getwd failure directly,
 		// we can verify that command building continues
-		cmd := exec.buildCommand(config)
+		cmd, _ := exec.buildCommand(config)
 
 		if cmd == nil {
 			t.Fatal("expected command to be built even with directory issues")
@@ -439,7 +439,7 @@ func TestExecutor_WorkingDirectoryFallback(t *testing.T) {
 		}
 
 		// Build command
-		cmd := exec.buildCommand(config)
+		cmd, _ := exec.buildCommand(config)
 
 		// Even without being able to capture logs in this test,
 		// we document that a warning should be logged when directory operations fail
