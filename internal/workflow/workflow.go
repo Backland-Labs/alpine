@@ -244,14 +244,10 @@ func (e *Engine) waitForStateUpdate(ctx context.Context, previousState *core.Sta
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
-	timeout := time.After(5 * time.Minute) // 5 minute timeout for Claude execution
-
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-timeout:
-			return fmt.Errorf("timeout waiting for state update")
 		case <-ticker.C:
 			// Check if file has been modified
 			stat, err := os.Stat(e.stateFile)
