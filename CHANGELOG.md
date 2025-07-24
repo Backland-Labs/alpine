@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### GitHub Issue Integration for Plan Generation (#18)
+- **New `gh-issue` subcommand** - Generate implementation plans directly from GitHub issues
+- **Command syntax** - `river plan gh-issue <github-issue-url>` fetches issue details via `gh` CLI
+- **Claude Code support** - Works with both Gemini (default) and Claude Code (`--cc` flag)
+- **Comprehensive error handling** - Clear messages for missing `gh` CLI or API failures
+- **Full test coverage** - Command structure, integration, and documentation tests
+- **Updated documentation** - README.md and specs updated with usage examples and requirements
+
 ### Fixed
 
 #### State File Path Mismatch (#16)

@@ -6,6 +6,7 @@
 river [flags] <task-description>
 river [flags] --file <file-path>
 river plan [flags] <task-description>
+river plan [flags] gh-issue <github-issue-url>
 river --help
 river --version
 ```
@@ -47,6 +48,11 @@ river --version
 - `--cc` - Use Claude Code instead of Gemini for plan generation
 - `--help` - Show help message
 
+### river plan gh-issue subcommand
+- Accepts a GitHub issue URL as the sole argument
+- Inherits `--cc` flag from parent `plan` command
+- `--help` - Show help message
+
 ## Behavior
 
 ### Default (with planning)
@@ -74,6 +80,19 @@ river --version
    - Full codebase context via `--add-dir .`
    - 5-minute timeout
    - Planning-specific system prompt
+
+### river plan gh-issue subcommand
+1. Accepts a GitHub issue URL as the sole argument
+2. Uses `gh issue view <url> --json title,body` to fetch issue data
+3. Requires `gh` CLI to be installed and authenticated
+4. Combines issue title and body into a task description format: `Task: <title>\n\n<body>`
+5. Passes the combined task description to the plan generation engine
+6. Respects the `--cc` flag from parent command for engine selection
+7. Outputs plan.md file based on the GitHub issue content
+8. Error handling includes:
+   - Clear message if `gh` CLI is not found
+   - Proper error propagation from `gh` command failures
+   - JSON parsing error handling
 
 ## Output
 

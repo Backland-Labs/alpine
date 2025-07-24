@@ -140,7 +140,35 @@ river plan --file task.md
 
 # Use Claude Code with file input
 river plan --cc --file task.md
+
+# Generate a plan from a GitHub issue
+river plan gh-issue https://github.com/owner/repo/issues/123
+
+# Use Claude Code to generate a plan from a GitHub issue
+river plan --cc gh-issue https://github.com/owner/repo/issues/123
 ```
+
+### GitHub Issue Integration
+
+The `river plan gh-issue` subcommand allows you to generate implementation plans directly from GitHub issues. This feature uses the GitHub CLI (`gh`) to fetch issue details and generate a comprehensive plan.
+
+**Requirements:**
+- The `gh` CLI must be installed and authenticated
+- You must have access to the specified GitHub issue
+
+**Usage:**
+```bash
+# Basic usage with Gemini
+river plan gh-issue <github-issue-url>
+
+# Use Claude Code for plan generation
+river plan --cc gh-issue <github-issue-url>
+```
+
+The command will:
+1. Fetch the issue title and body using `gh issue view`
+2. Combine them into a task description
+3. Generate a plan using your chosen engine (Gemini or Claude Code)
 
 ## Configuration
 
