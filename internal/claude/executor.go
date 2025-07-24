@@ -259,6 +259,7 @@ func (e *Executor) executeWithStderrCapture(ctx context.Context, cmd *exec.Cmd) 
 			line := scanner.Text()
 			if e.printer != nil {
 				e.printer.AddToolLog(line)
+				e.printer.RenderToolLogs()
 			}
 			logger.WithField("stderr", line).Debug("Captured stderr line")
 		}

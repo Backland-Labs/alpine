@@ -2,6 +2,7 @@ package output
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -145,3 +146,77 @@ func TestAddToolLog_Concurrency(t *testing.T) {
 	}
 }
 
+// TestRenderToolLogs_Empty verifies that nothing is rendered when the tool log buffer is empty
+func TestRenderToolLogs_Empty(t *testing.T) {
+	var buf bytes.Buffer
+	p := NewPrinterWithWriters(&buf, &buf, false)
+
+	output := p.RenderToolLogs()
+	if output != "" {
+		t.Errorf("RenderToolLogs() with empty buffer = %q, want empty string", output)
+	}
+}
+
+// TestRenderToolLogs_Partial verifies correct rendering when the buffer is not yet full
+func TestRenderToolLogs_Partial(t *testing.T) {
+	var buf bytes.Buffer
+	p := NewPrinterWithWriters(&buf, &buf, false)
+	p.AddToolLog("Tool 1 executed")
+	p.AddToolLog("Tool 2 executed")
+
+	output := p.RenderToolLogs()
+
+	// Should contain all tool logs
+	if !strings.Contains(output, "Tool 1 executed") || !strings.Contains(output, "Tool 2 executed") {
+		t.Error("RenderToolLogs() should contain all tool logs")
+	}
+}
+
+// TestRenderToolLogs_Full verifies correct rendering when the buffer is full
+func TestRenderToolLogs_Full(t *testing.T) {
+	var buf bytes.Buffer
+	p := NewPrinterWithWriters(&buf, &buf, false)
+	// Add 4 logs to fill the buffer
+	for i := 1; i <= 4; i++ {
+		p.AddToolLog(fmt.Sprintf("Log %d", i))
+	}
+
+	output := p.RenderToolLogs()
+
+	// Should contain all 4 logs
+	for i := 1; i <= 4; i++ {
+		expectedLog := fmt.Sprintf("Log %d", i)
+		if !strings.Contains(output, expectedLog) {
+			t.Errorf("RenderToolLogs() missing log: %q", expectedLog)
+		}
+	}
+}
+
+// TestRenderToolLogs_ANSIOutput checks that the output contains correct ANSI codes
+func TestRenderToolLogs_ANSIOutput(t *testing.T) {
+	var buf bytes.Buffer
+	p := NewPrinterWithWriters(&buf, &buf, true) // Enable color output
+	p.AddToolLog("Test log")
+
+	output := p.RenderToolLogs()
+
+	// Check for cursor movement (up)
+	if !strings.Contains(output, "\033[") && !strings.Contains(output, "A") {
+		t.Error("RenderToolLogs() should contain cursor up movement")
+	}
+
+	// Check for clear line
+	if !strings.Contains(output, "\033[K") {
+		t.Error("RenderToolLogs() should contain clear line command")
+	}
+
+	// Check for gray color code
+	if !strings.Contains(output, "\033[90m") {
+		t.Error("RenderToolLogs() should contain gray color code for tool logs")
+	}
+
+	// Check for reset color
+	if !strings.Contains(output, "\033[0m") {
+		t.Error("RenderToolLogs() should contain color reset")
+	}
+}
