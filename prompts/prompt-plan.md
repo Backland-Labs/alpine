@@ -41,7 +41,7 @@ Codebase: The full source code is available in the current working directory.
    - Success criteria checklist
 
 ## Guiding Principles
-TDD-Centric: Each task must be atomic and correspond to a single TDD cycle (Red-Green-Refactor). This is the most important principle.
+TDD-Centric: Each task must be atomic and correspond to a single TDD cycle (Red-Green-Refactor). This is the most important principle. State in the plan that tests should be written first then code written to pass the tests before refactoring for clarity.
 
 Pragmatism: Prioritize the simplest, most direct path to a working feature. Avoid over-engineering or premature optimization in the plan.
 

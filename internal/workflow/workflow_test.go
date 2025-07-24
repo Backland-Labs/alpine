@@ -54,7 +54,6 @@ func TestNewEngine(t *testing.T) {
 
 	engine := NewEngine(executor, wtMgr, cfg)
 
-	assert.NotNil(t, engine)
 	assert.Equal(t, executor, engine.claudeExecutor)
 	assert.Equal(t, wtMgr, engine.wtMgr)
 	assert.Equal(t, cfg, engine.cfg)
