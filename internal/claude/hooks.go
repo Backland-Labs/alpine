@@ -33,7 +33,7 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	}
 	todoFilePath = todoFile.Name()
 	if err := todoFile.Close(); err != nil {
-		os.Remove(todoFilePath)
+		_ = os.Remove(todoFilePath)
 		return "", nil, fmt.Errorf("failed to close todo file: %w", err)
 	}
 
@@ -83,9 +83,9 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	// Return cleanup function
 	cleanup = func() {
 		logger.Debug("Cleaning up TodoWrite hook")
-		os.Remove(todoFilePath)
-		os.Remove(hookScriptPath)
-		os.Remove(settingsPath)
+		_ = os.Remove(todoFilePath)
+		_ = os.Remove(hookScriptPath)
+		_ = os.Remove(settingsPath)
 		// Don't remove .claude directory - may contain user's own settings
 	}
 

@@ -38,7 +38,7 @@ river --continue
 - Checks for existing state file and shows appropriate error if missing
 - Comprehensive test suite added
 
-#### Task 2: Add Multi Command
+#### Task 2: Add Multi Command ✅ IMPLEMENTED
 **Test Cases:**
 - `river multi <path> <task> <path> <task>...` parses pairs
 - Each pair spawns a River process
@@ -48,6 +48,13 @@ river --continue
 - Simple argument parsing (path, task, path, task...)
 - Spawn each River process with `os/exec`
 - No complex monitoring - just wait for completion
+
+**Status:** Implemented in v0.3.0
+- Added multi subcommand to root command
+- Implemented argument validation and parsing
+- SpawnRiverProcesses function handles parallel execution
+- Comprehensive test suite with mocked river execution
+- Follows the simple approach outlined in the plan
 
 #### Task 3: Parallel Execution
 **Test Cases:**

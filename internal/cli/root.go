@@ -107,7 +107,8 @@ Examples:
 		return nil
 	}
 
-	// Add subcommands (currently none)
+	// Add subcommands
+	cmd.AddCommand(newMultiCmd().Command())
 
 	return cmd
 }

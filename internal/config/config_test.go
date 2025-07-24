@@ -43,7 +43,7 @@ func TestNewConfig(t *testing.T) {
 		t.Error("ShowOutput = false, want true")
 	}
 
-	expectedStateFile := filepath.Join(".", "claude_state.json")
+	expectedStateFile := filepath.Join(".claude", "river", "claude_state.json")
 	if cfg.StateFile != expectedStateFile {
 		t.Errorf("StateFile = %q, want %q", cfg.StateFile, expectedStateFile)
 	}

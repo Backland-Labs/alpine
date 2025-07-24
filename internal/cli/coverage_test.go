@@ -6,7 +6,6 @@ import (
 
 	"github.com/maxmcd/river/internal/config"
 	"github.com/maxmcd/river/internal/gitx"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -36,7 +35,7 @@ func TestRunWorkflowWrapper(t *testing.T) {
 	// but we can verify it exists and has the right signature
 
 	// This is mainly a compilation test to ensure the function exists
-	var fn func(*cobra.Command, []string) error = runWorkflow
+	var fn = runWorkflow
 	assert.NotNil(t, fn)
 }
 

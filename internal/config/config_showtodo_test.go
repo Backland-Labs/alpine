@@ -43,7 +43,7 @@ func TestShowTodoUpdatesConfiguration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.envVar != "" {
 				_ = os.Setenv("RIVER_SHOW_TODO_UPDATES", tt.envVar)
-				defer os.Unsetenv("RIVER_SHOW_TODO_UPDATES")
+				defer func() { _ = os.Unsetenv("RIVER_SHOW_TODO_UPDATES") }()
 			} else {
 				_ = os.Unsetenv("RIVER_SHOW_TODO_UPDATES")
 			}

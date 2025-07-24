@@ -16,9 +16,9 @@ const (
 
 // Common prompt constants
 const (
-	PromptMakePlan = "/make_plan"
-	Promptrun_implementation_loop    = "/run_implementation_loop"
-	PromptContinue = "/continue"
+	PromptMakePlan                = "/make_plan"
+	Promptrun_implementation_loop = "/run_implementation_loop"
+	PromptContinue                = "/continue"
 )
 
 // fileMutex provides global synchronization for state file operations

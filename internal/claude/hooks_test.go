@@ -106,8 +106,8 @@ func TestExecutor_setupTodoHook(t *testing.T) {
 		}
 
 		// Remove files manually before cleanup
-		os.Remove(todoFile)
-		os.RemoveAll(".claude")
+		_ = os.Remove(todoFile)
+		_ = os.RemoveAll(".claude")
 
 		// Cleanup should not panic
 		cleanup()
@@ -163,7 +163,7 @@ func TestExecutor_generateClaudeSettings(t *testing.T) {
 		if !ok {
 			t.Fatal("Invalid PostToolUse entry structure")
 		}
-		
+
 		hooksList, ok := entry["hooks"].([]interface{})
 		if !ok || len(hooksList) != 1 {
 			t.Fatal("Invalid hooks list in entry")
@@ -196,7 +196,7 @@ func TestExecutor_generateClaudeSettings(t *testing.T) {
 		if !ok {
 			t.Fatal("Invalid SubagentStop entry structure")
 		}
-		
+
 		subagentHooksList, ok := subagentEntry["hooks"].([]interface{})
 		if !ok || len(subagentHooksList) != 1 {
 			t.Fatal("Invalid hooks list in SubagentStop entry")
