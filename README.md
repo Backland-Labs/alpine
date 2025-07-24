@@ -66,6 +66,13 @@ Execute directly without generating a plan using the `--no-plan` flag:
 river "Fix the bug in payment processing" --no-plan
 ```
 
+### Continue from Existing State
+
+Continue from where you left off using the `--continue` flag:
+```bash
+river --continue
+```
+
 ### Read Task from File
 
 For complex task descriptions, you can provide them via a file:
@@ -81,16 +88,18 @@ The file should contain the complete task description in plain text or Markdown 
 river [flags] <task-description>
 
 Flags:
-  -f, --file string   Read task description from file
-  -h, --help          Help for river
+      --continue      Continue from existing state (equivalent to --no-plan --no-worktree)
+      --file string   Read task description from a file
+  -h, --help          help for river
       --no-plan       Skip plan generation and execute directly
-  -v, --version       Version for river
+      --no-worktree   Disable git worktree creation
+  -v, --version       Show version information
 
 river plan [flags] <task>
 
 Flags:
-      --cc            Use Claude Code instead of Gemini for plan generation
-  -h, --help          Help for plan
+      --cc     Use Claude Code instead of Gemini for plan generation
+  -h, --help   help for plan
 ```
 
 ## Plan Generation
