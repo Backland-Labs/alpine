@@ -47,6 +47,9 @@ func (pc *planCmd) Command() *cobra.Command {
 
 // generatePlan generates an implementation plan using Gemini CLI
 func generatePlan(task string) error {
+	// Notify user that plan generation is starting
+	fmt.Println("Generating plan...")
+	
 	// Check if GEMINI_API_KEY is set
 	if os.Getenv("GEMINI_API_KEY") == "" {
 		return fmt.Errorf("GEMINI_API_KEY not set")
@@ -107,6 +110,7 @@ func generatePlan(task string) error {
 		return fmt.Errorf("failed to write plan.md: %w", err)
 	}
 
+	fmt.Println("Plan generated successfully and saved to plan.md")
 	return nil
 }
 
