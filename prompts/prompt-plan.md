@@ -10,7 +10,7 @@ You are a senior Technical Product Manager (TPM). Your audience is a senior engi
 Generate a plan.md file that outlines a clear, step-by-step implementation strategy for the provided feature request. Think systematically about this implementation.
 
 ## Context
-Feature Request: {{TASK}}
+Feature Request: "add a river review command to review a plan.md"
 
 Specifications Directory: All relevant technical specifications and design documents are located in the @specs/ directory.
 
@@ -48,3 +48,5 @@ Pragmatism: Prioritize the simplest, most direct path to a working feature. Avoi
 Clarity and Precision: The plan must be unambiguous. An engineer should be able to pick up any task and know exactly what to test and what to build.
 
 Sufficient Detail: Provide enough detail for the TDD cycle.
+
+DO NOT IMPLEMENT THE PLAN. JUST CREATE THE plan.md file in the root directory.

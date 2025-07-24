@@ -62,33 +62,12 @@ func generatePlan(task string) error {
 		return fmt.Errorf("failed to read prompt template: %w", err)
 	}
 
-	// Find all spec files
-	specsDir := "specs"
-	specFiles, err := filepath.Glob(filepath.Join(specsDir, "*.md"))
-	if err != nil {
-		return fmt.Errorf("failed to find spec files: %w", err)
-	}
-
-	if len(specFiles) == 0 {
-		return fmt.Errorf("no spec files found in %s", specsDir)
-	}
-
-	// Build the prompt with spec file references
-	var specRefs []string
-	for _, specFile := range specFiles {
-		// Use @filename syntax for Gemini to include file contents
-		specRefs = append(specRefs, "@"+specFile)
-	}
-
 	// Replace placeholders in the prompt template
 	prompt := string(promptTemplate)
 	prompt = strings.ReplaceAll(prompt, "{{TASK}}", task)
 
-	// Use the prompt as-is without appending specs
-	fullPrompt := prompt
-
-	// Execute Gemini CLI
-	cmd := exec.Command("gemini", "-p", fullPrompt)
+	// Execute Gemini CLI in non-interactive mode
+	cmd := exec.Command("gemini", "--all-files", "-p", prompt)
 
 	// Filter environment to remove CI variables that might trigger interactive mode
 	env := filterEnvironment(os.Environ())
