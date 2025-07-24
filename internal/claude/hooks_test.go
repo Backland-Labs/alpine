@@ -192,7 +192,17 @@ func TestExecutor_generateClaudeSettings(t *testing.T) {
 			t.Fatalf("Expected 1 SubagentStop entry, got %d", len(subagentStop))
 		}
 
-		subagentHook, ok := subagentStop[0].(map[string]interface{})
+		subagentEntry, ok := subagentStop[0].(map[string]interface{})
+		if !ok {
+			t.Fatal("Invalid SubagentStop entry structure")
+		}
+		
+		subagentHooksList, ok := subagentEntry["hooks"].([]interface{})
+		if !ok || len(subagentHooksList) != 1 {
+			t.Fatal("Invalid hooks list in SubagentStop entry")
+		}
+
+		subagentHook, ok := subagentHooksList[0].(map[string]interface{})
 		if !ok {
 			t.Fatal("Invalid SubagentStop hook structure")
 		}

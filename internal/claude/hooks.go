@@ -101,8 +101,13 @@ func (e *Executor) copyHookScript(destPath string) error {
 	}
 
 	// Write script to destination
-	if err := os.WriteFile(destPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(destPath, []byte(scriptContent), 0644); err != nil {
 		return fmt.Errorf("failed to write hook script: %w", err)
+	}
+
+	// Explicitly set executable permissions
+	if err := os.Chmod(destPath, 0755); err != nil {
+		return fmt.Errorf("failed to set executable permissions: %w", err)
 	}
 
 	return nil
@@ -123,10 +128,15 @@ func (e *Executor) generateClaudeSettings(settingsPath, hookScriptPath string) e
 					},
 				},
 			},
-			"SubagentStop": []map[string]interface{}{
+			"SubagentStop": []toolMatcher{
 				{
-					"command": hookScriptPath,
-					"type":    "command",
+					Matcher: "",
+					Hooks: []map[string]interface{}{
+						{
+							"command": hookScriptPath,
+							"type":    "command",
+						},
+					},
 				},
 			},
 		},
