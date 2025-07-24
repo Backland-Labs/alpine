@@ -221,7 +221,7 @@ func filterEnvironment(env []string) []string {
 func fetchGitHubIssue(url string) (title, body string, err error) {
 	// Execute gh command
 	cmd := exec.Command("gh", "issue", "view", url, "--json", "title,body")
-	
+
 	// Capture output
 	output, err := cmd.Output()
 	if err != nil {
@@ -229,26 +229,26 @@ func fetchGitHubIssue(url string) (title, body string, err error) {
 		if strings.Contains(err.Error(), "executable file not found") {
 			return "", "", fmt.Errorf("gh CLI not found. Please install from https://cli.github.com")
 		}
-		
+
 		// Check for exit error with stderr
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			stderr := string(exitErr.Stderr)
 			return "", "", fmt.Errorf("gh command failed: %s", stderr)
 		}
-		
+
 		return "", "", fmt.Errorf("failed to execute gh command: %w", err)
 	}
-	
+
 	// Parse JSON output
 	var issue struct {
 		Title string `json:"title"`
 		Body  string `json:"body"`
 	}
-	
+
 	if err := json.Unmarshal(output, &issue); err != nil {
 		return "", "", fmt.Errorf("failed to parse gh output: %w", err)
 	}
-	
+
 	return issue.Title, issue.Body, nil
 }
 
@@ -270,10 +270,10 @@ Requirements:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			url := args[0]
-			
+
 			// Create printer for consistent output
 			printer := output.NewPrinter()
-			
+
 			// Fetch issue data
 			printer.Info("Fetching GitHub issue...")
 			title, body, err := fetchGitHubIssue(url)
@@ -281,13 +281,13 @@ Requirements:
 				printer.Error("Failed to fetch issue: %v", err)
 				return fmt.Errorf("failed to fetch issue: %w", err)
 			}
-			
+
 			// Format task description
 			task := fmt.Sprintf("Task: %s\n\n%s", title, body)
-			
+
 			// Access parent command's --cc flag
 			ccFlag, _ := cmd.Parent().Flags().GetBool("cc")
-			
+
 			// Route to appropriate plan generation
 			if ccFlag {
 				return generatePlanWithClaude(task)
