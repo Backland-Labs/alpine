@@ -83,10 +83,9 @@ func generatePlan(task string) error {
 	// Replace placeholders in the prompt template
 	prompt := string(promptTemplate)
 	prompt = strings.ReplaceAll(prompt, "{{TASK}}", task)
-	prompt = strings.ReplaceAll(prompt, "{{SPECS}}", strings.Join(specRefs, " "))
 
-	// Build the full prompt
-	fullPrompt := fmt.Sprintf("Task: %s\n\n%s %s", task, prompt, strings.Join(specRefs, " "))
+	// Use the prompt as-is without appending specs
+	fullPrompt := prompt
 
 	// Execute Gemini CLI
 	cmd := exec.Command("gemini", "-p", fullPrompt)

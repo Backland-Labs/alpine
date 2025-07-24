@@ -78,6 +78,201 @@ golangci-lint run
 ./river --no-plan --no-worktree
 ```
 
+## How to Check Your Work
+
+River is a critical automation tool, so verifying changes is essential. Use these methods to ensure your work is correct:
+
+### 1. Compilation Checks
+```bash
+# Verify the code compiles
+go build -o river cmd/river/main.go
+
+# Check for compilation errors in all packages
+go build ./...
+
+# Verify no type errors
+go vet ./...
+```
+
+### 2. Testing Suite
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with verbose output
+go test -v ./...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Generate coverage report
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+
+# Run specific test package
+go test ./internal/cli/...
+
+# Run tests with race detector
+go test -race ./...
+```
+
+### 3. Code Quality
+```bash
+# Format all Go files
+go fmt ./...
+
+# Run comprehensive linting
+golangci-lint run
+
+# Check for common mistakes
+go vet ./...
+
+# Check for inefficient code
+go mod tidy
+go mod verify
+
+# Security scanning
+gosec ./...
+```
+
+### 4. Integration Testing
+```bash
+# Build and test basic execution
+go build -o river cmd/river/main.go && ./river --help
+
+# Test plan generation (requires GEMINI_API_KEY)
+./river plan "Add error handling to file operations"
+
+# Test worktree creation
+./river "Add a test function" --no-plan
+
+# Verify state file creation
+./river "Simple task" && cat claude_state.json
+
+# Test task file input
+echo "Implement logging improvements" > task.md
+./river --file task.md
+```
+
+### 5. State Management Verification
+```bash
+# Check state file is valid JSON
+./river "Test task" --no-plan && jq . claude_state.json
+
+# Verify state transitions
+./river "Multi-step task" && grep -E '"status":\s*"(running|completed)"' claude_state.json
+
+# Monitor state changes in real-time
+watch -n 1 'jq . claude_state.json 2>/dev/null || echo "No state file yet"'
+```
+
+### 6. Worktree Isolation Verification
+```bash
+# Verify worktree is created
+./river "Test worktree" && git worktree list
+
+# Check files are isolated to worktree
+find .git/worktrees -name "claude_state.json"
+
+# Verify main repo is unchanged
+git status  # Should show no changes after River execution
+
+# Test cleanup behavior
+RIVER_GIT_AUTO_CLEANUP=false ./river "Test cleanup" && git worktree list
+```
+
+### 7. Logging and Debug Verification
+```bash
+# Test debug logging
+RIVER_LOG_LEVEL=debug ./river "Debug test" 2>&1 | grep -E "(DEBUG|Set Claude working directory)"
+
+# Verify error handling
+./river ""  # Should show proper error for empty task
+
+# Check log output format
+./river "Log test" 2>&1 | grep -E "(INFO|ERROR|WARN)"
+```
+
+### 8. End-to-End Workflow Testing
+```bash
+# Full workflow with plan
+./river "Implement a simple calculator function"
+# Verify: plan.md created, worktree created, claude_state.json exists
+
+# Bare mode workflow
+./river --no-plan --no-worktree "Add comments to main.go"
+# Verify: No worktree created, operates in current directory
+
+# Error recovery test
+# Interrupt River (Ctrl+C) and restart
+./river "Long running task" # Ctrl+C after start
+./river --no-plan --no-worktree # Should continue from state
+```
+
+### 9. Performance and Resource Checks
+```bash
+# Memory usage monitoring
+go test -bench=. -benchmem ./...
+
+# Check binary size
+go build -o river cmd/river/main.go && ls -lh river
+
+# Verify no goroutine leaks
+go test -race ./...
+```
+
+### 10. Pre-Commit Checklist
+Before committing changes, always run:
+```bash
+# Essential checks
+go fmt ./...
+go vet ./...
+go test ./...
+golangci-lint run
+go build -o river cmd/river/main.go
+
+# Quick smoke test
+./river --help && echo "CLI works!"
+```
+
+### Automated Verification Script
+Create a `verify.sh` script for comprehensive checking:
+```bash
+#!/bin/bash
+set -e
+
+echo "🔍 Running comprehensive verification..."
+
+echo "✓ Formatting code..."
+go fmt ./...
+
+echo "✓ Building binary..."
+go build -o river cmd/river/main.go
+
+echo "✓ Running tests..."
+go test ./...
+
+echo "✓ Running linter..."
+golangci-lint run
+
+echo "✓ Checking vet..."
+go vet ./...
+
+echo "✓ Verifying CLI..."
+./river --help > /dev/null
+
+echo "✅ All checks passed!"
+```
+
+### Quick Verification Commands
+```bash
+# One-liner for quick check
+go fmt ./... && go test ./... && go build -o river cmd/river/main.go
+
+# With linting
+go fmt ./... && golangci-lint run && go test ./... && go build -o river cmd/river/main.go
+```
+
 ## Key Implementation Notes
 
 1. **Single Binary**: All functionality compiled into one executable
