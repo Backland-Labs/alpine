@@ -55,6 +55,9 @@ the plan using Claude Code instead.`,
 	// Add the --cc flag
 	pc.cmd.Flags().BoolVar(&ccFlag, "cc", false, "Use Claude Code instead of Gemini for plan generation")
 
+	// Add gh-issue subcommand
+	pc.cmd.AddCommand(newGhIssueCmd())
+
 	return pc
 }
 
@@ -211,4 +214,31 @@ func filterEnvironment(env []string) []string {
 		}
 	}
 	return filtered
+}
+
+// newGhIssueCmd creates a new gh-issue subcommand
+func newGhIssueCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "gh-issue <url>",
+		Short: "Generate a plan from a GitHub issue",
+		Long: `Generate an implementation plan by fetching a GitHub issue using the gh CLI.
+This command uses the GitHub CLI (gh) to fetch the issue title and body,
+then generates a plan based on the combined information.
+
+Example:
+  river plan gh-issue https://github.com/owner/repo/issues/123
+
+Requirements:
+  - The gh CLI must be installed and authenticated
+  - You must have access to the specified GitHub issue`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			_ = args[0] // url - will be used when implementing
+
+			// TODO: Implement GitHub issue fetching
+			// TODO: Respect --cc flag from parent command
+
+			return fmt.Errorf("gh-issue subcommand not yet implemented")
+		},
+	}
 }

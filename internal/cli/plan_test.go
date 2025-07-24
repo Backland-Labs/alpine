@@ -650,3 +650,93 @@ func TestGeneratePlanWithClaude_ProgressIndicator(t *testing.T) {
 		}
 	})
 }
+
+// TestGhIssueCommand_Exists tests that the gh-issue subcommand exists under plan
+// This test verifies that we can find the gh-issue command as a subcommand of plan
+func TestGhIssueCommand_Exists(t *testing.T) {
+	rootCmd := NewRootCommand()
+	planCmd, _, err := rootCmd.Find([]string{"plan"})
+	if err != nil {
+		t.Fatalf("failed to find plan command: %v", err)
+	}
+
+	// Look for gh-issue subcommand
+	found := false
+	for _, cmd := range planCmd.Commands() {
+		if cmd.Use == "gh-issue <url>" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("gh-issue subcommand not found under plan command")
+	}
+}
+
+// TestGhIssueCommand_RequiresOneArgument tests argument validation
+// This test ensures the command enforces exactly one argument (the GitHub issue URL)
+func TestGhIssueCommand_RequiresOneArgument(t *testing.T) {
+	t.Run("error when no arguments provided", func(t *testing.T) {
+		rootCmd := NewRootCommand()
+		output := &bytes.Buffer{}
+		rootCmd.SetOut(output)
+		rootCmd.SetErr(output)
+		rootCmd.SetArgs([]string{"plan", "gh-issue"})
+
+		err := rootCmd.Execute()
+		if err == nil {
+			t.Error("expected error when no arguments provided to gh-issue")
+		}
+
+		if !strings.Contains(err.Error(), "accepts 1 arg(s), received 0") {
+			t.Errorf("expected error about requiring 1 argument, got: %v", err)
+		}
+	})
+
+	t.Run("error when multiple arguments provided", func(t *testing.T) {
+		rootCmd := NewRootCommand()
+		output := &bytes.Buffer{}
+		rootCmd.SetOut(output)
+		rootCmd.SetErr(output)
+		rootCmd.SetArgs([]string{"plan", "gh-issue", "url1", "url2"})
+
+		err := rootCmd.Execute()
+		if err == nil {
+			t.Error("expected error when multiple arguments provided to gh-issue")
+		}
+
+		if !strings.Contains(err.Error(), "accepts 1 arg(s), received 2") {
+			t.Errorf("expected error about accepting only 1 argument, got: %v", err)
+		}
+	})
+}
+
+// TestGhIssueCommand_HelpText tests the help text content
+// This test verifies that the command has appropriate help text that explains its purpose
+func TestGhIssueCommand_HelpText(t *testing.T) {
+	rootCmd := NewRootCommand()
+	ghIssueCmd, _, err := rootCmd.Find([]string{"plan", "gh-issue"})
+	if err != nil {
+		t.Fatalf("failed to find gh-issue command: %v", err)
+	}
+
+	// Check Short description
+	if ghIssueCmd.Short == "" {
+		t.Error("gh-issue command should have a Short description")
+	}
+
+	// Check Long description
+	if ghIssueCmd.Long == "" {
+		t.Error("gh-issue command should have a Long description")
+	}
+
+	// Verify help text mentions GitHub and gh CLI
+	if !strings.Contains(ghIssueCmd.Long, "GitHub") {
+		t.Error("gh-issue Long description should mention GitHub")
+	}
+
+	if !strings.Contains(ghIssueCmd.Long, "gh") {
+		t.Error("gh-issue Long description should mention gh CLI")
+	}
+}
