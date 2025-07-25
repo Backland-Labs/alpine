@@ -36,15 +36,15 @@ When worktrees are enabled (default behavior), Alpine ensures complete isolation
 ## Specifications
 
 Key specifications are located in the `specs/` directory:
-- [architecture.md](specs/architecture.md): Single binary Go application, standard project layout
-- [cli-commands.md](specs/cli-commands.md): Simple CLI with `alpine <task-description>` and `--no-plan` flag
-- [state-management.md](specs/state-management.md): JSON state file format and transitions
-- [error-handling.md](specs/error-handling.md): Go error handling patterns
-- [configuration.md](specs/configuration.md): Environment variable configuration
-- [code-quality.md](specs/code-quality.md): Linting standards and code quality requirements
-- [claude-code-hooks](specs/claude-code-hooks.md): Hook scripts for Claude Code integration
-- [amp-cli.md](specs/amp-cli.md): Amp Code CLI integration as alternative to Claude Code
-- [gemini-cli.md](specs/gemini-cli.md): Gemini CLI integration for non-interactive AI assistance
+- [system-design.md](specs/system-design.md): Covers architecture, project structure, configuration, and state management.
+- [cli-commands.md](specs/cli-commands.md): Details all CLI commands, flags, and usage examples.
+- [code-quality.md](specs/code-quality.md): Defines linting standards and code quality requirements.
+- [error-handling.md](specs/error-handling.md): Outlines Go error handling patterns and principles.
+- [testing-strategy.md](specs/testing-strategy.md): Explains the project's testing philosophy, including unit, integration, and E2E tests.
+- [release-process.md](specs/release-process.md): Provides step-by-step instructions for publishing new releases.
+- [claude-code-hooks.md](specs/claude-code-hooks.md): Specification for integrating with Claude Code hooks.
+- [gemini-cli.md](specs/gemini-cli.md): Specification for integrating with the Gemini CLI.
+- [troubleshooting.md](specs/troubleshooting.md): A guide to common issues and their solutions.
 
 ## Development Commands
 
