@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maxmcd/river/internal/claude"
-	"github.com/maxmcd/river/internal/output"
+	"github.com/maxmcd/alpine/internal/claude"
+	"github.com/maxmcd/alpine/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +35,7 @@ func newPlanCmd() *planCmd {
 		Short: "Generate an implementation plan using Gemini CLI or Claude Code",
 		Long: `Generate a detailed implementation plan for a given task using Gemini CLI (default) or Claude Code.
 This command reads the project specifications and creates a structured plan
-that can be used with River's implementation workflow.
+that can be used with Alpine's implementation workflow.
 
 By default, the plan is generated using Gemini. Use the --cc flag to generate
 the plan using Claude Code instead.`,
@@ -167,7 +167,7 @@ func generatePlanWithClaude(task string) error {
 		// Planning-specific system prompt
 		SystemPrompt: "You are a senior Technical Product Manager creating implementation plans. " +
 			"Focus on understanding the codebase and creating detailed plan.md files. " +
-			"Follow TDD principles and River's planning conventions.",
+			"Follow TDD principles and Alpine's planning conventions.",
 		// 5-minute timeout for plan generation
 		Timeout: 5 * time.Minute,
 		// Add current directory for codebase context
@@ -262,7 +262,7 @@ This command uses the GitHub CLI (gh) to fetch the issue title and body,
 then generates a plan based on the combined information.
 
 Example:
-  river plan gh-issue https://github.com/owner/repo/issues/123
+  alpine plan gh-issue https://github.com/owner/repo/issues/123
 
 Requirements:
   - The gh CLI must be installed and authenticated

@@ -8,7 +8,7 @@ import (
 // TestMemoryUsageMeasurement tests that we can accurately measure memory usage
 func TestMemoryUsageMeasurement(t *testing.T) {
 	// This test verifies that our memory usage measurement infrastructure works correctly
-	// It should capture the memory footprint of the River process
+	// It should capture the memory footprint of the Alpine process
 	measurer := NewMemoryUsageMeasurer()
 
 	usage, err := measurer.MeasureMemoryUsage()
@@ -33,7 +33,7 @@ func TestMemoryUsageMeasurement(t *testing.T) {
 		usage.HeapAlloc/1024/1024, usage.TotalAlloc/1024/1024, usage.Sys/1024/1024)
 }
 
-// BenchmarkMemoryUsage benchmarks the memory usage of River
+// BenchmarkMemoryUsage benchmarks the memory usage of Alpine
 func BenchmarkMemoryUsage(b *testing.B) {
 	// This benchmark measures the memory footprint during typical operations
 	// We'll measure memory usage while running a simple workflow

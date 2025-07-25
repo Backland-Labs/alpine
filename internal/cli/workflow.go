@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/maxmcd/river/internal/logger"
+	"github.com/maxmcd/alpine/internal/logger"
 )
 
 // runWorkflowWithDependencies is the testable version of runWorkflow with dependency injection
@@ -63,7 +63,7 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 
 	// Initialize logger based on configuration (for production use)
 	logger.InitializeFromConfig(cfg)
-	logger.Debugf("Starting River workflow for task: %s", taskDescription)
+	logger.Debugf("Starting Alpine workflow for task: %s", taskDescription)
 
 	// Create workflow engine with finalized config if not already created
 	if deps.WorkflowEngine == nil {

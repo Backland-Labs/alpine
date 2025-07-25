@@ -210,7 +210,7 @@ func TestPrefixWriterConcurrency(t *testing.T) {
 		prefixCount := strings.Count(output, "[concurrent] ")
 		assert.Greater(t, prefixCount, 0)
 
-		// Note: In a real implementation, each River process would have its own
+		// Note: In a real implementation, each Alpine process would have its own
 		// PrefixWriter, so concurrent writes from different processes wouldn't interfere
 	})
 
@@ -440,10 +440,10 @@ func TestIsTerminalDetection(t *testing.T) {
 	t.Run("NO_COLOR_env", func(t *testing.T) {
 		// Save and restore NO_COLOR
 		oldNoColor := os.Getenv("NO_COLOR")
-		defer os.Setenv("NO_COLOR", oldNoColor)
+		defer func() { _ = os.Setenv("NO_COLOR", oldNoColor) }()
 
 		// Set NO_COLOR
-		os.Setenv("NO_COLOR", "1")
+		_ = os.Setenv("NO_COLOR", "1")
 
 		// Even if we request color, it should be disabled
 		var buf bytes.Buffer

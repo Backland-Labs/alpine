@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/maxmcd/river/internal/hooks"
+	"github.com/maxmcd/alpine/internal/hooks"
 )
 
 // TestTodoMonitorConsoleOutput tests that the todo-monitor hook outputs to stderr
@@ -210,8 +210,8 @@ func TestTodoMonitorFileWrite(t *testing.T) {
 	}
 
 	// Set the environment variable
-	_ = os.Setenv("RIVER_TODO_FILE", todoFilePath)
-	defer func() { _ = os.Unsetenv("RIVER_TODO_FILE") }()
+	_ = os.Setenv("ALPINE_TODO_FILE", todoFilePath)
+	defer func() { _ = os.Unsetenv("ALPINE_TODO_FILE") }()
 
 	// Prepare input with an in-progress task
 	input := map[string]interface{}{
@@ -233,7 +233,7 @@ func TestTodoMonitorFileWrite(t *testing.T) {
 	// Run the script
 	cmd := exec.Command(scriptPath)
 	cmd.Stdin = bytes.NewReader(inputJSON)
-	cmd.Env = append(os.Environ(), "RIVER_TODO_FILE="+todoFilePath)
+	cmd.Env = append(os.Environ(), "ALPINE_TODO_FILE="+todoFilePath)
 
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Script execution failed: %v", err)

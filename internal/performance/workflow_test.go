@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maxmcd/river/internal/claude"
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/core"
-	gitxmock "github.com/maxmcd/river/internal/gitx/mock"
-	"github.com/maxmcd/river/internal/workflow"
+	"github.com/maxmcd/alpine/internal/claude"
+	"github.com/maxmcd/alpine/internal/config"
+	"github.com/maxmcd/alpine/internal/core"
+	gitxmock "github.com/maxmcd/alpine/internal/gitx/mock"
+	"github.com/maxmcd/alpine/internal/workflow"
 )
 
 // TestLongRunningWorkflowPerformance tests performance during long-running workflows
 func TestLongRunningWorkflowPerformance(t *testing.T) {
-	// This test verifies that River can handle long-running workflows efficiently
+	// This test verifies that Alpine can handle long-running workflows efficiently
 	// without degrading performance over time
 
 	// Create a mock workflow that simulates multiple iterations

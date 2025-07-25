@@ -11,7 +11,7 @@ import (
 // TestStartupTimeMeasurement tests that we can accurately measure startup time
 func TestStartupTimeMeasurement(t *testing.T) {
 	// This test verifies that our startup time measurement infrastructure works correctly
-	// It should measure the time it takes for the River binary to start and exit
+	// It should measure the time it takes for the Alpine binary to start and exit
 	measurer := NewStartupTimeMeasurer()
 
 	duration, err := measurer.MeasureStartupTime()
@@ -30,9 +30,9 @@ func TestStartupTimeMeasurement(t *testing.T) {
 	}
 }
 
-// BenchmarkStartupTime benchmarks the startup time of the River binary
+// BenchmarkStartupTime benchmarks the startup time of the Alpine binary
 func BenchmarkStartupTime(b *testing.B) {
-	// This benchmark measures how long it takes to start the River binary
+	// This benchmark measures how long it takes to start the Alpine binary
 	// and immediately exit (with --help flag to avoid actual execution)
 
 	// Build the binary once before benchmarking
@@ -56,7 +56,7 @@ func BenchmarkStartupTime(b *testing.B) {
 	}
 }
 
-// buildTestBinary builds the River binary for testing
+// buildTestBinary builds the Alpine binary for testing
 func buildTestBinary(tb testing.TB) string {
 	tb.Helper()
 
@@ -67,9 +67,9 @@ func buildTestBinary(tb testing.TB) string {
 	}
 
 	tmpDir := tb.TempDir()
-	binaryPath := filepath.Join(tmpDir, "river")
+	binaryPath := filepath.Join(tmpDir, "alpine")
 
-	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/river")
+	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/alpine")
 	cmd.Dir = projectRoot
 	output, err := cmd.CombinedOutput()
 	if err != nil {

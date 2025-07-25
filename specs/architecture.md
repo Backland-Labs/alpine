@@ -24,9 +24,9 @@ The application will be distributed as a single, self-contained executable with 
 Follow standard Go project layout conventions:
 
 ```
-river/
+alpine/
 ├── cmd/
-│   └── river/
+│   └── alpine/
 │       └── main.go          # Application entry point
 ├── internal/
 │   ├── config/              # Configuration handling

@@ -1,4 +1,4 @@
-// Package gitx provides git worktree management functionality for River CLI.
+// Package gitx provides git worktree management functionality for Alpine CLI.
 // It enables isolated task execution in separate git worktrees.
 package gitx
 
@@ -19,11 +19,11 @@ type WorktreeManager interface {
 // Worktree represents a git worktree created for a task.
 type Worktree struct {
 	// Path is the absolute path to the worktree directory
-	// Format: ../repo-river-<task>
+	// Format: ../repo-alpine-<task>
 	Path string
 
 	// Branch is the branch name created for this worktree
-	// Format: river/<sanitized-task>
+	// Format: alpine/<sanitized-task>
 	Branch string
 
 	// ParentRepo is the absolute path to the main repository

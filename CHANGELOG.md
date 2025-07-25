@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the River CLI project will be documented in this file.
+All notable changes to the Alpine CLI project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### GitHub Issue Integration for Plan Generation (#18)
 - **New `gh-issue` subcommand** - Generate implementation plans directly from GitHub issues
-- **Command syntax** - `river plan gh-issue <github-issue-url>` fetches issue details via `gh` CLI
+- **Command syntax** - `alpine plan gh-issue <github-issue-url>` fetches issue details via `gh` CLI
 - **Claude Code support** - Works with both Gemini (default) and Claude Code (`--cc` flag)
 - **Comprehensive error handling** - Clear messages for missing `gh` CLI or API failures
 - **Full test coverage** - Command structure, integration, and documentation tests
@@ -20,9 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 #### State File Path Mismatch (#16)
-- **Fixed River hanging after task completion** - River now correctly monitors state file updates
-- **Removed RIVER_STATE_FILE environment variable** - State file location is now fixed at `.claude/river/claude_state.json`
-- **Resolved path mismatch** between River's monitoring location and Claude's write location
+- **Fixed Alpine hanging after task completion** - Alpine now correctly monitors state file updates
+- **Removed ALPINE_STATE_FILE environment variable** - State file location is now fixed at `.claude/alpine/claude_state.json`
+- **Resolved path mismatch** between Alpine's monitoring location and Claude's write location
 - **Updated all tests and documentation** to reflect the fixed state file path
 
 ### Changed
@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Real-time TODO tracking** - Shows Claude's current task instead of generic "Executing Claude" spinner
 - **PostToolUse hook integration** - Monitors TodoWrite tool calls via Claude Code hooks
 - **Graceful fallback** - Falls back to spinner if hook setup fails
-- **Configurable display** - Can be disabled via `RIVER_SHOW_TODO_UPDATES=false`
+- **Configurable display** - Can be disabled via `ALPINE_SHOW_TODO_UPDATES=false`
 - **File-based monitoring** - Efficient file polling system for task updates
 - **Comprehensive test coverage** - Tests for hooks, monitoring, and display functionality
 
@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Configuration
 - **Added ShowTodoUpdates option** - New configuration field with environment variable support
-- **Updated state file location** - Changed default location to `.claude/river/claude_state.json`
+- **Updated state file location** - Changed default location to `.claude/alpine/claude_state.json`
 
 #### Claude Executor
 - **Enhanced Execute method** - Now supports TODO monitoring mode alongside traditional spinner
@@ -65,7 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Bare Execution Mode
-- **Bare execution mode** allowing `river --no-plan --no-worktree` without task description
+- **Bare execution mode** allowing `alpine --no-plan --no-worktree` without task description
 - **Automatic state continuation** from existing `claude_state.json` when present
 - **Fresh workflow initialization** with `/run_implementation_loop` command when no state exists
 - **Advanced flag validation** requiring both `--no-plan` and `--no-worktree` flags
@@ -119,9 +119,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configurable worktree behavior** via environment variables and CLI flags
 
 #### New Configuration Options
-- `RIVER_GIT_ENABLED` - Enable/disable git worktree support (default: true)
-- `RIVER_GIT_BASE_BRANCH` - Base branch for creating worktrees (default: "main") 
-- `RIVER_GIT_AUTO_CLEANUP` - Auto-cleanup worktrees after completion (default: true)
+- `ALPINE_GIT_ENABLED` - Enable/disable git worktree support (default: true)
+- `ALPINE_GIT_BASE_BRANCH` - Base branch for creating worktrees (default: "main") 
+- `ALPINE_GIT_AUTO_CLEANUP` - Auto-cleanup worktrees after completion (default: true)
 - `--no-worktree` CLI flag to disable worktree creation for individual runs
 
 #### New Packages
@@ -151,8 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Technical Details
 
 #### Worktree Architecture
-- Worktrees created as `../repo-river-<task>` alongside main repository
-- Branches follow `river/<sanitized-task-name>` naming convention
+- Worktrees created as `../repo-alpine-<task>` alongside main repository
+- Branches follow `alpine/<sanitized-task-name>` naming convention
 - Task names sanitized using URL-safe slug generation
 - Branch name collisions handled with numeric suffixes
 
@@ -181,7 +181,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Previous Versions
 
 ### [0.2.0] - Previous Release
-- Complete Go implementation of River CLI
+- Complete Go implementation of Alpine CLI
 - State-driven workflow architecture
 - Claude Code integration
 - Linear dependency removal

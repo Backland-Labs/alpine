@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-This guide covers common issues and their solutions when using River.
+This guide covers common issues and their solutions when using Alpine.
 
 ## Common Issues
 
@@ -19,23 +19,23 @@ This guide covers common issues and their solutions when using River.
 **Symptom**: "State file is locked" or unexpected workflow behavior
 
 **Solution**:
-1. Check if another River instance is running: `ps aux | grep river`
-2. Remove stale state file if needed: `rm -rf .claude/river/claude_state.json`
-3. State file location is now fixed at `.claude/river/claude_state.json` to avoid conflicts
+1. Check if another Alpine instance is running: `ps aux | grep alpine`
+2. Remove stale state file if needed: `rm -rf .claude/alpine/claude_state.json`
+3. State file location is now fixed at `.claude/alpine/claude_state.json` to avoid conflicts
 
 ### Task Not Progressing
 
-**Symptom**: River seems stuck, state file not updating
+**Symptom**: Alpine seems stuck, state file not updating
 
 **Possible Causes & Solutions**:
 
 1. **Claude Code is waiting for input**
    - Check if Claude is prompting for confirmation
-   - Run with `RIVER_SHOW_OUTPUT=true` to see Claude's output
+   - Run with `ALPINE_SHOW_OUTPUT=true` to see Claude's output
 
 2. **State file permissions**
-   - Check file permissions: `ls -la .claude/river/claude_state.json`
-   - Ensure write permissions: `chmod 644 .claude/river/claude_state.json`
+   - Check file permissions: `ls -la .claude/alpine/claude_state.json`
+   - Ensure write permissions: `chmod 644 .claude/alpine/claude_state.json`
 
 3. **Slash commands not working**
    - Verify Claude Code supports required slash commands
@@ -53,11 +53,11 @@ This guide covers common issues and their solutions when using River.
 
 ### Performance Issues
 
-**Symptom**: River runs slowly or uses excessive resources
+**Symptom**: Alpine runs slowly or uses excessive resources
 
 **Solutions**:
 1. **Check disk space**: Ensure sufficient space for state file operations
-2. **Reduce verbosity**: Use `RIVER_VERBOSITY=normal` (not debug)
+2. **Reduce verbosity**: Use `ALPINE_VERBOSITY=normal` (not debug)
 3. **Monitor Claude execution**: Claude Code operations may be slow
 4. **Use --no-plan**: Skip planning phase for simple tasks
 
@@ -74,7 +74,7 @@ This guide covers common issues and their solutions when using River.
 Example fix:
 ```bash
 # Use absolute path
-river --file /home/user/tasks/my-task.md
+alpine --file /home/user/tasks/my-task.md
 
 # Check file content
 cat my-task.md
@@ -94,34 +94,34 @@ chmod 644 my-task.md
    ```
 
 2. Check for typos in variable names:
-   - ✅ `RIVER_WORK_DIR`
-   - ❌ `RIVER_WORKDIR`
+   - ✅ `ALPINE_WORK_DIR`
+   - ❌ `ALPINE_WORKDIR`
 
 3. Export variables properly:
    ```bash
    # Correct
-   export RIVER_VERBOSITY=debug
+   export ALPINE_VERBOSITY=debug
    
    # Incorrect (not exported)
-   RIVER_VERBOSITY=debug
+   ALPINE_VERBOSITY=debug
    ```
 
 ### Signal Handling Issues
 
-**Symptom**: Can't interrupt River with Ctrl+C
+**Symptom**: Can't interrupt Alpine with Ctrl+C
 
 **Solution**:
 1. Try Ctrl+C multiple times (handled gracefully)
-2. As last resort: `kill -9 $(pgrep river)`
+2. As last resort: `kill -9 $(pgrep alpine)`
 3. Clean up state file after force kill
 
 ### Debug Mode
 
 For detailed troubleshooting, enable debug mode:
 ```bash
-export RIVER_VERBOSITY=debug
-export RIVER_SHOW_OUTPUT=true
-river "Your task" 2>&1 | tee river-debug.log
+export ALPINE_VERBOSITY=debug
+export ALPINE_SHOW_OUTPUT=true
+alpine "Your task" 2>&1 | tee alpine-debug.log
 ```
 
 This creates a log file for analysis.
@@ -131,11 +131,11 @@ This creates a log file for analysis.
 ### macOS
 
 **Issue**: "cannot execute binary file"
-- Check architecture: `file river`
+- Check architecture: `file alpine`
 - Download correct version (arm64 for M1/M2, amd64 for Intel)
 
 **Issue**: "Operation not permitted"
-- Remove quarantine: `xattr -d com.apple.quarantine river`
+- Remove quarantine: `xattr -d com.apple.quarantine alpine`
 - Or allow in System Preferences > Security & Privacy
 
 ### Linux
@@ -145,7 +145,7 @@ This creates a log file for analysis.
 - Install 32-bit libraries if needed: `sudo apt-get install libc6-i386`
 
 **Issue**: Permission denied
-- Make executable: `chmod +x river`
+- Make executable: `chmod +x alpine`
 - Check mount options if on external drive
 
 ### Windows
@@ -163,7 +163,7 @@ This creates a log file for analysis.
 ### Diagnostic Information
 
 When reporting issues, include:
-1. River version: `river --version`
+1. Alpine version: `alpine --version`
 2. OS and architecture: `uname -a` (Unix) or `systeminfo` (Windows)
 3. Claude Code version: `claude --version`
 4. Environment variables: `env | grep RIVER`
@@ -171,14 +171,14 @@ When reporting issues, include:
 
 ### Support Channels
 
-1. **GitHub Issues**: https://github.com/[username]/river/issues
-2. **Debug Logs**: Run with `RIVER_VERBOSITY=debug` and attach output
-3. **State File**: Include `.claude/river/claude_state.json` content if relevant
+1. **GitHub Issues**: https://github.com/[username]/alpine/issues
+2. **Debug Logs**: Run with `ALPINE_VERBOSITY=debug` and attach output
+3. **State File**: Include `.claude/alpine/claude_state.json` content if relevant
 
 ### Quick Fixes Checklist
 
 - [ ] Claude Code is installed and in PATH
-- [ ] No other River instances running
+- [ ] No other Alpine instances running
 - [ ] State file has write permissions
 - [ ] Using correct binary for your platform
 - [ ] Environment variables are exported

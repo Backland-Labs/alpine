@@ -1,6 +1,6 @@
-# River CLI
+# Alpine CLI
 
-River is a CLI orchestrator for Claude Code that automates iterative AI-assisted development workflows. It accepts task descriptions and runs Claude Code in a loop based on a state-driven workflow.
+Alpine is a CLI orchestrator for Claude Code that automates iterative AI-assisted development workflows. It accepts task descriptions and runs Claude Code in a loop based on a state-driven workflow.
 
 ## Features
 
@@ -18,14 +18,14 @@ River is a CLI orchestrator for Claude Code that automates iterative AI-assisted
 
 ```bash
 # Clone the repository
-git clone https://github.com/[username]/river.git
-cd river
+git clone https://github.com/[username]/alpine.git
+cd alpine
 
 # Build the binary
-go build -o river cmd/river/main.go
+go build -o alpine cmd/alpine/main.go
 
 # Optionally install to your PATH
-go install ./cmd/river
+go install ./cmd/alpine
 ```
 
 ### Prerequisites
@@ -37,7 +37,7 @@ go install ./cmd/river
 
 ### Installing Claude Code CLI
 
-To use River with Claude Code (for execution or plan generation with `--cc`), you need to install the Claude Code CLI:
+To use Alpine with Claude Code (for execution or plan generation with `--cc`), you need to install the Claude Code CLI:
 
 1. Visit the Claude Code website: [claude.ai/code](https://claude.ai/code)
 2. Follow the installation instructions for your platform
@@ -46,7 +46,7 @@ To use River with Claude Code (for execution or plan generation with `--cc`), yo
 
 ### Pre-built Binaries
 
-Download pre-built binaries from the [Releases](https://github.com/[username]/river/releases) page for your platform:
+Download pre-built binaries from the [Releases](https://github.com/[username]/alpine/releases) page for your platform:
 - Linux (amd64, arm64)
 - macOS (amd64, arm64)
 - Windows (amd64)
@@ -55,30 +55,30 @@ Download pre-built binaries from the [Releases](https://github.com/[username]/ri
 
 ### Basic Usage
 
-Run River with a task description:
+Run Alpine with a task description:
 ```bash
-river "Implement user authentication with JWT tokens"
+alpine "Implement user authentication with JWT tokens"
 ```
 
 ### Skip Planning Phase
 
 Execute directly without generating a plan using the `--no-plan` flag:
 ```bash
-river "Fix the bug in payment processing" --no-plan
+alpine "Fix the bug in payment processing" --no-plan
 ```
 
 ### Continue from Existing State
 
 Continue from where you left off using the `--continue` flag:
 ```bash
-river --continue
+alpine --continue
 ```
 
 ### Read Task from File
 
 For complex task descriptions, you can provide them via a file:
 ```bash
-river --file task.md
+alpine --file task.md
 ```
 
 The file should contain the complete task description in plain text or Markdown format.
@@ -86,17 +86,17 @@ The file should contain the complete task description in plain text or Markdown 
 ### Command Options
 
 ```
-river [flags] <task-description>
+alpine [flags] <task-description>
 
 Flags:
       --continue      Continue from existing state (equivalent to --no-plan --no-worktree)
       --file string   Read task description from a file
-  -h, --help          help for river
+  -h, --help          help for alpine
       --no-plan       Skip plan generation and execute directly
       --no-worktree   Disable git worktree creation
   -v, --version       Show version information
 
-river plan [flags] <task>
+alpine plan [flags] <task>
 
 Flags:
       --cc     Use Claude Code instead of Gemini for plan generation
@@ -105,21 +105,21 @@ Flags:
 
 ## Plan Generation
 
-River supports two engines for generating implementation plans:
+Alpine supports two engines for generating implementation plans:
 
 ### Gemini (Default)
-By default, River uses Gemini for plan generation. This requires a Gemini API key:
+By default, Alpine uses Gemini for plan generation. This requires a Gemini API key:
 
 ```bash
 export GEMINI_API_KEY="your-api-key"
-river plan "Add user authentication to the web app"
+alpine plan "Add user authentication to the web app"
 ```
 
 ### Claude Code (Alternative)
 You can use Claude Code for plan generation with the `--cc` flag:
 
 ```bash
-river plan --cc "Add user authentication to the web app"
+alpine plan --cc "Add user authentication to the web app"
 ```
 
 ### Comparison: Gemini vs Claude Code
@@ -139,28 +139,28 @@ river plan --cc "Add user authentication to the web app"
 
 ```bash
 # Generate a plan using Gemini (default)
-river plan "Implement caching layer for API responses"
+alpine plan "Implement caching layer for API responses"
 
 # Generate a plan using Claude Code
-river plan --cc "Implement caching layer for API responses"
+alpine plan --cc "Implement caching layer for API responses"
 
 # Generate a plan from a file description
 echo "Refactor the authentication module to use JWT tokens" > task.md
-river plan --file task.md
+alpine plan --file task.md
 
 # Use Claude Code with file input
-river plan --cc --file task.md
+alpine plan --cc --file task.md
 
 # Generate a plan from a GitHub issue
-river plan gh-issue https://github.com/owner/repo/issues/123
+alpine plan gh-issue https://github.com/owner/repo/issues/123
 
 # Use Claude Code to generate a plan from a GitHub issue
-river plan --cc gh-issue https://github.com/owner/repo/issues/123
+alpine plan --cc gh-issue https://github.com/owner/repo/issues/123
 ```
 
 ### GitHub Issue Integration
 
-The `river plan gh-issue` subcommand allows you to generate implementation plans directly from GitHub issues. This feature uses the GitHub CLI (`gh`) to fetch issue details and generate a comprehensive plan.
+The `alpine plan gh-issue` subcommand allows you to generate implementation plans directly from GitHub issues. This feature uses the GitHub CLI (`gh`) to fetch issue details and generate a comprehensive plan.
 
 **Requirements:**
 - The `gh` CLI must be installed and authenticated
@@ -169,10 +169,10 @@ The `river plan gh-issue` subcommand allows you to generate implementation plans
 **Usage:**
 ```bash
 # Basic usage with Gemini
-river plan gh-issue <github-issue-url>
+alpine plan gh-issue <github-issue-url>
 
 # Use Claude Code for plan generation
-river plan --cc gh-issue <github-issue-url>
+alpine plan --cc gh-issue <github-issue-url>
 ```
 
 The command will:
@@ -182,27 +182,27 @@ The command will:
 
 ## Configuration
 
-River uses environment variables for configuration:
+Alpine uses environment variables for configuration:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `RIVER_WORK_DIR` | Working directory for execution | Current directory |
-| `RIVER_VERBOSITY` | Logging level (debug, verbose, normal) | normal |
-| `RIVER_SHOW_OUTPUT` | Show Claude output (true/false) | true |
-| `RIVER_AUTO_CLEANUP` | Auto-cleanup state file on completion | true |
-| `RIVER_SHOW_TOOL_UPDATES` | Display real-time tool usage logs | true |
+| `ALPINE_WORK_DIR` | Working directory for execution | Current directory |
+| `ALPINE_VERBOSITY` | Logging level (debug, verbose, normal) | normal |
+| `ALPINE_SHOW_OUTPUT` | Show Claude output (true/false) | true |
+| `ALPINE_AUTO_CLEANUP` | Auto-cleanup state file on completion | true |
+| `ALPINE_SHOW_TOOL_UPDATES` | Display real-time tool usage logs | true |
 
 Example configuration:
 ```bash
-export RIVER_VERBOSITY=debug
-export RIVER_SHOW_OUTPUT=true
-export RIVER_AUTO_CLEANUP=false
-river "Implement caching layer"
+export ALPINE_VERBOSITY=debug
+export ALPINE_SHOW_OUTPUT=true
+export ALPINE_AUTO_CLEANUP=false
+alpine "Implement caching layer"
 ```
 
 ## How It Works
 
-1. **Task Input**: River accepts a task description from the command line or file
+1. **Task Input**: Alpine accepts a task description from the command line or file
 2. **Planning Phase** (optional): Generates an execution plan using Claude Code's `/make_plan` command
 3. **Execution**: Runs Claude Code iteratively based on the state file (`claude_state.json`)
 4. **State Management**: Monitors progress through a JSON state file
@@ -210,7 +210,7 @@ river "Implement caching layer"
 
 ### State File Format
 
-River uses a JSON state file to track workflow progress:
+Alpine uses a JSON state file to track workflow progress:
 
 ```json
 {
@@ -230,12 +230,12 @@ Status values:
 
 - **Colored Output**: Terminal colors for better readability (respects `NO_COLOR` environment variable)
 - **Progress Indicators**: Animated spinner with elapsed time during long operations
-- **Debug Logging**: Detailed logs with timestamps when `RIVER_VERBOSITY=debug`
+- **Debug Logging**: Detailed logs with timestamps when `ALPINE_VERBOSITY=debug`
 - **Real-time Tool Logging**: Live feed showing the last 3-4 tool operations performed by the agent
   - Sticky header displays the current primary task
   - Scrolling log shows recent tool usage (Read, Edit, Write, etc.)
   - Non-intrusive display that updates without flickering
-  - Can be disabled by setting `RIVER_SHOW_TOOL_UPDATES=false`
+  - Can be disabled by setting `ALPINE_SHOW_TOOL_UPDATES=false`
 
 ### Workflow Automation
 
@@ -284,8 +284,8 @@ go fmt ./...
 ### Project Structure
 
 ```
-river/
-├── cmd/river/          # Main application entry point
+alpine/
+├── cmd/alpine/          # Main application entry point
 ├── internal/           # Internal packages
 │   ├── cli/           # CLI command handling
 │   ├── claude/        # Claude Code integration
@@ -326,7 +326,7 @@ Solution: Install Claude Code CLI following the instructions in the Prerequisite
 ### Common Issues
 
 **State file conflicts**
-- River uses `claude_state.json` to track progress
+- Alpine uses `claude_state.json` to track progress
 - If you see unexpected behavior, try removing this file and restarting
 ```bash
 rm claude_state.json
@@ -350,4 +350,4 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 ## Support
 
-For issues and feature requests, please use the [GitHub Issues](https://github.com/[username]/river/issues) page.
+For issues and feature requests, please use the [GitHub Issues](https://github.com/[username]/alpine/issues) page.

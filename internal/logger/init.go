@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"github.com/maxmcd/river/internal/config"
+	"github.com/maxmcd/alpine/internal/config"
 )
 
 // InitializeFromConfig sets up the global logger based on the configuration

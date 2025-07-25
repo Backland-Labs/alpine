@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/gitx"
+	"github.com/maxmcd/alpine/internal/config"
+	"github.com/maxmcd/alpine/internal/gitx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

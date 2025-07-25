@@ -1,4 +1,4 @@
-module github.com/maxmcd/river
+module github.com/maxmcd/alpine
 
 go 1.24.5
 

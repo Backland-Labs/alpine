@@ -3,12 +3,12 @@
 # Default target
 all: build
 
-# Build the River binary
+# Build the Alpine binary
 build:
-	@echo "Building River..."
+	@echo "Building Alpine..."
 	@mkdir -p build
-	@go build -o build/river cmd/river/main.go
-	@echo "Build complete: ./build/river"
+	@go build -o build/alpine cmd/alpine/main.go
+	@echo "Build complete: ./build/alpine"
 
 # Run all tests (unit + integration)
 test: test-unit test-integration
@@ -26,7 +26,7 @@ test-integration:
 # Run integration tests with real services
 test-integration-full:
 	@echo "Running full integration tests (requires claude command)..."
-	@RIVER_INTEGRATION_TESTS=true CLAUDE_INTEGRATION_TEST=true go test ./test/integration/... -v
+	@ALPINE_INTEGRATION_TESTS=true CLAUDE_INTEGRATION_TEST=true go test ./test/integration/... -v
 
 # Run end-to-end tests (requires git)
 test-e2e:
@@ -53,8 +53,8 @@ clean:
 
 # Install the binary to GOPATH/bin
 install: build
-	@echo "Installing River to GOPATH/bin..."
-	@go install ./cmd/river
+	@echo "Installing Alpine to GOPATH/bin..."
+	@go install ./cmd/alpine
 	@echo "Installation complete"
 
 # Run linter
@@ -85,8 +85,8 @@ test-integration-claude:
 
 # Development helpers
 run: build
-	@echo "Running River..."
-	@./build/river
+	@echo "Running Alpine..."
+	@./build/alpine
 
 # Watch for changes and rebuild (requires entr)
 watch:
@@ -104,10 +104,10 @@ validate-workflows:
 
 # Help target
 help:
-	@echo "River - CLI orchestrator for Claude Code"
+	@echo "Alpine - CLI orchestrator for Claude Code"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make build              - Build the River binary to ./build/"
+	@echo "  make build              - Build the Alpine binary to ./build/"
 	@echo "  make test               - Run all tests (unit + integration)"
 	@echo "  make test-unit          - Run unit tests only (fast)"
 	@echo "  make test-integration   - Run integration tests"
@@ -115,10 +115,10 @@ help:
 	@echo "  make test-all           - Run all tests including e2e"
 	@echo "  make test-coverage      - Run tests with coverage report"
 	@echo "  make clean              - Remove build artifacts"
-	@echo "  make install            - Install River to GOPATH/bin"
+	@echo "  make install            - Install Alpine to GOPATH/bin"
 	@echo "  make lint               - Run golangci-lint"
 	@echo "  make fmt                - Format code with go fmt"
-	@echo "  make run                - Build and run River"
+	@echo "  make run                - Build and run Alpine"
 	@echo "  make watch              - Watch for changes and rebuild"
 	@echo "  make validate-workflows - Validate GitHub Actions workflows"
 	@echo ""
@@ -129,4 +129,4 @@ help:
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  CLAUDE_INTEGRATION_TEST=true - Enable real Claude command tests"
-	@echo "  RIVER_INTEGRATION_TESTS=true - Enable all integration tests"
+	@echo "  ALPINE_INTEGRATION_TESTS=true - Enable all integration tests"

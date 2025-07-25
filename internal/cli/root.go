@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/maxmcd/river/internal/output"
+	"github.com/maxmcd/alpine/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -37,19 +37,19 @@ func NewRootCommand() *cobra.Command {
 	var continueFlag bool
 
 	cmd := &cobra.Command{
-		Use:   "river <task-description>",
-		Short: "River - CLI orchestrator for Claude Code",
-		Long: `River - CLI orchestrator for Claude Code
+		Use:   "alpine <task-description>",
+		Short: "Alpine - CLI orchestrator for Claude Code",
+		Long: `Alpine - CLI orchestrator for Claude Code
 
-River automates iterative AI-assisted development workflows by running
+Alpine automates iterative AI-assisted development workflows by running
 Claude Code in a loop based on a state-driven workflow with your task description.
 
 Examples:
-  river "Implement user authentication"
-  river "Fix bug in payment processing" --no-plan
-  river --file task.md
-  river --continue                            # Continue from existing state
-  river --no-plan --no-worktree              # Bare execution mode`,
+  alpine "Implement user authentication"
+  alpine "Fix bug in payment processing" --no-plan
+  alpine --file task.md
+  alpine --continue                            # Continue from existing state
+  alpine --no-plan --no-worktree              # Bare execution mode`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if showVersion {
 				return nil
@@ -77,7 +77,7 @@ Examples:
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if showVersion {
-				_, err := fmt.Fprintln(cmd.OutOrStdout(), "river version "+version)
+				_, err := fmt.Fprintln(cmd.OutOrStdout(), "alpine version "+version)
 				return err
 			}
 			// Delegate to run workflow

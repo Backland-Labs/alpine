@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/gitx"
+	"github.com/maxmcd/alpine/internal/config"
+	"github.com/maxmcd/alpine/internal/gitx"
 	"github.com/stretchr/testify/assert"
 )
 

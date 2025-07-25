@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// StartupTimeMeasurer measures the startup time of River
+// StartupTimeMeasurer measures the startup time of Alpine
 type StartupTimeMeasurer struct {
 	binaryPath       string
 	pythonScriptPath string
@@ -17,12 +17,12 @@ type StartupTimeMeasurer struct {
 // NewStartupTimeMeasurer creates a new startup time measurer
 func NewStartupTimeMeasurer() *StartupTimeMeasurer {
 	return &StartupTimeMeasurer{
-		binaryPath:       "river",
+		binaryPath:       "alpine",
 		pythonScriptPath: "main.py",
 	}
 }
 
-// MeasureStartupTime measures the startup time of the Go River binary
+// MeasureStartupTime measures the startup time of the Go Alpine binary
 func (m *StartupTimeMeasurer) MeasureStartupTime() (time.Duration, error) {
 	// First, build the binary if needed
 	binaryPath, err := m.ensureBinaryExists()
@@ -90,7 +90,7 @@ print("startup time:", time.time() - start)
 	return duration, nil
 }
 
-// ensureBinaryExists builds the River binary if it doesn't exist
+// ensureBinaryExists builds the Alpine binary if it doesn't exist
 func (m *StartupTimeMeasurer) ensureBinaryExists() (string, error) {
 	// Check if binary exists in current directory
 	if _, err := exec.LookPath(m.binaryPath); err == nil {
@@ -110,7 +110,7 @@ func (m *StartupTimeMeasurer) ensureBinaryExists() (string, error) {
 	}
 
 	// Build the binary from the project root
-	buildCmd := exec.Command("go", "build", "-o", absPath, "./cmd/river")
+	buildCmd := exec.Command("go", "build", "-o", absPath, "./cmd/alpine")
 	buildCmd.Dir = projectRoot
 	if output, err := buildCmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("failed to build binary: %w\nOutput: %s", err, output)

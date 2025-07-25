@@ -68,7 +68,7 @@ func TestCreateWorktree_basic(t *testing.T) {
 	}
 
 	// Verify worktree properties
-	expectedBranch := "river/implement-feature-x"
+	expectedBranch := "alpine/implement-feature-x"
 	if wt.Branch != expectedBranch {
 		t.Errorf("Branch = %q, want %q", wt.Branch, expectedBranch)
 	}
@@ -175,7 +175,7 @@ func TestBranchNameCollisionProducesUniqueNames(t *testing.T) {
 	}
 
 	// Verify second branch has a suffix
-	expectedPrefix := "river/duplicate-task"
+	expectedPrefix := "alpine/duplicate-task"
 	if !strings.HasPrefix(wt2.Branch, expectedPrefix) {
 		t.Errorf("Second branch should have prefix %q, got %q", expectedPrefix, wt2.Branch)
 	}

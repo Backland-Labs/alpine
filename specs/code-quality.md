@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the code quality standards and linting requirements for the River project. All code must pass these checks before being considered production-ready.
+This document defines the code quality standards and linting requirements for the Alpine project. All code must pass these checks before being considered production-ready.
 
 ## Linting Tools
 

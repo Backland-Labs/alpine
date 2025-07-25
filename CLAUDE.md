@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-River is a CLI orchestrator for Claude Code that automates iterative AI-assisted development workflows. It accepts task descriptions and runs Claude Code in a loop based on a state-driven workflow.
+Alpine is a CLI orchestrator for Claude Code that automates iterative AI-assisted development workflows. It accepts task descriptions and runs Claude Code in a loop based on a state-driven workflow.
 
 Current state: Go implementation complete (v0.2.0). Linear dependency removed.
 
 ## Architecture
 
 The project follows a state-driven architecture where:
-1. River accepts a task description (command line or file)
+1. Alpine accepts a task description (command line or file)
 2. Optionally generates a plan using `/make_plan`
 3. Executes Claude Code iteratively based on `claude_state.json`
 4. Continues until status is "completed"
@@ -27,7 +27,7 @@ The project follows a state-driven architecture where:
 
 ### Directory Isolation
 
-When worktrees are enabled (default behavior), River ensures complete isolation:
+When worktrees are enabled (default behavior), Alpine ensures complete isolation:
 - Claude commands execute in the worktree directory
 - State files (`claude_state.json`) are created in the worktree
 - All file operations are confined to the worktree
@@ -37,7 +37,7 @@ When worktrees are enabled (default behavior), River ensures complete isolation:
 
 Key specifications are located in the `specs/` directory:
 - [architecture.md](specs/architecture.md): Single binary Go application, standard project layout
-- [cli-commands.md](specs/cli-commands.md): Simple CLI with `river <task-description>` and `--no-plan` flag
+- [cli-commands.md](specs/cli-commands.md): Simple CLI with `alpine <task-description>` and `--no-plan` flag
 - [state-management.md](specs/state-management.md): JSON state file format and transitions
 - [error-handling.md](specs/error-handling.md): Go error handling patterns
 - [configuration.md](specs/configuration.md): Environment variable configuration
@@ -51,7 +51,7 @@ Key specifications are located in the `specs/` directory:
 ### Go Build
 ```bash
 # Build the binary
-go build -o river cmd/river/main.go
+go build -o alpine cmd/alpine/main.go
 
 # Run tests
 go test ./...
@@ -63,35 +63,35 @@ go fmt ./...
 golangci-lint run
 ```
 
-### Running River
+### Running Alpine
 ```bash
 # Run with task description
-./river "Implement user authentication"
+./alpine "Implement user authentication"
 
 # Run without plan generation
-./river "Fix bug in payment processing" --no-plan
+./alpine "Fix bug in payment processing" --no-plan
 
 # Run with task from file
-./river --file task.md
+./alpine --file task.md
 
 # Bare execution mode - continue from existing state or start fresh
-./river --no-plan --no-worktree
+./alpine --no-plan --no-worktree
 
 # Generate plan from GitHub issue
-./river plan gh-issue https://github.com/owner/repo/issues/123
+./alpine plan gh-issue https://github.com/owner/repo/issues/123
 
 # Generate plan from GitHub issue using Claude Code
-./river plan --cc gh-issue https://github.com/owner/repo/issues/123
+./alpine plan --cc gh-issue https://github.com/owner/repo/issues/123
 ```
 
 ## How to Check Your Work
 
-River is a critical automation tool, so verifying changes is essential. Use these methods to ensure your work is correct:
+Alpine is a critical automation tool, so verifying changes is essential. Use these methods to ensure your work is correct:
 
 ### 1. Compilation Checks
 ```bash
 # Verify the code compiles
-go build -o river cmd/river/main.go
+go build -o alpine cmd/alpine/main.go
 
 # Check for compilation errors in all packages
 go build ./...
@@ -144,32 +144,32 @@ gosec ./...
 ### 4. Integration Testing
 ```bash
 # Build and test basic execution
-go build -o river cmd/river/main.go && ./river --help
+go build -o alpine cmd/alpine/main.go && ./alpine --help
 
 # Test plan generation (requires GEMINI_API_KEY)
-./river plan "Add error handling to file operations"
+./alpine plan "Add error handling to file operations"
 
 # Test gh-issue plan generation (requires gh CLI and authentication)
-./river plan gh-issue https://github.com/owner/repo/issues/1
+./alpine plan gh-issue https://github.com/owner/repo/issues/1
 
 # Test worktree creation
-./river "Add a test function" --no-plan
+./alpine "Add a test function" --no-plan
 
 # Verify state file creation
-./river "Simple task" && cat claude_state.json
+./alpine "Simple task" && cat claude_state.json
 
 # Test task file input
 echo "Implement logging improvements" > task.md
-./river --file task.md
+./alpine --file task.md
 ```
 
 ### 5. State Management Verification
 ```bash
 # Check state file is valid JSON
-./river "Test task" --no-plan && jq . claude_state.json
+./alpine "Test task" --no-plan && jq . claude_state.json
 
 # Verify state transitions
-./river "Multi-step task" && grep -E '"status":\s*"(running|completed)"' claude_state.json
+./alpine "Multi-step task" && grep -E '"status":\s*"(running|completed)"' claude_state.json
 
 # Monitor state changes in real-time
 watch -n 1 'jq . claude_state.json 2>/dev/null || echo "No state file yet"'
@@ -178,44 +178,44 @@ watch -n 1 'jq . claude_state.json 2>/dev/null || echo "No state file yet"'
 ### 6. Worktree Isolation Verification
 ```bash
 # Verify worktree is created
-./river "Test worktree" && git worktree list
+./alpine "Test worktree" && git worktree list
 
 # Check files are isolated to worktree
 find .git/worktrees -name "claude_state.json"
 
 # Verify main repo is unchanged
-git status  # Should show no changes after River execution
+git status  # Should show no changes after Alpine execution
 
 # Test cleanup behavior
-RIVER_GIT_AUTO_CLEANUP=false ./river "Test cleanup" && git worktree list
+ALPINE_GIT_AUTO_CLEANUP=false ./alpine "Test cleanup" && git worktree list
 ```
 
 ### 7. Logging and Debug Verification
 ```bash
 # Test debug logging
-RIVER_LOG_LEVEL=debug ./river "Debug test" 2>&1 | grep -E "(DEBUG|Set Claude working directory)"
+ALPINE_LOG_LEVEL=debug ./alpine "Debug test" 2>&1 | grep -E "(DEBUG|Set Claude working directory)"
 
 # Verify error handling
-./river ""  # Should show proper error for empty task
+./alpine ""  # Should show proper error for empty task
 
 # Check log output format
-./river "Log test" 2>&1 | grep -E "(INFO|ERROR|WARN)"
+./alpine "Log test" 2>&1 | grep -E "(INFO|ERROR|WARN)"
 ```
 
 ### 8. End-to-End Workflow Testing
 ```bash
 # Full workflow with plan
-./river "Implement a simple calculator function"
+./alpine "Implement a simple calculator function"
 # Verify: plan.md created, worktree created, claude_state.json exists
 
 # Bare mode workflow
-./river --no-plan --no-worktree "Add comments to main.go"
+./alpine --no-plan --no-worktree "Add comments to main.go"
 # Verify: No worktree created, operates in current directory
 
 # Error recovery test
-# Interrupt River (Ctrl+C) and restart
-./river "Long running task" # Ctrl+C after start
-./river --no-plan --no-worktree # Should continue from state
+# Interrupt Alpine (Ctrl+C) and restart
+./alpine "Long running task" # Ctrl+C after start
+./alpine --no-plan --no-worktree # Should continue from state
 ```
 
 ### 9. Performance and Resource Checks
@@ -224,7 +224,7 @@ RIVER_LOG_LEVEL=debug ./river "Debug test" 2>&1 | grep -E "(DEBUG|Set Claude wor
 go test -bench=. -benchmem ./...
 
 # Check binary size
-go build -o river cmd/river/main.go && ls -lh river
+go build -o alpine cmd/alpine/main.go && ls -lh alpine
 
 # Verify no goroutine leaks
 go test -race ./...
@@ -238,10 +238,10 @@ go fmt ./...
 go vet ./...
 go test ./...
 golangci-lint run
-go build -o river cmd/river/main.go
+go build -o alpine cmd/alpine/main.go
 
 # Quick smoke test
-./river --help && echo "CLI works!"
+./alpine --help && echo "CLI works!"
 ```
 
 ### Automated Verification Script
@@ -256,7 +256,7 @@ echo "✓ Formatting code..."
 go fmt ./...
 
 echo "✓ Building binary..."
-go build -o river cmd/river/main.go
+go build -o alpine cmd/alpine/main.go
 
 echo "✓ Running tests..."
 go test ./...
@@ -268,7 +268,7 @@ echo "✓ Checking vet..."
 go vet ./...
 
 echo "✓ Verifying CLI..."
-./river --help > /dev/null
+./alpine --help > /dev/null
 
 echo "✅ All checks passed!"
 ```
@@ -276,10 +276,10 @@ echo "✅ All checks passed!"
 ### Quick Verification Commands
 ```bash
 # One-liner for quick check
-go fmt ./... && go test ./... && go build -o river cmd/river/main.go
+go fmt ./... && go test ./... && go build -o alpine cmd/alpine/main.go
 
 # With linting
-go fmt ./... && golangci-lint run && go test ./... && go build -o river cmd/river/main.go
+go fmt ./... && golangci-lint run && go test ./... && go build -o alpine cmd/alpine/main.go
 ```
 
 ## Key Implementation Notes
@@ -294,31 +294,31 @@ go fmt ./... && golangci-lint run && go test ./... && go build -o river cmd/rive
 
 ## Worktree Directory Isolation
 
-River uses Git worktrees to provide isolated environments for Claude Code execution:
+Alpine uses Git worktrees to provide isolated environments for Claude Code execution:
 
-1. **Automatic Directory Context**: When River creates a worktree, all Claude commands automatically execute within that worktree directory, not the original repository.
+1. **Automatic Directory Context**: When Alpine creates a worktree, all Claude commands automatically execute within that worktree directory, not the original repository.
 
 2. **Complete Isolation**: File operations, state management, and all Claude interactions are confined to the worktree, preventing unintended changes to the main repository.
 
-3. **Working Directory Inheritance**: River ensures Claude inherits the correct working directory through proper `cmd.Dir` configuration in the executor.
+3. **Working Directory Inheritance**: Alpine ensures Claude inherits the correct working directory through proper `cmd.Dir` configuration in the executor.
 
-4. **Fallback Behavior**: If working directory detection fails, River logs a warning and allows Claude to use its default directory behavior.
+4. **Fallback Behavior**: If working directory detection fails, Alpine logs a warning and allows Claude to use its default directory behavior.
 
 ### Worktree Usage
 ```bash
 # Default behavior - creates an isolated worktree
-./river "Implement new feature"
+./alpine "Implement new feature"
 
 # Disable worktree isolation (work in current directory)
-./river "Fix bug" --no-worktree
+./alpine "Fix bug" --no-worktree
 
 # Control worktree cleanup
-export RIVER_GIT_AUTO_CLEANUP=false  # Preserve worktrees after completion
+export ALPINE_GIT_AUTO_CLEANUP=false  # Preserve worktrees after completion
 ```
 
 ## Workflow Integration
 
-River integrates with:
+Alpine integrates with:
 - **Claude Code**: Executes with restricted tools and custom system prompt
 - **Slash Commands**: `/make_plan` for planning, `/run_implementation_loop` for direct execution, `/verify_plan` to verify @plan.md is implemented fully
 - **Task Input**: Direct task descriptions or file input (no external API dependencies)
@@ -333,25 +333,25 @@ River integrates with:
 
 **Problem**: Claude commands not executing in the expected directory
 - **Symptom**: Files created in wrong location, state file in main repo instead of worktree
-- **Solution**: Ensure you're using River v0.2.1+ which includes the working directory fix
-- **Debug**: Check River logs for "Set Claude working directory" messages
+- **Solution**: Ensure you're using Alpine v0.2.1+ which includes the working directory fix
+- **Debug**: Check Alpine logs for "Set Claude working directory" messages
 
 **Problem**: "Failed to get working directory" warnings
 - **Symptom**: Warning logs about working directory detection failure
 - **Cause**: Permission issues or invalid current directory
-- **Solution**: River will continue with default behavior; ensure you have proper permissions
+- **Solution**: Alpine will continue with default behavior; ensure you have proper permissions
 
 **Problem**: Worktree not being used despite default settings
 - **Check**: Verify Git is installed and repository is initialized
 - **Check**: Ensure `--no-worktree` flag is not set
-- **Check**: Confirm `RIVER_GIT_AUTO_WORKTREE` is not set to "false"
+- **Check**: Confirm `ALPINE_GIT_AUTO_WORKTREE` is not set to "false"
 
 ### Debug Logging
 
 Enable debug logging to trace directory operations:
 ```bash
-export RIVER_LOG_LEVEL=debug
-./river "Your task"
+export ALPINE_LOG_LEVEL=debug
+./alpine "Your task"
 ```
 
 Look for these log entries:

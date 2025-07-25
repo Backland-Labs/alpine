@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/alpine/internal/core"
 )
 
 // CreateTestState creates a test state file with the given status
@@ -67,7 +67,7 @@ func SetupTestEnvironment(t *testing.T) func() {
 	}
 
 	// Set test-specific environment variables
-	_ = os.Setenv("RIVER_TEST_MODE", "true")
+	_ = os.Setenv("ALPINE_TEST_MODE", "true")
 
 	// Return cleanup function
 	return func() {

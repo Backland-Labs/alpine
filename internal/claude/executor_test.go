@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/output"
+	"github.com/maxmcd/alpine/internal/config"
+	"github.com/maxmcd/alpine/internal/output"
 )
 
 func TestNewExecutor(t *testing.T) {
@@ -598,7 +598,7 @@ func TestExecutor_ValidatesWorkingDirectory(t *testing.T) {
 		}
 
 		// Create a temporary directory and then remove it to simulate non-existent directory
-		tempDir := "/tmp/test-river-validation-" + strings.ReplaceAll(t.Name(), "/", "-")
+		tempDir := "/tmp/test-alpine-validation-" + strings.ReplaceAll(t.Name(), "/", "-")
 		err := os.Mkdir(tempDir, 0755)
 		if err != nil {
 			t.Fatal(err)
@@ -640,7 +640,7 @@ func TestExecutor_ValidatesWorkingDirectory(t *testing.T) {
 		}
 
 		// Create a directory with no read permissions
-		tempDir := "/tmp/test-river-noperm-" + strings.ReplaceAll(t.Name(), "/", "-")
+		tempDir := "/tmp/test-alpine-noperm-" + strings.ReplaceAll(t.Name(), "/", "-")
 		err := os.Mkdir(tempDir, 0000)
 		if err != nil {
 			t.Fatal(err)
@@ -676,7 +676,7 @@ func TestExecutor_ValidatesWorkingDirectory(t *testing.T) {
 		}
 
 		// Create a valid temporary directory
-		tempDir, err := os.MkdirTemp("", "test-river-valid-")
+		tempDir, err := os.MkdirTemp("", "test-alpine-valid-")
 		if err != nil {
 			t.Fatal(err)
 		}

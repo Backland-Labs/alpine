@@ -42,10 +42,10 @@ func TestShowTodoUpdatesConfiguration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.envVar != "" {
-				_ = os.Setenv("RIVER_SHOW_TODO_UPDATES", tt.envVar)
-				defer func() { _ = os.Unsetenv("RIVER_SHOW_TODO_UPDATES") }()
+				_ = os.Setenv("ALPINE_SHOW_TODO_UPDATES", tt.envVar)
+				defer func() { _ = os.Unsetenv("ALPINE_SHOW_TODO_UPDATES") }()
 			} else {
-				_ = os.Unsetenv("RIVER_SHOW_TODO_UPDATES")
+				_ = os.Unsetenv("ALPINE_SHOW_TODO_UPDATES")
 			}
 
 			cfg, err := New()

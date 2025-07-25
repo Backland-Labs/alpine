@@ -3,52 +3,52 @@
 ## Usage
 
 ```
-river [flags] <task-description>
-river [flags] --file <file-path>
-river plan [flags] <task-description>
-river plan [flags] gh-issue <github-issue-url>
-river --help
-river --version
+alpine [flags] <task-description>
+alpine [flags] --file <file-path>
+alpine plan [flags] <task-description>
+alpine plan [flags] gh-issue <github-issue-url>
+alpine --help
+alpine --version
 ```
 
 ## Examples
 
 ```bash
 # Run workflow with task description (with planning)
-river "Implement user authentication"
+alpine "Implement user authentication"
 
 # Skip planning phase
-river --no-plan "Fix bug in payment processing"
+alpine --no-plan "Fix bug in payment processing"
 
 # Read task from file
-river --file task.md
+alpine --file task.md
 
 # Generate plan using Gemini (default)
-river plan "Implement caching layer"
+alpine plan "Implement caching layer"
 
 # Generate plan using Claude Code
-river plan --cc "Implement caching layer"
+alpine plan --cc "Implement caching layer"
 
 # Show help
-river --help
+alpine --help
 
 # Show version
-river --version
+alpine --version
 ```
 
 ## Flags
 
-### river command
+### alpine command
 - `--no-plan` - Skip plan generation and execute `/run_implementation_loop` directly
 - `--file <path>` - Read task description from a file
 - `--help` - Show help message
 - `--version` - Show version information
 
-### river plan command
+### alpine plan command
 - `--cc` - Use Claude Code instead of Gemini for plan generation
 - `--help` - Show help message
 
-### river plan gh-issue subcommand
+### alpine plan gh-issue subcommand
 - Accepts a GitHub issue URL as the sole argument
 - Inherits `--cc` flag from parent `plan` command
 - `--help` - Show help message
@@ -69,7 +69,7 @@ river --version
 4. Updates `claude_state.json` after each step
 5. Continues until status is "completed"
 
-### river plan command
+### alpine plan command
 1. Accepts task description from command line
 2. By default, uses Gemini CLI for plan generation (requires GEMINI_API_KEY)
 3. With `--cc` flag, uses Claude Code for plan generation
@@ -81,7 +81,7 @@ river --version
    - 5-minute timeout
    - Planning-specific system prompt
 
-### river plan gh-issue subcommand
+### alpine plan gh-issue subcommand
 1. Accepts a GitHub issue URL as the sole argument
 2. Uses `gh issue view <url> --json title,body` to fetch issue data
 3. Requires `gh` CLI to be installed and authenticated

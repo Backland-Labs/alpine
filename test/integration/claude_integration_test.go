@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/maxmcd/river/internal/claude"
-	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/alpine/internal/claude"
+	"github.com/maxmcd/alpine/internal/core"
 )
 
 // TestClaudeCommandExecution tests the Claude command execution with various configurations

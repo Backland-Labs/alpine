@@ -4,11 +4,11 @@ import (
 	"context"
 	"os"
 
-	"github.com/maxmcd/river/internal/claude"
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/gitx"
-	"github.com/maxmcd/river/internal/output"
-	"github.com/maxmcd/river/internal/workflow"
+	"github.com/maxmcd/alpine/internal/claude"
+	"github.com/maxmcd/alpine/internal/config"
+	"github.com/maxmcd/alpine/internal/gitx"
+	"github.com/maxmcd/alpine/internal/output"
+	"github.com/maxmcd/alpine/internal/workflow"
 )
 
 // ConfigLoader interface for dependency injection in tests

@@ -19,8 +19,8 @@ import (
 // mockExecCommand is used to mock exec.Command in tests
 var mockExecCommand = exec.Command
 
-// Test helper function that wraps SpawnRiverProcesses for testing
-func spawnRiverProcesses(ctx context.Context, pairs []PathTaskPair, output *bytes.Buffer) error {
+// Test helper function that wraps SpawnAlpineProcesses for testing
+func spawnAlpineProcesses(ctx context.Context, pairs []PathTaskPair, output *bytes.Buffer) error {
 	// For testing, we need to intercept the output and respect context cancellation
 	// This version runs processes in parallel to match the real implementation
 
@@ -42,7 +42,7 @@ func spawnRiverProcesses(ctx context.Context, pairs []PathTaskPair, output *byte
 				return
 			default:
 				// Use mockExecCommand instead of exec.Command
-				cmd := mockExecCommand("river", p.Task)
+				cmd := mockExecCommand("alpine", p.Task)
 
 				// Extract project name and create prefix writers
 				projectName := ExtractProjectName(p.Path)
@@ -55,11 +55,11 @@ func spawnRiverProcesses(ctx context.Context, pairs []PathTaskPair, output *byte
 				cmd.Stderr = prefixWriter
 
 				// For testing, write what directory we would run in
-				fmt.Fprintf(prefixWriter, "Running in: %s\n", p.Path)
+				_, _ = fmt.Fprintf(prefixWriter, "Running in: %s\n", p.Path)
 
 				// Start the command
 				if err := cmd.Start(); err != nil {
-					errChan <- fmt.Errorf("failed to run River in %s: %w", p.Path, err)
+					errChan <- fmt.Errorf("failed to run Alpine in %s: %w", p.Path, err)
 					return
 				}
 
@@ -87,7 +87,7 @@ func spawnRiverProcesses(ctx context.Context, pairs []PathTaskPair, output *byte
 					mu.Unlock()
 
 					if err != nil {
-						errChan <- fmt.Errorf("failed to run River in %s: %w", p.Path, err)
+						errChan <- fmt.Errorf("failed to run Alpine in %s: %w", p.Path, err)
 					}
 				}
 			}
@@ -155,7 +155,7 @@ func TestMultiCommand(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				// Create a root command and add multi as subcommand
-				rootCmd := &cobra.Command{Use: "river"}
+				rootCmd := &cobra.Command{Use: "alpine"}
 				multiCmd := NewMultiCommand()
 				rootCmd.AddCommand(multiCmd)
 
@@ -172,7 +172,7 @@ func TestMultiCommand(t *testing.T) {
 						assert.Contains(t, err.Error(), tt.errorMsg)
 					}
 				} else {
-					// For valid args, it will try to execute river which doesn't exist
+					// For valid args, it will try to execute alpine which doesn't exist
 					// so we expect an error, but not the validation error
 					if err != nil {
 						assert.NotContains(t, err.Error(), "requires pairs")
@@ -244,9 +244,9 @@ func TestMultiCommand(t *testing.T) {
 		}
 	})
 
-	t.Run("SpawnRiverProcesses", func(t *testing.T) {
-		// Create a test helper script that we'll use instead of river
-		helperScript := filepath.Join(t.TempDir(), "test-river")
+	t.Run("SpawnAlpineProcesses", func(t *testing.T) {
+		// Create a test helper script that we'll use instead of alpine
+		helperScript := filepath.Join(t.TempDir(), "test-alpine")
 		helperContent := `#!/bin/bash
 echo "Task: $1"
 sleep 0.1
@@ -257,8 +257,8 @@ exit 0
 
 		// Mock exec.Command to use our helper script
 		mockExecCommand = func(name string, args ...string) *exec.Cmd {
-			// Verify it's trying to run river
-			assert.Equal(t, "river", name)
+			// Verify it's trying to run alpine
+			assert.Equal(t, "alpine", name)
 			// Replace with our helper script
 			return exec.Command(helperScript, args...)
 		}
@@ -271,7 +271,7 @@ exit 0
 		var output bytes.Buffer
 		ctx := context.Background()
 
-		err = spawnRiverProcesses(ctx, pairs, &output)
+		err = spawnAlpineProcesses(ctx, pairs, &output)
 		assert.NoError(t, err)
 
 		// Verify output contains expected content with prefixes
@@ -284,7 +284,7 @@ exit 0
 
 	t.Run("ProcessTimeout", func(t *testing.T) {
 		// Create a helper that sleeps forever
-		helperScript := filepath.Join(t.TempDir(), "test-river-timeout")
+		helperScript := filepath.Join(t.TempDir(), "test-alpine-timeout")
 		helperContent := `#!/bin/bash
 echo "Starting long task"
 sleep 10
@@ -304,7 +304,7 @@ sleep 10
 		defer cancel()
 
 		var output bytes.Buffer
-		err = spawnRiverProcesses(ctx, pairs, &output)
+		err = spawnAlpineProcesses(ctx, pairs, &output)
 
 		// Should timeout
 		assert.Error(t, err)
@@ -313,7 +313,7 @@ sleep 10
 
 	t.Run("ProcessError", func(t *testing.T) {
 		// Create a helper that exits with error
-		helperScript := filepath.Join(t.TempDir(), "test-river-error")
+		helperScript := filepath.Join(t.TempDir(), "test-alpine-error")
 		helperContent := `#!/bin/bash
 echo "Error: Something went wrong"
 exit 1
@@ -330,7 +330,7 @@ exit 1
 		}
 
 		var output bytes.Buffer
-		err = spawnRiverProcesses(context.Background(), pairs, &output)
+		err = spawnAlpineProcesses(context.Background(), pairs, &output)
 
 		// Should report the error with prefix
 		assert.Error(t, err)
@@ -339,7 +339,7 @@ exit 1
 
 	t.Run("MultipleProcessesParallel", func(t *testing.T) {
 		// Create a helper that logs timestamps
-		helperScript := filepath.Join(t.TempDir(), "test-river-parallel")
+		helperScript := filepath.Join(t.TempDir(), "test-alpine-parallel")
 		helperContent := `#!/bin/bash
 echo "[$1] Started at: $(date +%s.%N)"
 sleep 0.1
@@ -374,7 +374,7 @@ echo "[$1] Finished at: $(date +%s.%N)"
 
 		var output bytes.Buffer
 		start := time.Now()
-		err = spawnRiverProcesses(context.Background(), pairs, &output)
+		err = spawnAlpineProcesses(context.Background(), pairs, &output)
 		duration := time.Since(start)
 
 		assert.NoError(t, err)
@@ -392,7 +392,7 @@ echo "[$1] Finished at: $(date +%s.%N)"
 
 	t.Run("PrefixedOutput", func(t *testing.T) {
 		// Create a helper script that outputs multiple lines
-		helperScript := filepath.Join(t.TempDir(), "test-river-prefix")
+		helperScript := filepath.Join(t.TempDir(), "test-alpine-prefix")
 		helperContent := `#!/bin/bash
 echo "Line 1 for task: $1"
 echo "Line 2 for task: $1"
@@ -412,7 +412,7 @@ echo "Line 3 for task: $1"
 		}
 
 		var output bytes.Buffer
-		err = spawnRiverProcesses(context.Background(), pairs, &output)
+		err = spawnAlpineProcesses(context.Background(), pairs, &output)
 		assert.NoError(t, err)
 
 		// Verify all lines are properly prefixed
@@ -444,7 +444,7 @@ echo "Line 3 for task: $1"
 
 	t.Run("ColorCycling", func(t *testing.T) {
 		// Test that colors cycle through for multiple projects
-		helperScript := filepath.Join(t.TempDir(), "test-river-colors")
+		helperScript := filepath.Join(t.TempDir(), "test-alpine-colors")
 		helperContent := `#!/bin/bash
 echo "Output for $1"
 `
@@ -493,11 +493,11 @@ func TestMultiCommand_ExecuteWithMockStop(t *testing.T) {
 		mockExecCommand = exec.Command
 	})
 
-	// Create a helper script that simulates river behavior and can be stopped
-	helperScript := filepath.Join(t.TempDir(), "test-river-stop")
+	// Create a helper script that simulates alpine behavior and can be stopped
+	helperScript := filepath.Join(t.TempDir(), "test-alpine-stop")
 	helperContent := `#!/bin/bash
-# Simulate river starting and running
-echo "Starting River agent for task: $1"
+# Simulate alpine starting and running
+echo "Starting Alpine agent for task: $1"
 echo "Running in directory: $PWD"
 
 # Force flush of output
@@ -516,8 +516,8 @@ exit 0
 
 	// Mock exec.Command to use our helper script
 	mockExecCommand = func(name string, args ...string) *exec.Cmd {
-		// Verify it's trying to run river
-		assert.Equal(t, "river", name)
+		// Verify it's trying to run alpine
+		assert.Equal(t, "alpine", name)
 		// Replace with our helper script
 		return exec.Command(helperScript, args...)
 	}
@@ -538,7 +538,7 @@ exit 0
 			},
 			wantError: false,
 			expectOutput: []string{
-				"Starting River agent for task: implement feature",
+				"Starting Alpine agent for task: implement feature",
 				"Task completed successfully",
 			},
 		},
@@ -550,8 +550,8 @@ exit 0
 			},
 			wantError: false,
 			expectOutput: []string{
-				"Starting River agent for task: upgrade dependencies",
-				"Starting River agent for task: add logging",
+				"Starting Alpine agent for task: upgrade dependencies",
+				"Starting Alpine agent for task: add logging",
 				"Task completed successfully",
 			},
 		},
@@ -564,7 +564,7 @@ exit 0
 			cancelDelay:   50 * time.Millisecond,
 			wantError:     true,
 			expectOutput: []string{
-				"Starting River agent for task: long running task",
+				"Starting Alpine agent for task: long running task",
 			},
 		},
 	}
@@ -589,7 +589,7 @@ exit 0
 			defer cancel()
 
 			// Run the test
-			err := spawnRiverProcesses(ctx, tt.pairs, &output)
+			err := spawnAlpineProcesses(ctx, tt.pairs, &output)
 
 			// Check error expectation
 			if tt.wantError {
@@ -615,13 +615,13 @@ exit 0
 	}
 
 	t.Run("execute method integration", func(t *testing.T) {
-		// Check if river is in PATH - if not, skip this test
-		if _, err := exec.LookPath("river"); err != nil {
-			t.Skip("river binary not in PATH, skipping integration test")
+		// Check if alpine is in PATH - if not, skip this test
+		if _, err := exec.LookPath("alpine"); err != nil {
+			t.Skip("alpine binary not in PATH, skipping integration test")
 		}
 
-		// This test would actually run river, which we don't want in unit tests
+		// This test would actually run alpine, which we don't want in unit tests
 		// The functionality is already tested through the other tests
-		t.Skip("Skipping actual river execution in unit tests")
+		t.Skip("Skipping actual alpine execution in unit tests")
 	})
 }

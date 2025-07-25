@@ -2,47 +2,47 @@
 
 ## Overview
 
-This specification defines how River integrates with Claude Code hooks to provide enhanced workflow control, validation, and monitoring capabilities during AI-assisted development sessions.
+This specification defines how Alpine integrates with Claude Code hooks to provide enhanced workflow control, validation, and monitoring capabilities during AI-assisted development sessions.
 
 ## Background
 
-Claude Code hooks are configurable scripts that intercept and modify Claude Code's behavior at specific events. River can leverage these hooks to:
-- Validate tool usage within River workflows
-- Add contextual information about River's state
-- Monitor and log River-orchestrated Claude sessions
+Claude Code hooks are configurable scripts that intercept and modify Claude Code's behavior at specific events. Alpine can leverage these hooks to:
+- Validate tool usage within Alpine workflows
+- Add contextual information about Alpine's state
+- Monitor and log Alpine-orchestrated Claude sessions
 - Implement custom permissions and safety checks
 
 ## Hook Event Types
 
 ### 1. PreToolUse
 - **Trigger**: Before Claude executes any tool
-- **River Use Case**: Validate tools are appropriate for current workflow step
+- **Alpine Use Case**: Validate tools are appropriate for current workflow step
 - **Input**: Tool name, arguments, current state context
 
 ### 2. PostToolUse
 - **Trigger**: After tool execution completes
-- **River Use Case**: Update River state based on tool results, log progress
+- **Alpine Use Case**: Update Alpine state based on tool results, log progress
 - **Input**: Tool name, arguments, execution results, exit status
 
 ### 3. UserPromptSubmit
 - **Trigger**: When prompts are submitted to Claude
-- **River Use Case**: Inject River state context, modify prompts for workflow alignment
-- **Input**: Original prompt, current River state
+- **Alpine Use Case**: Inject Alpine state context, modify prompts for workflow alignment
+- **Input**: Original prompt, current Alpine state
 
 ### 4. Notification
 - **Trigger**: During system notifications
-- **River Use Case**: React to Claude status changes, workflow transitions
+- **Alpine Use Case**: React to Claude status changes, workflow transitions
 - **Input**: Notification type, message content
 
 ### 5. Stop/SubagentStop
 - **Trigger**: When Claude responses complete
-- **River Use Case**: Determine if workflow should continue or pause
+- **Alpine Use Case**: Determine if workflow should continue or pause
 - **Input**: Response completion status, generated content
 
 ## Claude Code Hooks Core Functionality
 
 ### Hook Implementation Language
-River hooks are implemented in **Rust** using `rust-script` for executable scripts. This provides:
+Alpine hooks are implemented in **Rust** using `rust-script` for executable scripts. This provides:
 - Fast JSON parsing with `serde_json`
 - Type-safe error handling
 - Native performance
@@ -69,7 +69,7 @@ fn main() -> io::Result<()> {
     let data: Value = serde_json::from_str(&input).unwrap_or_default();
     let tool = data["tool"].as_str().unwrap_or("");
     
-    let current_step = env::var("RIVER_CURRENT_STEP").unwrap_or_default();
+    let current_step = env::var("ALPINE_CURRENT_STEP").unwrap_or_default();
     
     if current_step == "planning" && tool == "Bash" {
         eprintln!("Bash execution blocked during planning phase");
@@ -111,10 +111,10 @@ fn main() -> io::Result<()> {
     let mut original_prompt = String::new();
     io::stdin().read_to_string(&mut original_prompt)?;
     
-    let current_step = env::var("RIVER_CURRENT_STEP").unwrap_or_default();
-    let status = env::var("RIVER_STATUS").unwrap_or_default();
+    let current_step = env::var("ALPINE_CURRENT_STEP").unwrap_or_default();
+    let status = env::var("ALPINE_STATUS").unwrap_or_default();
     
-    println!("{}\n\nCurrent River State: {}\nStatus: {}", 
+    println!("{}\n\nCurrent Alpine State: {}\nStatus: {}", 
              original_prompt.trim(), current_step, status);
     
     Ok(())
@@ -129,12 +129,12 @@ Claude Code hooks are configured through Claude's settings files, which follow a
 
 1. **Global User Settings**: `~/.claude/settings.json`
    - Applied to all Claude Code sessions for the user
-   - Suitable for general River integration hooks
+   - Suitable for general Alpine integration hooks
 
 2. **Project Settings**: `.claude/settings.json`
    - Project-specific hooks configuration
    - Committed to version control for team sharing
-   - Ideal for River workflow-specific hooks
+   - Ideal for Alpine workflow-specific hooks
 
 3. **Local Project Settings**: `.claude/settings.local.json`
    - Local overrides not committed to version control
@@ -145,7 +145,7 @@ Claude Code hooks are configured through Claude's settings files, which follow a
 
 Hook scripts referenced in configuration should be stored in:
 
-- **Built-in River Hooks**: Embedded in River binary or distributed alongside
+- **Built-in Alpine Hooks**: Embedded in Alpine binary or distributed alongside
 - **Project Hooks**: `./claude/hooks/` directory (relative to project root)
 - **User Hooks**: `~/.claude/hooks/` directory for user-global scripts
 - **Custom Paths**: Absolute paths specified in hook configuration
@@ -161,7 +161,7 @@ Hook scripts referenced in configuration should be stored in:
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/river-validate-tool.rs"
+            "command": "~/.claude/hooks/alpine-validate-tool.rs"
           }
         ]
       }
@@ -172,12 +172,12 @@ Hook scripts referenced in configuration should be stored in:
 
 ## Configuration Structure
 
-River should support hooks configuration through:
+Alpine should support hooks configuration through:
 
 ### Environment Variables
 ```bash
-export RIVER_HOOKS_CONFIG_PATH="/path/to/hooks.json"
-export RIVER_HOOKS_ENABLED="true"
+export ALPINE_HOOKS_CONFIG_PATH="/path/to/hooks.json"
+export ALPINE_HOOKS_ENABLED="true"
 ```
 
 ### Configuration File Format
@@ -190,7 +190,7 @@ export RIVER_HOOKS_ENABLED="true"
         "hooks": [
           {
             "type": "command",
-            "command": "river-validate-tool.rs"
+            "command": "alpine-validate-tool.rs"
           }
         ]
       }
@@ -201,7 +201,7 @@ export RIVER_HOOKS_ENABLED="true"
         "hooks": [
           {
             "type": "command", 
-            "command": "river-inject-context.rs"
+            "command": "alpine-inject-context.rs"
           }
         ]
       }
@@ -210,20 +210,20 @@ export RIVER_HOOKS_ENABLED="true"
 }
 ```
 
-## River-Specific Hook Scripts
+## Alpine-Specific Hook Scripts
 
 ### Tool Validation Hook
 **Purpose**: Ensure tools align with current workflow step
-**Script**: `river-validate-tool.rs`
+**Script**: `alpine-validate-tool.rs`
 **Behavior**:
-- Read current River state from `claude_state.json`
+- Read current Alpine state from `claude_state.json`
 - Validate tool usage against workflow requirements
 - Block inappropriate tools (exit code 2)
 - Allow appropriate tools (exit code 0)
 
 ### Context Injection Hook
-**Purpose**: Add River state to Claude prompts
-**Script**: `river-inject-context.rs`
+**Purpose**: Add Alpine state to Claude prompts
+**Script**: `alpine-inject-context.rs`
 **Behavior**:
 - Read current step description and status
 - Append relevant context to user prompts
@@ -231,7 +231,7 @@ export RIVER_HOOKS_ENABLED="true"
 
 ### Progress Monitoring Hook
 **Purpose**: Track and log workflow progress
-**Script**: `river-monitor-progress.rs`
+**Script**: `alpine-monitor-progress.rs`
 **Behavior**:
 - Log tool usage patterns
 - Update external monitoring systems
@@ -245,7 +245,7 @@ export RIVER_HOOKS_ENABLED="true"
 - Show tool-specific information (file paths, commands, search patterns)
 - Track TodoWrite updates with task counts (Completed/In Progress/Pending)
 - Display current in-progress task
-- Write current task to file specified by `RIVER_TODO_FILE` environment variable
+- Write current task to file specified by `ALPINE_TODO_FILE` environment variable
 - Support both Claude Code PostToolUse format (`tool_name`/`tool_input`) and legacy format (`tool`/`args`)
 
 **Example Output**:
@@ -363,24 +363,24 @@ fn main() -> io::Result<()> {
 Hooks can trigger workflow transitions by:
 - Modifying `claude_state.json` directly
 - Setting environment variables for next iteration
-- Creating trigger files for River to detect
+- Creating trigger files for Alpine to detect
 
 ## Integration Points
 
 ### 1. Hook Configuration Management
-River should:
+Alpine should:
 - Generate appropriate hooks configuration based on workflow type
-- Merge user-defined hooks with River defaults
+- Merge user-defined hooks with Alpine defaults
 - Validate hook script availability and permissions
 
 ### 2. State Context Sharing
-River should:
+Alpine should:
 - Expose current state via environment variables for hook scripts
 - Provide state file path to hooks
 - Ensure hooks have read access to workflow state
 
 ### 3. Hook Script Distribution
-River should:
+Alpine should:
 - Include default hook scripts in distribution
 - Support custom hook script directories
 - Provide hook script templates and examples
@@ -395,7 +395,7 @@ River should:
    - Generate Claude Code settings with hooks enabled
 
 2. **State Context Provider**
-   - Export River state for hook consumption
+   - Export Alpine state for hook consumption
    - Provide environment variables for hook scripts
    - Ensure secure state access patterns
 
@@ -406,7 +406,7 @@ River should:
 
 ### Configuration Integration
 
-River should modify Claude Code settings to include hooks:
+Alpine should modify Claude Code settings to include hooks:
 
 ```go
 func (e *Executor) configureHooks() error {
@@ -425,9 +425,9 @@ func (e *Executor) configureHooks() error {
 
 ```go
 func (e *Executor) exportStateForHooks() {
-    os.Setenv("RIVER_CURRENT_STEP", e.state.CurrentStepDescription)
-    os.Setenv("RIVER_STATUS", e.state.Status)
-    // State file location is fixed at .claude/river/claude_state.json
+    os.Setenv("ALPINE_CURRENT_STEP", e.state.CurrentStepDescription)
+    os.Setenv("ALPINE_STATUS", e.state.Status)
+    // State file location is fixed at .claude/alpine/claude_state.json
 }
 ```
 
