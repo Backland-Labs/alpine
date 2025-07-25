@@ -11,120 +11,88 @@ This guide covers common issues and their solutions when using Alpine.
 **Solution**:
 1. Ensure Claude Code CLI is installed: https://docs.anthropic.com/en/docs/claude-code
 2. Verify installation: `claude --version`
-3. Check PATH includes Claude installation directory
-4. On macOS/Linux: `export PATH="$PATH:/path/to/claude"`
+3. Check PATH includes Claude installation directory.
 
 ### State File Conflicts
 
-**Symptom**: "State file is locked" or unexpected workflow behavior
+**Symptom**: "State file is locked" or unexpected workflow behavior.
 
 **Solution**:
 1. Check if another Alpine instance is running: `ps aux | grep alpine`
-2. Remove stale state file if needed: `rm -rf agent_state/`
-3. State file location is now fixed at `agent_state/agent_state.json` to avoid conflicts
+2. If no other instance is running, you can safely remove the state directory: `rm -rf agent_state/`
+3. The state file is located at `agent_state/agent_state.json`. For more details, see the [System Design](system-design.md#4-state-management) specification.
 
 ### Task Not Progressing
 
-**Symptom**: Alpine seems stuck, state file not updating
+**Symptom**: Alpine seems stuck, state file not updating.
 
 **Possible Causes & Solutions**:
-
-1. **Claude Code is waiting for input**
-   - Check if Claude is prompting for confirmation
-   - Run with `ALPINE_SHOW_OUTPUT=true` to see Claude's output
-
-2. **State file permissions**
-   - Check file permissions: `ls -la agent_state/agent_state.json`
-   - Ensure write permissions: `chmod 644 agent_state/agent_state.json`
-
-3. **Slash commands not working**
-   - Verify Claude Code supports required slash commands
-   - Check Claude Code version is up to date
+1. **Claude Code is waiting for input**: Check if Claude is prompting for confirmation. Run with `ALPINE_SHOW_OUTPUT=true` to see Claude's output. See [Configuration](system-design.md#3-configuration) for more output options.
+2. **State file permissions**: Check file permissions: `ls -la agent_state/agent_state.json`.
+3. **Slash commands not working**: Verify your Claude Code version is up to date and supports the required slash commands.
 
 ### Color Output Issues
 
-**Symptom**: Seeing escape codes like `\033[32m` instead of colors
+**Symptom**: Seeing escape codes like `\033[32m` instead of colors.
 
 **Solution**:
-1. Check terminal supports colors: `echo $TERM`
-2. For Windows: Use Windows Terminal or enable ANSI colors
-3. Disable colors if needed: `export NO_COLOR=1`
-4. Force color output: `export FORCE_COLOR=1`
+1. Check if your terminal supports colors (`echo $TERM`).
+2. For Windows, use Windows Terminal or a terminal that supports ANSI escape codes.
+3. You can disable colors with `export NO_COLOR=1` or force them with `export FORCE_COLOR=1`.
 
 ### Performance Issues
 
-**Symptom**: Alpine runs slowly or uses excessive resources
+**Symptom**: Alpine runs slowly or uses excessive resources.
 
 **Solutions**:
-1. **Check disk space**: Ensure sufficient space for state file operations
-2. **Reduce verbosity**: Use `ALPINE_VERBOSITY=normal` (not debug)
-3. **Monitor Claude execution**: Claude Code operations may be slow
-4. **Use --no-plan**: Skip planning phase for simple tasks
+1. **Check disk space**: Ensure sufficient space for worktree and state file operations.
+2. **Reduce verbosity**: Use `ALPINE_VERBOSITY=normal`. Debug mode can be slow.
+3. **Use --no-plan**: Skip the planning phase for simple tasks. See [CLI Commands](cli-commands.md).
 
 ### File Input Problems
 
-**Symptom**: Error reading task file with `--file` flag
+**Symptom**: Error reading task file with `--file` flag.
 
 **Common Issues**:
-1. **File not found**: Use absolute paths or check working directory
-2. **Empty file**: Ensure file contains task description
-3. **Encoding issues**: Save file as UTF-8
-4. **Permissions**: Check file is readable
-
-Example fix:
-```bash
-# Use absolute path
-alpine --file /home/user/tasks/my-task.md
-
-# Check file content
-cat my-task.md
-
-# Fix permissions
-chmod 644 my-task.md
-```
+1. **File not found**: Use absolute paths or ensure the file is in the current working directory.
+2. **Permissions**: Check that the file is readable (`chmod 644 my-task.md`).
+3. For more details, see the [CLI Commands](cli-commands.md) specification.
 
 ### Environment Variable Issues
 
-**Symptom**: Configuration not being applied
+**Symptom**: Configuration is not being applied as expected.
 
 **Debugging Steps**:
-1. Verify environment variables are set:
-   ```bash
-   env | grep RIVER
-   ```
+1. Verify environment variables are set and exported correctly: `env | grep ALPINE`
+2. Check for typos in variable names (e.g., `ALPINE_WORKDIR`).
+3. For a full list of variables, see the [Configuration](system-design.md#3-configuration) section in the system design spec.
 
-2. Check for typos in variable names:
-   - ✅ `ALPINE_WORK_DIR`
-   - ❌ `ALPINE_WORKDIR`
+Example:
+```bash
+# Correct: exports the variable to the current shell session
+export ALPINE_VERBOSITY=debug
 
-3. Export variables properly:
-   ```bash
-   # Correct
-   export ALPINE_VERBOSITY=debug
-   
-   # Incorrect (not exported)
-   ALPINE_VERBOSITY=debug
-   ```
+# Incorrect: only sets the variable for the next command
+ALPINE_VERBOSITY=debug alpine "My task"
+```
 
 ### Signal Handling Issues
 
-**Symptom**: Can't interrupt Alpine with Ctrl+C
+**Symptom**: Can't interrupt Alpine with Ctrl+C.
 
 **Solution**:
-1. Try Ctrl+C multiple times (handled gracefully)
-2. As last resort: `kill -9 $(pgrep alpine)`
-3. Clean up state file after force kill
+1. Alpine is designed to handle `Ctrl+C` gracefully by saving state and exiting. Try it a couple of times.
+2. As a last resort, you may need to kill the process: `kill -9 $(pgrep alpine)`.
+3. You may need to clean up the `agent_state/` directory after a force kill.
 
 ### Debug Mode
 
-For detailed troubleshooting, enable debug mode:
+For detailed troubleshooting, enable debug mode. This will create a log file for analysis.
 ```bash
 export ALPINE_VERBOSITY=debug
 export ALPINE_SHOW_OUTPUT=true
 alpine "Your task" 2>&1 | tee alpine-debug.log
 ```
-
-This creates a log file for analysis.
 
 ## Platform-Specific Issues
 
@@ -156,7 +124,7 @@ This creates a log file for analysis.
 
 **Issue**: Path issues
 - Use forward slashes or escaped backslashes in paths
-- Example: `C:/Users/Name/task.md` or `C:\\Users\\Name\\task.md`
+- Example: `C:/Users/Name/task.md` or `C:\Users\Name\task.md`
 
 ## Getting Help
 
@@ -166,14 +134,14 @@ When reporting issues, include:
 1. Alpine version: `alpine --version`
 2. OS and architecture: `uname -a` (Unix) or `systeminfo` (Windows)
 3. Claude Code version: `claude --version`
-4. Environment variables: `env | grep RIVER`
+4. Relevant environment variables: `env | grep ALPINE`
 5. Debug log (see Debug Mode section)
 
 ### Support Channels
 
 1. **GitHub Issues**: https://github.com/[username]/alpine/issues
-2. **Debug Logs**: Run with `ALPINE_VERBOSITY=debug` and attach output
-3. **State File**: Include `agent_state/agent_state.json` content if relevant
+2. **Debug Logs**: Run with `ALPINE_VERBOSITY=debug` and attach output.
+3. **State File**: Include `agent_state/agent_state.json` content if relevant.
 
 ### Quick Fixes Checklist
 
