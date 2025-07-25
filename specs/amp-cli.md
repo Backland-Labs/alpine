@@ -35,7 +35,7 @@ Task: Implement user authentication with JWT tokens
 Please:
 1. Create the authentication middleware
 2. Add JWT token generation and validation
-3. Update the state file (claude_state.json) when done
+3. Update the state file (agent_state.json) when done
 
 Set status to "completed" in the state file when finished.
 `
@@ -88,7 +88,7 @@ func (a *AmpExecutor) Execute(taskPrompt string) error {
     fullPrompt := fmt.Sprintf(`
 Task: %s
 
-Update claude_state.json after each significant step.
+Update agent_state.json after each significant step.
 Set status to "completed" when done, or "running" with next steps.
 `, taskPrompt)
     

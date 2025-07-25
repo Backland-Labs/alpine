@@ -119,7 +119,7 @@ func New() (*Config, error) {
 	cfg.ShowToolUpdates = showToolUpdates
 
 	// StateFile is always at a fixed location
-	cfg.StateFile = filepath.Join(".claude", "alpine", "claude_state.json")
+	cfg.StateFile = filepath.Join("agent_state", "agent_state.json")
 
 	// Load AutoCleanup - defaults to true
 	autoCleanup, err := parseBoolEnv("ALPINE_AUTO_CLEANUP", true)

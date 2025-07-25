@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### State File Path Mismatch (#16)
 - **Fixed Alpine hanging after task completion** - Alpine now correctly monitors state file updates
-- **Removed ALPINE_STATE_FILE environment variable** - State file location is now fixed at `.claude/alpine/claude_state.json`
+- **Removed ALPINE_STATE_FILE environment variable** - State file location is now fixed at `agent_state/agent_state.json`
 - **Resolved path mismatch** between Alpine's monitoring location and Claude's write location
 - **Updated all tests and documentation** to reflect the fixed state file path
 
@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Configuration
 - **Added ShowTodoUpdates option** - New configuration field with environment variable support
-- **Updated state file location** - Changed default location to `.claude/alpine/claude_state.json`
+- **Updated state file location** - Changed default location to `agent_state/agent_state.json`
 
 #### Claude Executor
 - **Enhanced Execute method** - Now supports TODO monitoring mode alongside traditional spinner
@@ -66,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Bare Execution Mode
 - **Bare execution mode** allowing `alpine --no-plan --no-worktree` without task description
-- **Automatic state continuation** from existing `claude_state.json` when present
+- **Automatic state continuation** from existing `agent_state.json` when present
 - **Fresh workflow initialization** with `/run_implementation_loop` command when no state exists
 - **Advanced flag validation** requiring both `--no-plan` and `--no-worktree` flags
 

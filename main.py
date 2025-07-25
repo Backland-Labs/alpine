@@ -39,15 +39,15 @@ def run_claude_code(prompt):
 
 def check_state():
     try:
-        with open('claude_state.json', 'r') as f:
+        with open('agent_state/agent_state.json', 'r') as f:
             state = json.load(f)
         return state
     except (FileNotFoundError, json.JSONDecodeError):
         return None
 
 # Run initial command
-# 1. First read claude_state.json
-# 2. parse claude_state.json to get the next step prompt if not none
+# 1. First read agent_state/agent_state.json
+# 2. parse agent_state/agent_state.json to get the next step prompt if not none
 # 3. then run prompt with run_claude_code
 linear_issue = input("Enter the initial prompt for Claude Code: ")
 NEED_PLAN = input("Do you need a plan? (True/False): ").strip().lower() == 'true'

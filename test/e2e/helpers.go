@@ -232,8 +232,9 @@ func MockClaudeScript(t *testing.T, responses []MockResponse) string {
 # Get the prompt from command line
 PROMPT="$@"
 
-# Use ALPINE_STATE_FILE if set, otherwise default to claude_state.json
-STATE_FILE="${ALPINE_STATE_FILE:-claude_state.json}"
+# Use ALPINE_STATE_FILE if set, otherwise default to agent_state/agent_state.json
+mkdir -p agent_state
+STATE_FILE="${ALPINE_STATE_FILE:-agent_state/agent_state.json}"
 
 # Write state based on prompt
 case "$PROMPT" in

@@ -43,7 +43,7 @@ func TestNewConfig(t *testing.T) {
 		t.Error("ShowOutput = false, want true")
 	}
 
-	expectedStateFile := filepath.Join(".claude", "alpine", "claude_state.json")
+	expectedStateFile := filepath.Join("agent_state", "agent_state.json")
 	if cfg.StateFile != expectedStateFile {
 		t.Errorf("StateFile = %q, want %q", cfg.StateFile, expectedStateFile)
 	}
@@ -122,7 +122,7 @@ func TestConfigFromEnvironment(t *testing.T) {
 		t.Error("ShowOutput = true, want false")
 	}
 
-	expectedStateFile := filepath.Join(".claude", "alpine", "claude_state.json")
+	expectedStateFile := filepath.Join("agent_state", "agent_state.json")
 	if cfg.StateFile != expectedStateFile {
 		t.Errorf("StateFile = %q, want %q", cfg.StateFile, expectedStateFile)
 	}
@@ -411,7 +411,7 @@ func TestStateFileIsFixed(t *testing.T) {
 	}
 
 	// State file should always be at the fixed location
-	expectedStateFile := filepath.Join(".claude", "alpine", "claude_state.json")
+	expectedStateFile := filepath.Join("agent_state", "agent_state.json")
 	if cfg.StateFile != expectedStateFile {
 		t.Errorf("StateFile = %q, want %q (should ignore ALPINE_STATE_FILE env var)", cfg.StateFile, expectedStateFile)
 	}

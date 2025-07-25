@@ -22,7 +22,10 @@ func TestClaudeCommandExecution(t *testing.T) {
 
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Test various Claude execution scenarios
 	testCases := []struct {
@@ -130,7 +133,10 @@ func TestClaudeStateFileMonitoring(t *testing.T) {
 
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create initial state
 	initialState := &core.State{
@@ -138,7 +144,7 @@ func TestClaudeStateFileMonitoring(t *testing.T) {
 		NextStepPrompt:         "/monitor-test Start monitoring",
 		Status:                 "running",
 	}
-	err := initialState.Save(stateFile)
+	err = initialState.Save(stateFile)
 	require.NoError(t, err)
 
 	// Track state changes
@@ -195,7 +201,10 @@ func TestClaudeExecutionWithRealCommand(t *testing.T) {
 	executor := claude.NewExecutor()
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create a simple test state
 	initialState := &core.State{
@@ -203,7 +212,7 @@ func TestClaudeExecutionWithRealCommand(t *testing.T) {
 		NextStepPrompt:         "echo 'Hello from Claude integration test'",
 		Status:                 "running",
 	}
-	err := initialState.Save(stateFile)
+	err = initialState.Save(stateFile)
 	require.NoError(t, err)
 
 	// Execute a simple command
@@ -256,7 +265,12 @@ func TestClaudeErrorScenarios(t *testing.T) {
 		{
 			name: "Context cancellation during execution",
 			setup: func() (claude.ExecuteConfig, *MockClaudeExecutor) {
-				stateFile := filepath.Join(tempDir, "cancelled_state.json")
+				stateDir := filepath.Join(tempDir, "agent_state")
+				err := os.MkdirAll(stateDir, 0755)
+				if err != nil {
+					return claude.ExecuteConfig{}, nil
+				}
+				stateFile := filepath.Join(stateDir, "agent_state.json")
 				config := claude.ExecuteConfig{
 					Prompt:    "/test Context cancellation",
 					StateFile: stateFile,

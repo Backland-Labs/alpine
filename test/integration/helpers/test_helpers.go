@@ -15,7 +15,11 @@ import (
 func CreateTestState(t *testing.T, dir string, status string) string {
 	t.Helper()
 
-	stateFile := filepath.Join(dir, "claude_state.json")
+	stateDir := filepath.Join(dir, "agent_state")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 	state := &core.State{
 		CurrentStepDescription: "Test state",
 		NextStepPrompt:         "/test",

@@ -36,7 +36,8 @@ if len(sys.argv) > 1 and sys.argv[1] == "ISSUE-123":
         "next_step_prompt": "/run_implementation_loop",
         "status": "running"
     }
-    with open("claude_state.json", "w") as f:
+    os.makedirs("agent_state", exist_ok=True)
+    with open("agent_state/agent_state.json", "w") as f:
         json.dump(state, f, indent=2)
     
     print("Task completed successfully")
@@ -73,7 +74,8 @@ if len(sys.argv) > 1 and sys.argv[1] == "ISSUE-456":
         "next_step_prompt": "/verify_plan",
         "status": "completed"
     }
-    with open("claude_state.json", "w") as f:
+    os.makedirs("agent_state", exist_ok=True)
+    with open("agent_state/agent_state.json", "w") as f:
         json.dump(state, f, indent=2)
     
     print("Python: Task completed")

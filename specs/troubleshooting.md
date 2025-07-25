@@ -20,8 +20,8 @@ This guide covers common issues and their solutions when using Alpine.
 
 **Solution**:
 1. Check if another Alpine instance is running: `ps aux | grep alpine`
-2. Remove stale state file if needed: `rm -rf .claude/alpine/claude_state.json`
-3. State file location is now fixed at `.claude/alpine/claude_state.json` to avoid conflicts
+2. Remove stale state file if needed: `rm -rf agent_state/`
+3. State file location is now fixed at `agent_state/agent_state.json` to avoid conflicts
 
 ### Task Not Progressing
 
@@ -34,8 +34,8 @@ This guide covers common issues and their solutions when using Alpine.
    - Run with `ALPINE_SHOW_OUTPUT=true` to see Claude's output
 
 2. **State file permissions**
-   - Check file permissions: `ls -la .claude/alpine/claude_state.json`
-   - Ensure write permissions: `chmod 644 .claude/alpine/claude_state.json`
+   - Check file permissions: `ls -la agent_state/agent_state.json`
+   - Ensure write permissions: `chmod 644 agent_state/agent_state.json`
 
 3. **Slash commands not working**
    - Verify Claude Code supports required slash commands
@@ -173,7 +173,7 @@ When reporting issues, include:
 
 1. **GitHub Issues**: https://github.com/[username]/alpine/issues
 2. **Debug Logs**: Run with `ALPINE_VERBOSITY=debug` and attach output
-3. **State File**: Include `.claude/alpine/claude_state.json` content if relevant
+3. **State File**: Include `agent_state/agent_state.json` content if relevant
 
 ### Quick Fixes Checklist
 

@@ -136,7 +136,7 @@ You may deploy up to 5 subagents working in parallel. Effective subagent usage i
 
 ## Progress Tracking and State Management
 
-After completing the feature implementation and committing all changes, create a state tracking file at `.claude/river/claude_state.json`:
+After completing the feature implementation and committing all changes, create a state tracking file at `./agent_state/agent_state.json`:
 
 ```json
 {

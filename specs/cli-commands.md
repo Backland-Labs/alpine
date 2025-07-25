@@ -59,14 +59,14 @@ alpine --version
 1. Accepts task description from command line or file
 2. Generates an execution plan using `/make_plan`
 3. Runs Claude Code iteratively based on state
-4. Updates `claude_state.json` after each step
+4. Updates `agent_state.json` after each step
 5. Continues until status is "completed"
 
 ### With --no-plan
 1. Accepts task description from command line or file
 2. Executes `/run_implementation_loop` command directly
 3. Runs Claude Code iteratively based on state
-4. Updates `claude_state.json` after each step
+4. Updates `agent_state.json` after each step
 5. Continues until status is "completed"
 
 ### alpine plan command

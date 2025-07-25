@@ -40,7 +40,7 @@ Alpine configuration controls runtime behavior and output settings. Configuratio
 ### State File Settings
 
 **State File Location**
-- Fixed at `.claude/alpine/claude_state.json`
+- Fixed at `agent_state/agent_state.json`
 - Directory created automatically when workflow starts
 - No longer configurable via environment variable
 

@@ -2,18 +2,18 @@
 
 ## Overview
 
-Alpine uses a JSON state file (`claude_state.json`) to track workflow progress and enable iteration between Claude Code executions.
+Alpine uses a JSON state file (`agent_state.json`) to track workflow progress and enable iteration between Claude Code executions.
 
 ## State File Location
 
-- Fixed location: `.claude/alpine/claude_state.json` (Claude Code's standard location)
+- Fixed location: `agent_state/agent_state.json`
 - Directory created automatically when workflow starts
 - No longer configurable via environment variable
 
 ### Location Behavior by Mode
 
-- **Worktree Mode (default)**: State file is created in the worktree directory at `.claude/alpine/claude_state.json`
-- **Bare Mode (`--no-worktree`)**: State file is created at `.claude/alpine/claude_state.json` in the current directory
+- **Worktree Mode (default)**: State file is created in the worktree directory at `agent_state/agent_state.json`
+- **Bare Mode (`--no-worktree`)**: State file is created at `agent_state/agent_state.json` in the current directory
 
 ## Schema
 
@@ -53,7 +53,7 @@ Alpine uses a JSON state file (`claude_state.json`) to track workflow progress a
 ### Bare Mode Behavior
 
 When running with `--no-plan --no-worktree`:
-- Uses state file at `.claude/alpine/claude_state.json`
+- Uses state file at `agent_state/agent_state.json`
 - If state file exists: Continue from existing workflow
 - If no state file exists: Initialize new workflow with `/run_implementation_loop`
 

@@ -36,7 +36,7 @@ func testConfig(workTreeEnabled bool) *config.Config {
 		WorkDir:     "",
 		Verbosity:   config.VerbosityNormal,
 		ShowOutput:  false,
-		StateFile:   "claude_state.json",
+		StateFile:   "agent_state/agent_state.json",
 		AutoCleanup: true,
 		Git: config.GitConfig{
 			WorktreeEnabled: workTreeEnabled,
@@ -57,14 +57,17 @@ func TestNewEngine(t *testing.T) {
 	assert.Equal(t, executor, engine.claudeExecutor)
 	assert.Equal(t, wtMgr, engine.wtMgr)
 	assert.Equal(t, cfg, engine.cfg)
-	assert.Equal(t, "claude_state.json", engine.stateFile)
+	assert.Equal(t, "agent_state/agent_state.json", engine.stateFile)
 }
 
 func TestEngine_Run_WithPlan(t *testing.T) {
 	// Test the full workflow with plan generation
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create a test executor that simulates Claude behavior
 	executor := newTestExecutor(t, stateFile)
@@ -96,7 +99,7 @@ func TestEngine_Run_WithPlan(t *testing.T) {
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
 	// Run the workflow
-	err := engine.Run(ctx, "Implement user authentication", true)
+	err = engine.Run(ctx, "Implement user authentication", true)
 	require.NoError(t, err)
 
 	// Verify all executions were performed
@@ -112,7 +115,10 @@ func TestEngine_Run_NoPlan(t *testing.T) {
 	// Test direct execution without plan generation
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create a test executor that simulates Claude behavior
 	executor := newTestExecutor(t, stateFile)
@@ -136,7 +142,7 @@ func TestEngine_Run_NoPlan(t *testing.T) {
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
 	// Run the workflow without plan
-	err := engine.Run(ctx, "Fix bug in payment processing", false)
+	err = engine.Run(ctx, "Fix bug in payment processing", false)
 	require.NoError(t, err)
 
 	// Verify only one execution was performed
@@ -166,7 +172,10 @@ func TestEngine_Run_ContextCancellation(t *testing.T) {
 	// Test that context cancellation stops the workflow
 	ctx, cancel := context.WithCancel(context.Background())
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	executor := newTestExecutor(t, stateFile)
 	executor.executions = []testExecution{
@@ -211,7 +220,10 @@ func TestEngine_Run_StateFileUpdate(t *testing.T) {
 	// Test waiting for state file updates
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create initial state
 	initialState := &core.State{
@@ -219,7 +231,7 @@ func TestEngine_Run_StateFileUpdate(t *testing.T) {
 		NextStepPrompt:         "/start",
 		Status:                 "running",
 	}
-	err := initialState.Save(stateFile)
+	err = initialState.Save(stateFile)
 	require.NoError(t, err)
 
 	// Create a delayed executor that updates state after a delay
@@ -411,7 +423,10 @@ func TestEngineWorktreeDisabled(t *testing.T) {
 	// Test that engine doesn't create worktree when disabled
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create a test executor that marks workflow as completed immediately
 	executor := newTestExecutor(t, stateFile)
@@ -437,7 +452,7 @@ func TestEngineWorktreeDisabled(t *testing.T) {
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
 	// Run workflow
-	err := engine.Run(ctx, "test task", false)
+	err = engine.Run(ctx, "test task", false)
 	require.NoError(t, err)
 
 	// Verify worktree was NOT created
@@ -492,7 +507,8 @@ func TestEngineStateFileInWorktree(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify state file was created in worktree
-	expectedStateFile := filepath.Join(worktreeDir, "claude_state.json")
+	expectedStateDir := filepath.Join(worktreeDir, "agent_state")
+	expectedStateFile := filepath.Join(expectedStateDir, "agent_state.json")
 	assert.FileExists(t, expectedStateFile)
 }
 
@@ -500,7 +516,10 @@ func TestEngine_BareMode_ContinuesExistingState(t *testing.T) {
 	// Test that bare mode continues from existing claude_state.json
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create existing state file
 	existingState := &core.State{
@@ -508,7 +527,7 @@ func TestEngine_BareMode_ContinuesExistingState(t *testing.T) {
 		NextStepPrompt:         "/continue previous task",
 		Status:                 "running",
 	}
-	err := existingState.Save(stateFile)
+	err = existingState.Save(stateFile)
 	require.NoError(t, err)
 
 	// Create test executor that expects continuation
@@ -548,7 +567,10 @@ func TestEngine_BareMode_InitializesWithrun_implementation_loop(t *testing.T) {
 	// Test that bare mode initializes with /run_implementation_loop when no state exists
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create test executor that expects /run_implementation_loop initialization
 	executor := newTestExecutor(t, stateFile)
@@ -578,7 +600,7 @@ func TestEngine_BareMode_InitializesWithrun_implementation_loop(t *testing.T) {
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
 	// Run in bare mode (empty task, no plan, no worktree)
-	err := engine.Run(ctx, "", false)
+	err = engine.Run(ctx, "", false)
 	require.NoError(t, err)
 
 	// Verify both executions happened

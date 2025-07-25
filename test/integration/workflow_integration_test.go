@@ -26,7 +26,10 @@ func TestFullWorkflowWithMockClaude(t *testing.T) {
 
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create mock Claude executor
 	mockExecutor := &MockClaudeExecutor{
@@ -82,7 +85,7 @@ func TestFullWorkflowWithMockClaude(t *testing.T) {
 	engine.SetStateFile(stateFile)
 
 	// Run the workflow
-	err := engine.Run(ctx, "Implement user authentication", true)
+	err = engine.Run(ctx, "Implement user authentication", true)
 	require.NoError(t, err)
 
 	// Verify the workflow completed successfully
@@ -105,7 +108,10 @@ func TestWorkflowWithNoPlanFlag(t *testing.T) {
 
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	mockExecutor := &MockClaudeExecutor{
 		stateFile: stateFile,
@@ -133,7 +139,7 @@ func TestWorkflowWithNoPlanFlag(t *testing.T) {
 	engine.SetStateFile(stateFile)
 
 	// Run with no-plan flag
-	err := engine.Run(ctx, "Fix database connection pooling", false)
+	err = engine.Run(ctx, "Fix database connection pooling", false)
 	require.NoError(t, err)
 
 	// Verify only one execution happened
@@ -149,7 +155,10 @@ func TestWorkflowInterruptHandling(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	mockExecutor := &MockClaudeExecutor{
 		stateFile: stateFile,
@@ -190,7 +199,7 @@ func TestWorkflowInterruptHandling(t *testing.T) {
 	engine.SetStateFile(stateFile)
 
 	// Run should return context canceled error
-	err := engine.Run(ctx, "Long running task", true)
+	err = engine.Run(ctx, "Long running task", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "context canceled")
 
@@ -210,7 +219,10 @@ func TestStateFileCreationAndUpdates(t *testing.T) {
 
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Verify state file doesn't exist initially
 	_, err := os.Stat(stateFile)
@@ -280,7 +292,10 @@ func TestCleanupBehavior(t *testing.T) {
 
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create some temporary files that might be created during workflow
 	tempFiles := []string{
@@ -317,7 +332,7 @@ func TestCleanupBehavior(t *testing.T) {
 	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
 	engine.SetStateFile(stateFile)
 
-	err := engine.Run(ctx, "Test cleanup", false)
+	err = engine.Run(ctx, "Test cleanup", false)
 	require.NoError(t, err)
 
 	// State file should still exist after completion

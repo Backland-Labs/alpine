@@ -216,7 +216,7 @@ export ALPINE_HOOKS_ENABLED="true"
 **Purpose**: Ensure tools align with current workflow step
 **Script**: `alpine-validate-tool.rs`
 **Behavior**:
-- Read current Alpine state from `claude_state.json`
+- Read current Alpine state from `agent_state.json`
 - Validate tool usage against workflow requirements
 - Block inappropriate tools (exit code 2)
 - Allow appropriate tools (exit code 0)
@@ -361,7 +361,7 @@ fn main() -> io::Result<()> {
 
 ### Workflow Step Transitions
 Hooks can trigger workflow transitions by:
-- Modifying `claude_state.json` directly
+- Modifying `agent_state.json` directly
 - Setting environment variables for next iteration
 - Creating trigger files for Alpine to detect
 
@@ -427,7 +427,7 @@ func (e *Executor) configureHooks() error {
 func (e *Executor) exportStateForHooks() {
     os.Setenv("ALPINE_CURRENT_STEP", e.state.CurrentStepDescription)
     os.Setenv("ALPINE_STATUS", e.state.Status)
-    // State file location is fixed at .claude/alpine/claude_state.json
+    // State file location is fixed at agent_state/agent_state.json
 }
 ```
 

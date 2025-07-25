@@ -23,7 +23,12 @@ func TestLongRunningWorkflowPerformance(t *testing.T) {
 
 	// Create a mock workflow that simulates multiple iterations
 	tmpDir := t.TempDir()
-	stateFile := filepath.Join(tmpDir, "claude_state.json")
+	stateDir := filepath.Join(tmpDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create state directory: %v", err)
+	}
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create initial state
 	initialState := &core.State{
@@ -91,7 +96,12 @@ func BenchmarkLongRunningWorkflow(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		tmpDir := b.TempDir()
-		stateFile := filepath.Join(tmpDir, "claude_state.json")
+		stateDir := filepath.Join(tmpDir, "agent_state")
+		err := os.MkdirAll(stateDir, 0755)
+		if err != nil {
+			b.Fatalf("Failed to create state directory: %v", err)
+		}
+		stateFile := filepath.Join(stateDir, "agent_state.json")
 
 		// Create initial state
 		initialState := &core.State{
@@ -179,7 +189,12 @@ func TestWorkflowMemoryStability(t *testing.T) {
 	iterations := 10
 	for i := 0; i < iterations; i++ {
 		tmpDir := t.TempDir()
-		stateFile := filepath.Join(tmpDir, "claude_state.json")
+		stateDir := filepath.Join(tmpDir, "agent_state")
+		err := os.MkdirAll(stateDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create state directory: %v", err)
+		}
+		stateFile := filepath.Join(stateDir, "agent_state.json")
 
 		// Create and run a mini workflow
 		initialState := &core.State{

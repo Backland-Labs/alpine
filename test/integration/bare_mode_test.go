@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -26,7 +27,10 @@ func TestBareMode_StartsWithrun_implementation_loop(t *testing.T) {
 
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create mock Claude executor that expects /run_implementation_loop command
 	mockExecutor := &MockClaudeExecutor{
@@ -64,7 +68,7 @@ func TestBareMode_StartsWithrun_implementation_loop(t *testing.T) {
 	engine.SetStateFile(stateFile)
 
 	// Run with empty task description and no plan generation (bare mode)
-	err := engine.Run(ctx, "", false) // empty task + no plan = bare mode
+	err = engine.Run(ctx, "", false) // empty task + no plan = bare mode
 	require.NoError(t, err)
 
 	// Verify the workflow completed successfully
@@ -79,7 +83,7 @@ func TestBareMode_StartsWithrun_implementation_loop(t *testing.T) {
 }
 
 // TestBareMode_ContinuesExistingState tests that bare mode continues from existing state
-// This test validates that when claude_state.json already exists, bare mode
+// This test validates that when agent_state.json already exists, bare mode
 // continues the existing workflow instead of starting a new one
 func TestBareMode_ContinuesExistingState(t *testing.T) {
 	if testing.Short() {
@@ -88,7 +92,10 @@ func TestBareMode_ContinuesExistingState(t *testing.T) {
 
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create an existing state file
 	existingState := &core.State{
@@ -96,7 +103,7 @@ func TestBareMode_ContinuesExistingState(t *testing.T) {
 		NextStepPrompt:         "/implement remaining-work",
 		Status:                 "running",
 	}
-	err := existingState.Save(stateFile)
+	err = existingState.Save(stateFile)
 	require.NoError(t, err)
 
 	// Create mock executor that expects continuation from existing state
@@ -148,7 +155,10 @@ func TestBareMode_HandlesInterrupt(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create mock executor that cancels context after first execution
 	mockExecutor := &MockClaudeExecutor{
@@ -190,7 +200,7 @@ func TestBareMode_HandlesInterrupt(t *testing.T) {
 	engine.SetStateFile(stateFile)
 
 	// Run in bare mode - should be interrupted
-	err := engine.Run(ctx, "", false)
+	err = engine.Run(ctx, "", false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "context canceled")
 
@@ -214,7 +224,10 @@ func TestBareMode_RequiresBothFlags(t *testing.T) {
 
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	mockExecutor := &MockClaudeExecutor{
 		stateFile:  stateFile,
@@ -232,7 +245,7 @@ func TestBareMode_RequiresBothFlags(t *testing.T) {
 	engine.SetStateFile(stateFile)
 
 	// This should fail because empty task is only allowed in bare mode
-	err := engine.Run(ctx, "", true) // empty task with plan generation = error
+	err = engine.Run(ctx, "", true) // empty task with plan generation = error
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "task description cannot be empty")
 
@@ -250,7 +263,10 @@ func TestBareMode_CompleteWorkflow(t *testing.T) {
 
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// First invocation - starts with /run_implementation_loop
 	mockExecutor1 := &MockClaudeExecutor{
@@ -296,7 +312,7 @@ func TestBareMode_CompleteWorkflow(t *testing.T) {
 	engine1 := workflow.NewEngine(mockExecutor1, mockWtMgr, cfg)
 	engine1.SetStateFile(stateFile)
 
-	err := engine1.Run(ctx, "", false)
+	err = engine1.Run(ctx, "", false)
 	require.NoError(t, err)
 
 	// Verify first run completed successfully
@@ -362,7 +378,10 @@ func TestBareMode_ErrorHandling(t *testing.T) {
 
 	ctx := context.Background()
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create a mock executor that simulates an error after initial execution
 	errorExecutions := []mockExecution{
@@ -395,7 +414,7 @@ func TestBareMode_ErrorHandling(t *testing.T) {
 	engine.SetStateFile(stateFile)
 
 	// Run should fail on second execution
-	err := engine.Run(ctx, "", false)
+	err = engine.Run(ctx, "", false)
 	assert.Error(t, err)
 
 	// State file should exist with the last successful state
@@ -417,7 +436,10 @@ func TestBareMode_StateFilePersistence(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	stateFile := filepath.Join(tempDir, "claude_state.json")
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Create initial state
 	initialState := &core.State{
@@ -425,7 +447,7 @@ func TestBareMode_StateFilePersistence(t *testing.T) {
 		NextStepPrompt:         "/continue",
 		Status:                 "running",
 	}
-	err := initialState.Save(stateFile)
+	err = initialState.Save(stateFile)
 	require.NoError(t, err)
 
 	// Verify file exists

@@ -113,7 +113,8 @@ func TestAlpineCreatesWorktree(t *testing.T) {
 	assert.True(t, foundBranch, "Alpine branch not found")
 	
 	// Verify state file exists in worktree
-	stateFile := filepath.Join(worktreePath, "claude_state.json")
+	stateDir := filepath.Join(worktreePath, "agent_state")
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 	_, err = os.Stat(stateFile)
 	assert.NoError(t, err, "State file should exist in worktree")
 	
@@ -245,7 +246,8 @@ func TestAlpineWorktreeDisabled(t *testing.T) {
 	t.Logf("Files in main repo: %v", fileNames)
 	
 	// Verify state file exists in main repo
-	stateFile := filepath.Join(repo.RootDir, "claude_state.json")
+	stateDir := filepath.Join(repo.RootDir, "agent_state")
+	stateFile := filepath.Join(stateDir, "agent_state.json")
 	_, err = os.Stat(stateFile)
 	assert.NoError(t, err, "State file should exist in main repo")
 }
@@ -273,8 +275,9 @@ func TestAlpineWorktreeIsolation(t *testing.T) {
 	err = os.WriteFile(modifyScript, []byte(fmt.Sprintf(`#!/bin/bash
 # Mock Claude that modifies file and updates state
 
-# Use ALPINE_STATE_FILE if set, otherwise default to claude_state.json
-STATE_FILE="${ALPINE_STATE_FILE:-claude_state.json}"
+# Use ALPINE_STATE_FILE if set, otherwise default to agent_state/agent_state.json
+mkdir -p agent_state
+STATE_FILE="${ALPINE_STATE_FILE:-agent_state/agent_state.json}"
 
 # Find the worktree directory (we're already in it)
 echo "modified content" > %s
@@ -489,8 +492,9 @@ func TestWorktree_ClaudeExecutesInCorrectDirectory(t *testing.T) {
 # Get the prompt from command line
 PROMPT="$@"
 
-# Use ALPINE_STATE_FILE if set, otherwise default to claude_state.json
-STATE_FILE="${ALPINE_STATE_FILE:-claude_state.json}"
+# Use ALPINE_STATE_FILE if set, otherwise default to agent_state/agent_state.json
+mkdir -p agent_state
+STATE_FILE="${ALPINE_STATE_FILE:-agent_state/agent_state.json}"
 
 # Write working directory to a file
 pwd > claude-working-dir.txt
@@ -584,8 +588,9 @@ func TestWorktree_FileOperationsIsolated(t *testing.T) {
 # Get the prompt from command line
 PROMPT="$@"
 
-# Use ALPINE_STATE_FILE if set, otherwise default to claude_state.json
-STATE_FILE="${ALPINE_STATE_FILE:-claude_state.json}"
+# Use ALPINE_STATE_FILE if set, otherwise default to agent_state/agent_state.json
+mkdir -p agent_state
+STATE_FILE="${ALPINE_STATE_FILE:-agent_state/agent_state.json}"
 
 # Write state based on prompt
 case "$PROMPT" in

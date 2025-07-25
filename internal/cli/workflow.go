@@ -15,7 +15,7 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 	// Check for --continue flag first
 	if continueFlag {
 		// Check if state file exists
-		if _, err := deps.FileReader.ReadFile("claude_state.json"); err != nil {
+		if _, err := deps.FileReader.ReadFile("agent_state/agent_state.json"); err != nil {
 			return fmt.Errorf("no existing state file found to continue from")
 		}
 		// Continue mode: empty task description

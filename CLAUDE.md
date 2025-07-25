@@ -13,7 +13,7 @@ Current state: Go implementation complete (v0.2.0). Linear dependency removed.
 The project follows a state-driven architecture where:
 1. Alpine accepts a task description (command line or file)
 2. Optionally generates a plan using `/make_plan`
-3. Executes Claude Code iteratively based on `claude_state.json`
+3. Executes Claude Code iteratively based on `agent_state.json`
 4. Continues until status is "completed"
 
 ### State File Schema
@@ -29,7 +29,7 @@ The project follows a state-driven architecture where:
 
 When worktrees are enabled (default behavior), Alpine ensures complete isolation:
 - Claude commands execute in the worktree directory
-- State files (`claude_state.json`) are created in the worktree
+- State files (`agent_state.json`) are created in the worktree
 - All file operations are confined to the worktree
 - The main repository remains unmodified during execution
 
@@ -156,7 +156,7 @@ go build -o alpine cmd/alpine/main.go && ./alpine --help
 ./alpine "Add a test function" --no-plan
 
 # Verify state file creation
-./alpine "Simple task" && cat claude_state.json
+./alpine "Simple task" && cat agent_state/agent_state.json
 
 # Test task file input
 echo "Implement logging improvements" > task.md
@@ -166,13 +166,13 @@ echo "Implement logging improvements" > task.md
 ### 5. State Management Verification
 ```bash
 # Check state file is valid JSON
-./alpine "Test task" --no-plan && jq . claude_state.json
+./alpine "Test task" --no-plan && jq . agent_state/agent_state.json
 
 # Verify state transitions
-./alpine "Multi-step task" && grep -E '"status":\s*"(running|completed)"' claude_state.json
+./alpine "Multi-step task" && grep -E '"status":\s*"(running|completed)"' agent_state/agent_state.json
 
 # Monitor state changes in real-time
-watch -n 1 'jq . claude_state.json 2>/dev/null || echo "No state file yet"'
+watch -n 1 'jq . agent_state/agent_state.json 2>/dev/null || echo "No state file yet"'
 ```
 
 ### 6. Worktree Isolation Verification
@@ -181,7 +181,7 @@ watch -n 1 'jq . claude_state.json 2>/dev/null || echo "No state file yet"'
 ./alpine "Test worktree" && git worktree list
 
 # Check files are isolated to worktree
-find .git/worktrees -name "claude_state.json"
+find .git/worktrees -name "agent_state.json"
 
 # Verify main repo is unchanged
 git status  # Should show no changes after Alpine execution
@@ -206,7 +206,7 @@ ALPINE_LOG_LEVEL=debug ./alpine "Debug test" 2>&1 | grep -E "(DEBUG|Set Claude w
 ```bash
 # Full workflow with plan
 ./alpine "Implement a simple calculator function"
-# Verify: plan.md created, worktree created, claude_state.json exists
+# Verify: plan.md created, worktree created, agent_state.json exists
 
 # Bare mode workflow
 ./alpine --no-plan --no-worktree "Add comments to main.go"
@@ -287,7 +287,7 @@ go fmt ./... && golangci-lint run && go test ./... && go build -o alpine cmd/alp
 1. **Single Binary**: All functionality compiled into one executable
 2. **Minimal Dependencies**: Only `github.com/spf13/cobra` for CLI
 3. **Error Handling**: Explicit error handling, no panics in production
-4. **State Management**: Monitor `claude_state.json` for workflow progress
+4. **State Management**: Monitor `agent_state.json` for workflow progress
 5. **Claude Integration**: Execute `claude` command with specific MCP servers and tools
 6. **Code Style**: Write idiomatic Go code following standard conventions
 7. **Quality**: Use standard Go tools (`go fmt`, `golangci-lint`) for formatting and linting

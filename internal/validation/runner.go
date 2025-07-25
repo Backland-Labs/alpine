@@ -111,7 +111,7 @@ func (r *parityRunner) runImplementation(ctx context.Context, execPath string, i
 	result.Command = r.extractCommandFromOutput(result.Output)
 
 	// Load state file
-	stateFile := filepath.Join(workDir, "claude_state.json")
+	stateFile := filepath.Join(workDir, "agent_state", "agent_state.json")
 	if data, err := os.ReadFile(stateFile); err == nil {
 		var state core.State
 		if err := json.Unmarshal(data, &state); err == nil {

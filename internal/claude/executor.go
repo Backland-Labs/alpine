@@ -21,7 +21,7 @@ type ExecuteConfig struct {
 	// Prompt is the input prompt to send to Claude
 	Prompt string
 
-	// StateFile is the path to the claude_state.json file
+	// StateFile is the path to the agent_state/agent_state.json file
 	StateFile string
 
 	// MCPServers is a list of MCP servers to enable (optional)
