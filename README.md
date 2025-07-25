@@ -5,9 +5,9 @@
 
 ## Overview
 
-Alpine is an experiment to build out a multi-agent, multi-coding agent orchestration system. The goal here is to automate the feature request to PR pipeline uniquely. Alpine is being used to build Alpine, so every feature implemented in Alpine is implemented via itself. This is a self-building agent orchestration tool.
+Alpine is an experimental multi-coding agent orchestration system. The goal is to automate the feature request to PR pipeline uniquely. Alpine is being used to build Alpine, so every feature implemented in Alpine is implemented via itself. This is a self-building agent orchestration tool.
 
-Think of Alpine as a conductor for AI coding agents - orchestrating complex development tasks by breaking them down, planning execution, and iterating until completion. It's not just another AI coding tool; it's a meta-framework that evolves through its own capabilities.
+Think of Alpine as a conductor for AI coding agents - orchestrating complex development tasks by breaking them down, planning execution, and iterating until completion.
 
 
 ## Architecture
