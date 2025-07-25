@@ -93,6 +93,11 @@ func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, e
 		return e.executeWithTodoMonitoring(ctx, config)
 	}
 
+	// Check if we should capture stderr for tool logs (without todo monitoring)
+	if e.config != nil && e.config.ShowToolUpdates && e.printer != nil {
+		return e.executeClaudeCommand(ctx, config, "")
+	}
+
 	// Use command runner (allows for mocking in tests)
 	if e.commandRunner != nil {
 		return e.commandRunner.Run(ctx, config)
