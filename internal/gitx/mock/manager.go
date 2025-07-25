@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/maxmcd/river/internal/gitx"
+	"github.com/maxmcd/alpine/internal/gitx"
 )
 
 // WorktreeManager is a mock implementation of gitx.WorktreeManager.
@@ -42,8 +42,8 @@ func (m *WorktreeManager) Create(ctx context.Context, taskName string) (*gitx.Wo
 
 	// Default implementation
 	return &gitx.Worktree{
-		Path:       fmt.Sprintf("/tmp/test-river-%s", taskName),
-		Branch:     fmt.Sprintf("river/%s", taskName),
+		Path:       fmt.Sprintf("/tmp/test-alpine-%s", taskName),
+		Branch:     fmt.Sprintf("alpine/%s", taskName),
 		ParentRepo: "/tmp/test-repo",
 	}, nil
 }

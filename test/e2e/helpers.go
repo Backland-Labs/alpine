@@ -140,46 +140,46 @@ func (r *GitTestRepo) CreateTestFile(filename, content string) error {
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
-// BuildRiverBinary builds the river binary for testing
-func BuildRiverBinary(t *testing.T) string {
+// BuildAlpineBinary builds the alpine binary for testing
+func BuildAlpineBinary(t *testing.T) string {
 	t.Helper()
 	
-	// Build river binary in temp location
+	// Build alpine binary in temp location
 	tempDir := t.TempDir()
-	binaryPath := filepath.Join(tempDir, "river")
+	binaryPath := filepath.Join(tempDir, "alpine")
 	
 	// Get the project root directory (where this test file is at test/e2e/)
 	projectRoot, err := filepath.Abs(filepath.Join(filepath.Dir(""), "..", ".."))
 	require.NoError(t, err)
 	
-	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/river")
+	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/alpine")
 	cmd.Dir = projectRoot
 	
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Failed to build river binary: %v\nOutput: %s", err, output)
+		t.Fatalf("Failed to build alpine binary: %v\nOutput: %s", err, output)
 	}
 	
 	return binaryPath
 }
 
-// RunRiverCommand runs the river CLI with the given arguments
-func RunRiverCommand(ctx context.Context, binaryPath string, workDir string, args ...string) (string, error) {
+// RunAlpineCommand runs the alpine CLI with the given arguments
+func RunAlpineCommand(ctx context.Context, binaryPath string, workDir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, binaryPath, args...)
 	cmd.Dir = workDir
 	
 	// Set environment variables
 	cmd.Env = append(os.Environ(),
-		"RIVER_CLAUDE_COMMAND=echo", // Use echo as mock claude command
-		"RIVER_TEST_MODE=true",
+		"ALPINE_CLAUDE_COMMAND=echo", // Use echo as mock claude command
+		"ALPINE_TEST_MODE=true",
 	)
 	
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
 
-// RunRiverWithMockClaude runs the river CLI with a mock claude script
-func RunRiverWithMockClaude(ctx context.Context, t *testing.T, binaryPath string, workDir string, mockScript string, args ...string) (string, error) {
+// RunAlpineWithMockClaude runs the alpine CLI with a mock claude script
+func RunAlpineWithMockClaude(ctx context.Context, t *testing.T, binaryPath string, workDir string, mockScript string, args ...string) (string, error) {
 	t.Helper()
 	
 	// Create a directory for our mock claude
@@ -199,7 +199,7 @@ func RunRiverWithMockClaude(ctx context.Context, t *testing.T, binaryPath string
 	// Set environment variables
 	cmd.Env = append(os.Environ(),
 		"PATH="+newPath,
-		"RIVER_TEST_MODE=true",
+		"ALPINE_TEST_MODE=true",
 	)
 	
 	output, err := cmd.CombinedOutput()
@@ -232,8 +232,8 @@ func MockClaudeScript(t *testing.T, responses []MockResponse) string {
 # Get the prompt from command line
 PROMPT="$@"
 
-# Use RIVER_STATE_FILE if set, otherwise default to claude_state.json
-STATE_FILE="${RIVER_STATE_FILE:-claude_state.json}"
+# Use ALPINE_STATE_FILE if set, otherwise default to claude_state.json
+STATE_FILE="${ALPINE_STATE_FILE:-claude_state.json}"
 
 # Write state based on prompt
 case "$PROMPT" in

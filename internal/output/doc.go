@@ -1,4 +1,4 @@
-// Package output provides colored terminal output functionality for River.
+// Package output provides colored terminal output functionality for Alpine.
 //
 // The package offers a simple API for printing colored messages to the terminal
 // with automatic color detection and graceful fallback for non-terminal environments.

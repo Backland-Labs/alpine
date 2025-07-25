@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/gitx"
-	"github.com/maxmcd/river/internal/logger"
+	"github.com/maxmcd/alpine/internal/config"
+	"github.com/maxmcd/alpine/internal/gitx"
+	"github.com/maxmcd/alpine/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -61,8 +61,8 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 
 				// Expect worktree creation
 				wt := &gitx.Worktree{
-					Path:       "../river-river-implement-feature",
-					Branch:     "river/implement-feature",
+					Path:       "../alpine-alpine-implement-feature",
+					Branch:     "alpine/implement-feature",
 					ParentRepo: "/tmp",
 				}
 				wtMgr.On("Create", mock.Anything, "Implement feature").Return(wt, nil)
@@ -165,8 +165,8 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 
 				// Expect worktree creation with task from file
 				wt := &gitx.Worktree{
-					Path:       "../river-river-build-new-feature",
-					Branch:     "river/build-new-feature",
+					Path:       "../alpine-alpine-build-new-feature",
+					Branch:     "alpine/build-new-feature",
 					ParentRepo: "/tmp",
 				}
 				wtMgr.On("Create", mock.Anything, "Build new feature").Return(wt, nil)

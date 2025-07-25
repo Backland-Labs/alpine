@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/output"
+	"github.com/maxmcd/alpine/internal/config"
+	"github.com/maxmcd/alpine/internal/output"
 )
 
 // TestExecuteWithStderrCapture_Integration tests stderr capture integration

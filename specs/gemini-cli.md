@@ -1,6 +1,6 @@
 # Gemini CLI Integration Specification
 
-This specification defines how River can integrate with Gemini CLI as an alternative to Claude Code for AI-assisted development workflows.
+This specification defines how Alpine can integrate with Gemini CLI as an alternative to Claude Code for AI-assisted development workflows.
 
 ## Overview
 
@@ -15,7 +15,7 @@ Gemini CLI is Google's command-line interface for interacting with Gemini models
 export GEMINI_API_KEY="your-gemini-api-key"
 ```
 
-### River Configuration
+### Alpine Configuration
 
 ```go
 // Check for Gemini API key in executor
@@ -40,7 +40,7 @@ gemini --model gemini-1.5-pro-latest -p "Implement error handling"
 echo "Explain this code: $(cat main.go)" | gemini
 ```
 
-### River Integration Example
+### Alpine Integration Example
 
 ```go
 func executeGeminiCommand(prompt string, workDir string) error {
@@ -83,7 +83,7 @@ gemini -p "@pkg/server.go @pkg/client.go Add comprehensive error handling"
 gemini -p "Review these files for security issues: @cmd/main.go @internal/auth.go"
 ```
 
-### River File Context Builder
+### Alpine File Context Builder
 
 ```go
 func buildGeminiPromptWithFiles(basePrompt string, files []string) string {
@@ -121,7 +121,7 @@ if ! gemini -p "Validate JSON schema" > /dev/null 2>&1; then
 fi
 ```
 
-### River Output Handler
+### Alpine Output Handler
 
 ```go
 func captureGeminiOutput(prompt string) (string, error) {
@@ -171,7 +171,7 @@ func captureGeminiOutput(prompt string) (string, error) {
    gemini --yolo -p "Create and modify files for new feature"
    ```
 
-### River-Specific Workarounds
+### Alpine-Specific Workarounds
 
 ```go
 // Handle CI environment
@@ -246,9 +246,9 @@ func requiresClaude(task TaskType) bool {
 }
 ```
 
-## Integration with River State Management
+## Integration with Alpine State Management
 
-### Adapting River's State Model
+### Adapting Alpine's State Model
 
 ```go
 // Since Gemini doesn't support continuation, simulate it
@@ -351,11 +351,11 @@ func safeGeminiExecution(prompt string) error {
 
 ## Practical Usage Examples
 
-### Complete River Integration
+### Complete Alpine Integration
 
 ```bash
 #!/bin/bash
-# river-gemini wrapper script
+# alpine-gemini wrapper script
 
 # Check for API key
 if [ -z "$GEMINI_API_KEY" ]; then
@@ -394,7 +394,7 @@ fi
 
 ## Summary
 
-Gemini CLI can be integrated with River for single-prompt, stateless AI tasks. While it lacks Claude's session management and continuation features, it's suitable for:
+Gemini CLI can be integrated with Alpine for single-prompt, stateless AI tasks. While it lacks Claude's session management and continuation features, it's suitable for:
 
 - One-shot code generation
 - Stateless code review

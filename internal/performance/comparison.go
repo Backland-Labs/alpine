@@ -76,7 +76,7 @@ func buildGoBinary() error {
 		return err
 	}
 
-	cmd := exec.Command("go", "build", "-o", "river", "./cmd/river")
+	cmd := exec.Command("go", "build", "-o", "alpine", "./cmd/alpine")
 	cmd.Dir = projectRoot
 	return cmd.Run()
 }
@@ -88,7 +88,7 @@ func measureGoPerformance() (time.Duration, uint64, error) {
 		return 0, 0, err
 	}
 
-	binaryPath := filepath.Join(projectRoot, "river")
+	binaryPath := filepath.Join(projectRoot, "alpine")
 
 	// Measure startup time (average of 5 runs)
 	var totalDuration time.Duration

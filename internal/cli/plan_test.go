@@ -584,7 +584,7 @@ func TestGeneratePlanWithClaude_ProgressIndicator(t *testing.T) {
 		_ = generatePlanWithClaude("test task")
 
 		// Restore stdout and get output
-		w.Close()
+		_ = w.Close()
 		os.Stdout = oldStdout
 		output := <-outputChan
 
@@ -639,7 +639,7 @@ func TestGeneratePlanWithClaude_ProgressIndicator(t *testing.T) {
 		_ = generatePlanWithClaude("test task")
 
 		// Restore stdout and get output
-		w.Close()
+		_ = w.Close()
 		os.Stdout = oldStdout
 		output := <-outputChan
 
@@ -793,8 +793,8 @@ func TestGhIssueCommand_Integration_Gemini(t *testing.T) {
 	// Create a temporary directory for test
 	tmpDir := t.TempDir()
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	_ = os.Chdir(tmpDir)
 
 	// Initialize git repo for testing
 	cmd := exec.Command("git", "init")
@@ -817,8 +817,8 @@ exit 1
 
 	// Add mock directory to PATH
 	oldPath := os.Getenv("PATH")
-	os.Setenv("PATH", tmpDir+":"+oldPath)
-	defer os.Setenv("PATH", oldPath)
+	_ = os.Setenv("PATH", tmpDir+":"+oldPath)
+	defer func() { _ = os.Setenv("PATH", oldPath) }()
 
 	// Also need to mock gemini for the plan generation
 	mockGeminiScript := `#!/bin/bash
@@ -868,8 +868,8 @@ func TestGhIssueCommand_Integration_Claude(t *testing.T) {
 	// Create a temporary directory for test
 	tmpDir := t.TempDir()
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldDir) }()
+	_ = os.Chdir(tmpDir)
 
 	// Initialize git repo for testing
 	cmd := exec.Command("git", "init")
@@ -892,8 +892,8 @@ exit 1
 
 	// Add mock directory to PATH
 	oldPath := os.Getenv("PATH")
-	os.Setenv("PATH", tmpDir+":"+oldPath)
-	defer os.Setenv("PATH", oldPath)
+	_ = os.Setenv("PATH", tmpDir+":"+oldPath)
+	defer func() { _ = os.Setenv("PATH", oldPath) }()
 
 	// Mock claude command
 	mockClaudeScript := `#!/bin/bash

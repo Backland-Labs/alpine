@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/core"
-	gitxmock "github.com/maxmcd/river/internal/gitx/mock"
-	"github.com/maxmcd/river/internal/workflow"
-	"github.com/maxmcd/river/test/integration/helpers"
+	"github.com/maxmcd/alpine/internal/config"
+	"github.com/maxmcd/alpine/internal/core"
+	gitxmock "github.com/maxmcd/alpine/internal/gitx/mock"
+	"github.com/maxmcd/alpine/internal/workflow"
+	"github.com/maxmcd/alpine/test/integration/helpers"
 )
 
 // TestBareMode_StartsWithrun_implementation_loop tests that bare mode initializes with /run_implementation_loop when no state exists

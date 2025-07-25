@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/maxmcd/river/internal/hooks"
-	"github.com/maxmcd/river/internal/logger"
+	"github.com/maxmcd/alpine/internal/hooks"
+	"github.com/maxmcd/alpine/internal/logger"
 )
 
 // hookSettings represents Claude Code settings for hooks
@@ -27,7 +27,7 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	logger.Debug("Setting up TodoWrite hook")
 
 	// Create temporary file for todo updates
-	todoFile, err := os.CreateTemp("", "river-todo-*.txt")
+	todoFile, err := os.CreateTemp("", "alpine-todo-*.txt")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create todo file: %w", err)
 	}

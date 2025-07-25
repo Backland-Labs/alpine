@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/alpine/internal/core"
 )
 
 // parityRunner implements ParityRunner interface
@@ -69,7 +69,7 @@ func (r *parityRunner) Run(ctx context.Context, issueID string) (*ParityResults,
 	return results, nil
 }
 
-// runImplementation executes a river implementation and captures results
+// runImplementation executes a alpine implementation and captures results
 func (r *parityRunner) runImplementation(ctx context.Context, execPath string, issueID string, workDir string) *ExecutionResult {
 	result := &ExecutionResult{
 		Command: []string{execPath, issueID},
@@ -86,8 +86,8 @@ func (r *parityRunner) runImplementation(ctx context.Context, execPath string, i
 
 	// Mock environment for testing
 	cmd.Env = append(os.Environ(),
-		"RIVER_CLAUDE_PATH=echo", // Mock claude command
-		"RIVER_AUTO_CLEANUP=false",
+		"ALPINE_CLAUDE_PATH=echo", // Mock claude command
+		"ALPINE_AUTO_CLEANUP=false",
 	)
 
 	// Run command

@@ -19,8 +19,8 @@ func TestDocumentation_GhIssueCommand(t *testing.T) {
 		readme := string(readmeContent)
 
 		// Check for gh-issue command documentation
-		if !strings.Contains(readme, "river plan gh-issue") {
-			t.Error("README.md should document the 'river plan gh-issue' command")
+		if !strings.Contains(readme, "alpine plan gh-issue") {
+			t.Error("README.md should document the 'alpine plan gh-issue' command")
 		}
 
 		// Check for example usage
@@ -44,8 +44,8 @@ func TestDocumentation_GhIssueCommand(t *testing.T) {
 		specs := string(specsContent)
 
 		// Check for gh-issue command specification
-		if !strings.Contains(specs, "river plan gh-issue") {
-			t.Error("specs/cli-commands.md should document the 'river plan gh-issue' command")
+		if !strings.Contains(specs, "alpine plan gh-issue") {
+			t.Error("specs/cli-commands.md should document the 'alpine plan gh-issue' command")
 		}
 
 		// Check for command syntax

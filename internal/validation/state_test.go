@@ -3,7 +3,7 @@ package validation
 import (
 	"testing"
 
-	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/alpine/internal/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

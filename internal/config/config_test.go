@@ -10,15 +10,15 @@ import (
 func TestNewConfig(t *testing.T) {
 	// Clear all environment variables to test defaults
 	envVars := []string{
-		"RIVER_WORKDIR",
-		"RIVER_VERBOSITY",
-		"RIVER_SHOW_OUTPUT",
-		"RIVER_AUTO_CLEANUP",
-		"RIVER_GIT_ENABLED",
-		"RIVER_GIT_BASE_BRANCH",
-		"RIVER_GIT_AUTO_CLEANUP",
-		"RIVER_SHOW_TODO_UPDATES",
-		"RIVER_SHOW_TOOL_UPDATES",
+		"ALPINE_WORKDIR",
+		"ALPINE_VERBOSITY",
+		"ALPINE_SHOW_OUTPUT",
+		"ALPINE_AUTO_CLEANUP",
+		"ALPINE_GIT_ENABLED",
+		"ALPINE_GIT_BASE_BRANCH",
+		"ALPINE_GIT_AUTO_CLEANUP",
+		"ALPINE_SHOW_TODO_UPDATES",
+		"ALPINE_SHOW_TOOL_UPDATES",
 	}
 	for _, env := range envVars {
 		_ = os.Unsetenv(env)
@@ -43,7 +43,7 @@ func TestNewConfig(t *testing.T) {
 		t.Error("ShowOutput = false, want true")
 	}
 
-	expectedStateFile := filepath.Join(".claude", "river", "claude_state.json")
+	expectedStateFile := filepath.Join(".claude", "alpine", "claude_state.json")
 	if cfg.StateFile != expectedStateFile {
 		t.Errorf("StateFile = %q, want %q", cfg.StateFile, expectedStateFile)
 	}
@@ -80,29 +80,29 @@ func TestNewConfig(t *testing.T) {
 func TestConfigFromEnvironment(t *testing.T) {
 	// Set up test environment
 	testWorkDir := "/test/work/dir"
-	_ = os.Setenv("RIVER_WORKDIR", testWorkDir)
-	_ = os.Setenv("RIVER_VERBOSITY", "debug")
-	_ = os.Setenv("RIVER_SHOW_OUTPUT", "false")
-	// RIVER_STATE_FILE is no longer configurable
-	_ = os.Setenv("RIVER_AUTO_CLEANUP", "false")
-	_ = os.Setenv("RIVER_GIT_ENABLED", "false")
-	_ = os.Setenv("RIVER_GIT_BASE_BRANCH", "develop")
-	_ = os.Setenv("RIVER_GIT_AUTO_CLEANUP", "false")
-	_ = os.Setenv("RIVER_SHOW_TODO_UPDATES", "false")
-	_ = os.Setenv("RIVER_SHOW_TOOL_UPDATES", "false")
+	_ = os.Setenv("ALPINE_WORKDIR", testWorkDir)
+	_ = os.Setenv("ALPINE_VERBOSITY", "debug")
+	_ = os.Setenv("ALPINE_SHOW_OUTPUT", "false")
+	// ALPINE_STATE_FILE is no longer configurable
+	_ = os.Setenv("ALPINE_AUTO_CLEANUP", "false")
+	_ = os.Setenv("ALPINE_GIT_ENABLED", "false")
+	_ = os.Setenv("ALPINE_GIT_BASE_BRANCH", "develop")
+	_ = os.Setenv("ALPINE_GIT_AUTO_CLEANUP", "false")
+	_ = os.Setenv("ALPINE_SHOW_TODO_UPDATES", "false")
+	_ = os.Setenv("ALPINE_SHOW_TOOL_UPDATES", "false")
 
 	defer func() {
 		// Clean up
-		_ = os.Unsetenv("RIVER_WORKDIR")
-		_ = os.Unsetenv("RIVER_VERBOSITY")
-		_ = os.Unsetenv("RIVER_SHOW_OUTPUT")
-		// RIVER_STATE_FILE is no longer used
-		_ = os.Unsetenv("RIVER_AUTO_CLEANUP")
-		_ = os.Unsetenv("RIVER_GIT_ENABLED")
-		_ = os.Unsetenv("RIVER_GIT_BASE_BRANCH")
-		_ = os.Unsetenv("RIVER_GIT_AUTO_CLEANUP")
-		_ = os.Unsetenv("RIVER_SHOW_TODO_UPDATES")
-		_ = os.Unsetenv("RIVER_SHOW_TOOL_UPDATES")
+		_ = os.Unsetenv("ALPINE_WORKDIR")
+		_ = os.Unsetenv("ALPINE_VERBOSITY")
+		_ = os.Unsetenv("ALPINE_SHOW_OUTPUT")
+		// ALPINE_STATE_FILE is no longer used
+		_ = os.Unsetenv("ALPINE_AUTO_CLEANUP")
+		_ = os.Unsetenv("ALPINE_GIT_ENABLED")
+		_ = os.Unsetenv("ALPINE_GIT_BASE_BRANCH")
+		_ = os.Unsetenv("ALPINE_GIT_AUTO_CLEANUP")
+		_ = os.Unsetenv("ALPINE_SHOW_TODO_UPDATES")
+		_ = os.Unsetenv("ALPINE_SHOW_TOOL_UPDATES")
 	}()
 
 	cfg, err := New()
@@ -122,7 +122,7 @@ func TestConfigFromEnvironment(t *testing.T) {
 		t.Error("ShowOutput = true, want false")
 	}
 
-	expectedStateFile := filepath.Join(".claude", "river", "claude_state.json")
+	expectedStateFile := filepath.Join(".claude", "alpine", "claude_state.json")
 	if cfg.StateFile != expectedStateFile {
 		t.Errorf("StateFile = %q, want %q", cfg.StateFile, expectedStateFile)
 	}
@@ -158,7 +158,7 @@ func TestConfigFromEnvironment(t *testing.T) {
 // TestConfig_ShowToolUpdatesDefault tests that ShowToolUpdates defaults to true
 func TestConfig_ShowToolUpdatesDefault(t *testing.T) {
 	// Clear the environment variable to test default
-	_ = os.Unsetenv("RIVER_SHOW_TOOL_UPDATES")
+	_ = os.Unsetenv("ALPINE_SHOW_TOOL_UPDATES")
 
 	cfg, err := New()
 	if err != nil {
@@ -171,7 +171,7 @@ func TestConfig_ShowToolUpdatesDefault(t *testing.T) {
 	}
 }
 
-// TestConfig_ShowToolUpdatesEnvVar tests that RIVER_SHOW_TOOL_UPDATES correctly sets the config value
+// TestConfig_ShowToolUpdatesEnvVar tests that ALPINE_SHOW_TOOL_UPDATES correctly sets the config value
 func TestConfig_ShowToolUpdatesEnvVar(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -208,14 +208,14 @@ func TestConfig_ShowToolUpdatesEnvVar(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set or unset the environment variable
 			if tt.envValue == "" {
-				_ = os.Unsetenv("RIVER_SHOW_TOOL_UPDATES")
+				_ = os.Unsetenv("ALPINE_SHOW_TOOL_UPDATES")
 			} else {
-				_ = os.Setenv("RIVER_SHOW_TOOL_UPDATES", tt.envValue)
+				_ = os.Setenv("ALPINE_SHOW_TOOL_UPDATES", tt.envValue)
 			}
 
 			// Clean up after test
 			defer func() {
-				_ = os.Unsetenv("RIVER_SHOW_TOOL_UPDATES")
+				_ = os.Unsetenv("ALPINE_SHOW_TOOL_UPDATES")
 			}()
 
 			cfg, err := New()
@@ -257,9 +257,9 @@ func TestValidateWorkDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_ = os.Setenv("RIVER_WORKDIR", tt.workDir)
+			_ = os.Setenv("ALPINE_WORKDIR", tt.workDir)
 			defer func() {
-				_ = os.Unsetenv("RIVER_WORKDIR")
+				_ = os.Unsetenv("ALPINE_WORKDIR")
 			}()
 
 			_, err := New()
@@ -306,9 +306,9 @@ func TestValidateVerbosity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_ = os.Setenv("RIVER_VERBOSITY", tt.verbosity)
+			_ = os.Setenv("ALPINE_VERBOSITY", tt.verbosity)
 			defer func() {
-				_ = os.Unsetenv("RIVER_VERBOSITY")
+				_ = os.Unsetenv("ALPINE_VERBOSITY")
 			}()
 
 			cfg, err := New()
@@ -335,34 +335,34 @@ func TestValidateBooleanFields(t *testing.T) {
 	}{
 		{
 			name:       "true value",
-			envVar:     "RIVER_SHOW_OUTPUT",
+			envVar:     "ALPINE_SHOW_OUTPUT",
 			value:      "true",
 			wantErr:    false,
 			wantResult: true,
 		},
 		{
 			name:       "false value",
-			envVar:     "RIVER_SHOW_OUTPUT",
+			envVar:     "ALPINE_SHOW_OUTPUT",
 			value:      "false",
 			wantErr:    false,
 			wantResult: false,
 		},
 		{
 			name:    "invalid value",
-			envVar:  "RIVER_SHOW_OUTPUT",
+			envVar:  "ALPINE_SHOW_OUTPUT",
 			value:   "yes",
 			wantErr: true,
 		},
 		{
 			name:       "auto cleanup true",
-			envVar:     "RIVER_AUTO_CLEANUP",
+			envVar:     "ALPINE_AUTO_CLEANUP",
 			value:      "true",
 			wantErr:    false,
 			wantResult: true,
 		},
 		{
 			name:       "auto cleanup false",
-			envVar:     "RIVER_AUTO_CLEANUP",
+			envVar:     "ALPINE_AUTO_CLEANUP",
 			value:      "false",
 			wantErr:    false,
 			wantResult: false,
@@ -385,9 +385,9 @@ func TestValidateBooleanFields(t *testing.T) {
 			if err == nil {
 				var result bool
 				switch tt.envVar {
-				case "RIVER_SHOW_OUTPUT":
+				case "ALPINE_SHOW_OUTPUT":
 					result = cfg.ShowOutput
-				case "RIVER_AUTO_CLEANUP":
+				case "ALPINE_AUTO_CLEANUP":
 					result = cfg.AutoCleanup
 				}
 
@@ -401,9 +401,9 @@ func TestValidateBooleanFields(t *testing.T) {
 
 // TestStateFileIsFixed tests that state file is always at a fixed location
 func TestStateFileIsFixed(t *testing.T) {
-	// Try to set RIVER_STATE_FILE - it should be ignored
-	_ = os.Setenv("RIVER_STATE_FILE", "/custom/path/state.json")
-	defer os.Unsetenv("RIVER_STATE_FILE")
+	// Try to set ALPINE_STATE_FILE - it should be ignored
+	_ = os.Setenv("ALPINE_STATE_FILE", "/custom/path/state.json")
+	defer func() { _ = os.Unsetenv("ALPINE_STATE_FILE") }()
 
 	cfg, err := New()
 	if err != nil {
@@ -411,9 +411,9 @@ func TestStateFileIsFixed(t *testing.T) {
 	}
 
 	// State file should always be at the fixed location
-	expectedStateFile := filepath.Join(".claude", "river", "claude_state.json")
+	expectedStateFile := filepath.Join(".claude", "alpine", "claude_state.json")
 	if cfg.StateFile != expectedStateFile {
-		t.Errorf("StateFile = %q, want %q (should ignore RIVER_STATE_FILE env var)", cfg.StateFile, expectedStateFile)
+		t.Errorf("StateFile = %q, want %q (should ignore ALPINE_STATE_FILE env var)", cfg.StateFile, expectedStateFile)
 	}
 }
 
@@ -459,9 +459,9 @@ func TestConfigMethods(t *testing.T) {
 // TestConfigGitDefaults tests default values for Git configuration
 func TestConfigGitDefaults(t *testing.T) {
 	// Clear all Git-related environment variables
-	_ = os.Unsetenv("RIVER_GIT_ENABLED")
-	_ = os.Unsetenv("RIVER_GIT_BASE_BRANCH")
-	_ = os.Unsetenv("RIVER_GIT_AUTO_CLEANUP")
+	_ = os.Unsetenv("ALPINE_GIT_ENABLED")
+	_ = os.Unsetenv("ALPINE_GIT_BASE_BRANCH")
+	_ = os.Unsetenv("ALPINE_GIT_AUTO_CLEANUP")
 
 	cfg, err := New()
 	if err != nil {
@@ -493,9 +493,9 @@ func TestConfigGitEnvironmentVariables(t *testing.T) {
 		{
 			name: "all false",
 			envVars: map[string]string{
-				"RIVER_GIT_ENABLED":      "false",
-				"RIVER_GIT_BASE_BRANCH":  "master",
-				"RIVER_GIT_AUTO_CLEANUP": "false",
+				"ALPINE_GIT_ENABLED":      "false",
+				"ALPINE_GIT_BASE_BRANCH":  "master",
+				"ALPINE_GIT_AUTO_CLEANUP": "false",
 			},
 			want: GitConfig{
 				WorktreeEnabled: false,
@@ -506,9 +506,9 @@ func TestConfigGitEnvironmentVariables(t *testing.T) {
 		{
 			name: "mixed values",
 			envVars: map[string]string{
-				"RIVER_GIT_ENABLED":      "true",
-				"RIVER_GIT_BASE_BRANCH":  "develop",
-				"RIVER_GIT_AUTO_CLEANUP": "false",
+				"ALPINE_GIT_ENABLED":      "true",
+				"ALPINE_GIT_BASE_BRANCH":  "develop",
+				"ALPINE_GIT_AUTO_CLEANUP": "false",
 			},
 			want: GitConfig{
 				WorktreeEnabled: true,
@@ -519,21 +519,21 @@ func TestConfigGitEnvironmentVariables(t *testing.T) {
 		{
 			name: "invalid boolean for enabled",
 			envVars: map[string]string{
-				"RIVER_GIT_ENABLED": "yes",
+				"ALPINE_GIT_ENABLED": "yes",
 			},
 			wantErr: true,
 		},
 		{
 			name: "invalid boolean for auto cleanup",
 			envVars: map[string]string{
-				"RIVER_GIT_AUTO_CLEANUP": "1",
+				"ALPINE_GIT_AUTO_CLEANUP": "1",
 			},
 			wantErr: true,
 		},
 		{
 			name: "empty base branch uses default",
 			envVars: map[string]string{
-				"RIVER_GIT_BASE_BRANCH": "",
+				"ALPINE_GIT_BASE_BRANCH": "",
 			},
 			want: GitConfig{
 				WorktreeEnabled: true,   // default

@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/logger"
-	"github.com/maxmcd/river/internal/output"
+	"github.com/maxmcd/alpine/internal/config"
+	"github.com/maxmcd/alpine/internal/logger"
+	"github.com/maxmcd/alpine/internal/output"
 )
 
 // ExecuteConfig holds configuration for executing Claude
@@ -193,7 +193,7 @@ func (e *Executor) executeClaudeCommand(ctx context.Context, config ExecuteConfi
 	cmd.Dir = baseCmd.Dir
 
 	// Add todo file environment variable
-	cmd.Env = append(cmd.Env, fmt.Sprintf("RIVER_TODO_FILE=%s", todoFile))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("ALPINE_TODO_FILE=%s", todoFile))
 
 	// Check if we should capture stderr for tool logs
 	if e.config != nil && e.config.ShowToolUpdates && e.printer != nil {

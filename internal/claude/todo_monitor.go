@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maxmcd/river/internal/logger"
+	"github.com/maxmcd/alpine/internal/logger"
 )
 
 // TodoMonitor monitors a file for TODO updates from Claude

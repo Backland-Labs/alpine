@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/maxmcd/river/internal/claude"
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/core"
-	"github.com/maxmcd/river/internal/gitx"
-	gitxmock "github.com/maxmcd/river/internal/gitx/mock"
-	"github.com/maxmcd/river/internal/output"
+	"github.com/maxmcd/alpine/internal/claude"
+	"github.com/maxmcd/alpine/internal/config"
+	"github.com/maxmcd/alpine/internal/core"
+	"github.com/maxmcd/alpine/internal/gitx"
+	gitxmock "github.com/maxmcd/alpine/internal/gitx/mock"
+	"github.com/maxmcd/alpine/internal/output"
 )
 
 // MockCommandRunner mocks the claude.CommandRunner interface
@@ -349,7 +349,7 @@ func TestEngineCreatesWorktree(t *testing.T) {
 	// Mock worktree manager
 	mockWT := &gitx.Worktree{
 		Path:       worktreeDir,
-		Branch:     "river/test-task",
+		Branch:     "alpine/test-task",
 		ParentRepo: tempDir,
 	}
 
@@ -454,7 +454,7 @@ func TestEngineStateFileInWorktree(t *testing.T) {
 	// Mock worktree manager
 	mockWT := &gitx.Worktree{
 		Path:       worktreeDir,
-		Branch:     "river/test-task",
+		Branch:     "alpine/test-task",
 		ParentRepo: tempDir,
 	}
 

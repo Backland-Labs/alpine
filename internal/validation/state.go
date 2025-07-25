@@ -3,7 +3,7 @@ package validation
 import (
 	"strings"
 
-	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/alpine/internal/core"
 )
 
 // stateValidator implements StateValidator interface

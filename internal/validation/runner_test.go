@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/alpine/internal/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +28,7 @@ func TestParityRunner_Run(t *testing.T) {
 import json
 import sys
 
-# Simulate Python river behavior
+# Simulate Python alpine behavior
 if len(sys.argv) > 1 and sys.argv[1] == "ISSUE-123":
     # Create state file
     state = {
@@ -45,7 +45,7 @@ else:
     print("Error: Invalid issue ID")
     sys.exit(1)
 `
-				pythonPath := filepath.Join(tmpDir, "python_river.py")
+				pythonPath := filepath.Join(tmpDir, "python_alpine.py")
 				err := os.WriteFile(pythonPath, []byte(pythonScript), 0755)
 				require.NoError(t, err)
 			},
@@ -78,7 +78,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "ISSUE-456":
     
     print("Python: Task completed")
 `
-				pythonPath := filepath.Join(tmpDir, "python_river.py")
+				pythonPath := filepath.Join(tmpDir, "python_alpine.py")
 				err := os.WriteFile(pythonPath, []byte(pythonScript), 0755)
 				require.NoError(t, err)
 			},
@@ -107,8 +107,8 @@ if len(sys.argv) > 1 and sys.argv[1] == "ISSUE-456":
 
 			// Create runner config
 			config := &ParityConfig{
-				PythonPath:    filepath.Join(tmpDir, "python_river.py"),
-				GoPath:        "river", // Assuming Go binary is in PATH
+				PythonPath:    filepath.Join(tmpDir, "python_alpine.py"),
+				GoPath:        "alpine", // Assuming Go binary is in PATH
 				WorkDir:       tmpDir,
 				CleanupOnExit: true,
 			}

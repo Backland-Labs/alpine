@@ -1,4 +1,4 @@
-// Command performance runs performance measurements for River
+// Command performance runs performance measurements for Alpine
 package main
 
 import (
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/maxmcd/river/internal/performance"
+	"github.com/maxmcd/alpine/internal/performance"
 )
 
 func main() {

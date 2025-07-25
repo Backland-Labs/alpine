@@ -2,7 +2,7 @@
 
 ## Overview
 
-River can use Amp Code CLI to execute AI-assisted coding tasks by piping text prompts to the `amp` command. This provides an alternative to Claude Code with features like extended thinking and faster execution.
+Alpine can use Amp Code CLI to execute AI-assisted coding tasks by piping text prompts to the `amp` command. This provides an alternative to Claude Code with features like extended thinking and faster execution.
 
 ## Simple Integration Approach
 
@@ -19,7 +19,7 @@ func ExecuteWithAmp(prompt string, workDir string) error {
     cmd.Dir = workDir       // Execute in the target directory
     
     // Pass API key through environment
-    cmd.Env = append(os.Environ(), "AMP_API_KEY=" + os.Getenv("RIVER_AMP_API_KEY"))
+    cmd.Env = append(os.Environ(), "AMP_API_KEY=" + os.Getenv("ALPINE_AMP_API_KEY"))
     
     return cmd.Run()
 }
@@ -50,9 +50,9 @@ err := ExecuteWithAmp(prompt, "/path/to/project")
 ```go
 // Simple API key validation before execution
 func validateAmpAPIKey() error {
-    apiKey := os.Getenv("RIVER_AMP_API_KEY")
+    apiKey := os.Getenv("ALPINE_AMP_API_KEY")
     if apiKey == "" {
-        return fmt.Errorf("missing RIVER_AMP_API_KEY environment variable")
+        return fmt.Errorf("missing ALPINE_AMP_API_KEY environment variable")
     }
     return nil
 }
@@ -69,16 +69,16 @@ if err := validateAmpAPIKey(); err != nil {
 
 ```bash
 # Set up API key
-export RIVER_AMP_API_KEY="your_amp_api_key"
+export ALPINE_AMP_API_KEY="your_amp_api_key"
 
 # Execute a simple task
 echo "Fix the TypeScript errors in src/auth.ts" | amp --dangerously-allow-all
 ```
 
-### River Integration
+### Alpine Integration
 
 ```go
-// Minimal Amp executor for River
+// Minimal Amp executor for Alpine
 type AmpExecutor struct {
     workDir string
 }
@@ -101,7 +101,7 @@ Set status to "completed" when done, or "running" with next steps.
     
     // Set environment
     cmd.Env = append(os.Environ(), 
-        "AMP_API_KEY=" + os.Getenv("RIVER_AMP_API_KEY"),
+        "AMP_API_KEY=" + os.Getenv("ALPINE_AMP_API_KEY"),
     )
     
     // Execute and return
@@ -180,7 +180,7 @@ func executeWithRetry(prompt string, workDir string) error {
         
         // Check for specific errors
         if strings.Contains(err.Error(), "API key") {
-            return fmt.Errorf("amp authentication failed: check RIVER_AMP_API_KEY")
+            return fmt.Errorf("amp authentication failed: check ALPINE_AMP_API_KEY")
         }
         
         if strings.Contains(err.Error(), "rate limit") {
@@ -202,10 +202,10 @@ func executeWithRetry(prompt string, workDir string) error {
 ### Environment Setup
 ```bash
 # Required
-export RIVER_AMP_API_KEY="your_key"
+export ALPINE_AMP_API_KEY="your_key"
 
 # Optional
-export RIVER_USE_AMP=true  # Flag to prefer Amp over Claude
+export ALPINE_USE_AMP=true  # Flag to prefer Amp over Claude
 ```
 
 ### Minimal Usage

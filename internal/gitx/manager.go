@@ -35,7 +35,7 @@ func (m *CLIWorktreeManager) Create(ctx context.Context, taskName string) (*Work
 	}
 
 	// Generate unique branch name
-	baseBranchName := fmt.Sprintf("river/%s", sanitized)
+	baseBranchName := fmt.Sprintf("alpine/%s", sanitized)
 	branch := generateUniqueBranchName(baseBranchName, branches)
 
 	// Create worktree path - include branch suffix if present
@@ -44,9 +44,9 @@ func (m *CLIWorktreeManager) Create(ctx context.Context, taskName string) (*Work
 	if branch != baseBranchName {
 		// Extract suffix from branch name for directory
 		suffix := strings.TrimPrefix(branch, baseBranchName)
-		wtDir = fmt.Sprintf("%s-river-%s%s", repoName, sanitized, suffix)
+		wtDir = fmt.Sprintf("%s-alpine-%s%s", repoName, sanitized, suffix)
 	} else {
-		wtDir = fmt.Sprintf("%s-river-%s", repoName, sanitized)
+		wtDir = fmt.Sprintf("%s-alpine-%s", repoName, sanitized)
 	}
 	wtPath := filepath.Join(filepath.Dir(m.parentRepo), wtDir)
 

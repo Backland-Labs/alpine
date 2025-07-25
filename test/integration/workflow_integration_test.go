@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/maxmcd/river/internal/claude"
-	"github.com/maxmcd/river/internal/config"
-	"github.com/maxmcd/river/internal/core"
-	gitxmock "github.com/maxmcd/river/internal/gitx/mock"
-	"github.com/maxmcd/river/internal/workflow"
+	"github.com/maxmcd/alpine/internal/claude"
+	"github.com/maxmcd/alpine/internal/config"
+	"github.com/maxmcd/alpine/internal/core"
+	gitxmock "github.com/maxmcd/alpine/internal/gitx/mock"
+	"github.com/maxmcd/alpine/internal/workflow"
 )
 
 // TestFullWorkflowWithMockClaude tests the complete workflow from task description to completion

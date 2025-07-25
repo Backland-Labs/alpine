@@ -1,4 +1,4 @@
-// Package performance provides performance measurement utilities for River
+// Package performance provides performance measurement utilities for Alpine
 package performance
 
 import (
@@ -204,7 +204,7 @@ func (r *Runner) WriteSummary(results *Results, w io.Writer) error {
 		return nil
 	}
 
-	if err := writeOutput("\n=== River Performance Report ===\n"); err != nil {
+	if err := writeOutput("\n=== Alpine Performance Report ===\n"); err != nil {
 		return err
 	}
 	if err := writeOutput("Platform: %s/%s, Go %s, %d CPUs\n",

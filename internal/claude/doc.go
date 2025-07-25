@@ -1,5 +1,5 @@
 // Package claude provides functionality for executing Claude commands
-// as part of the River workflow automation system.
+// as part of the Alpine workflow automation system.
 //
 // This package handles:
 //   - Building Claude command-line invocations with appropriate flags

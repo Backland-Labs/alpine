@@ -18,7 +18,7 @@ type MemoryUsage struct {
 	NumGC      uint32 // number of completed GC cycles
 }
 
-// MemoryUsageMeasurer measures memory usage of River
+// MemoryUsageMeasurer measures memory usage of Alpine
 type MemoryUsageMeasurer struct{}
 
 // NewMemoryUsageMeasurer creates a new memory usage measurer

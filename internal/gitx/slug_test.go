@@ -80,33 +80,33 @@ func TestGenerateUniqueBranchName(t *testing.T) {
 	}{
 		{
 			name:             "no conflict",
-			baseBranch:       "river/new-feature",
+			baseBranch:       "alpine/new-feature",
 			existingBranches: []string{"main", "develop"},
-			expected:         "river/new-feature",
+			expected:         "alpine/new-feature",
 		},
 		{
 			name:             "one conflict",
-			baseBranch:       "river/fix-bug",
-			existingBranches: []string{"main", "river/fix-bug", "develop"},
-			expected:         "river/fix-bug-2",
+			baseBranch:       "alpine/fix-bug",
+			existingBranches: []string{"main", "alpine/fix-bug", "develop"},
+			expected:         "alpine/fix-bug-2",
 		},
 		{
 			name:             "multiple conflicts",
-			baseBranch:       "river/feature",
-			existingBranches: []string{"river/feature", "river/feature-2", "river/feature-3"},
-			expected:         "river/feature-4",
+			baseBranch:       "alpine/feature",
+			existingBranches: []string{"alpine/feature", "alpine/feature-2", "alpine/feature-3"},
+			expected:         "alpine/feature-4",
 		},
 		{
 			name:             "empty existing branches",
-			baseBranch:       "river/task",
+			baseBranch:       "alpine/task",
 			existingBranches: []string{},
-			expected:         "river/task",
+			expected:         "alpine/task",
 		},
 		{
 			name:             "non-sequential conflicts",
-			baseBranch:       "river/test",
-			existingBranches: []string{"river/test", "river/test-5", "river/test-10"},
-			expected:         "river/test-2",
+			baseBranch:       "alpine/test",
+			existingBranches: []string{"alpine/test", "alpine/test-5", "alpine/test-10"},
+			expected:         "alpine/test-2",
 		},
 	}
 
@@ -129,7 +129,7 @@ func TestGenerateUniqueBranchName_manyConflicts(t *testing.T) {
 	timeNow = func() time.Time { return mockTime }
 	defer func() { timeNow = oldTimeNow }()
 
-	baseBranch := "river/task"
+	baseBranch := "alpine/task"
 	existingBranches := make([]string, 0, 101)
 	existingBranches = append(existingBranches, baseBranch)
 

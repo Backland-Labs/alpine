@@ -1,8 +1,6 @@
 package claude
 
 import (
-	"context"
-	"strings"
 	"testing"
 )
 
@@ -67,24 +65,24 @@ func TestExecuteWithStderrCapture_Unit(t *testing.T) {
 func TestDefaultCommandRunner_NoStderrCapture(t *testing.T) {
 	// This test verifies that defaultCommandRunner continues to use CombinedOutput
 	t.Run("defaultCommandRunner uses CombinedOutput", func(t *testing.T) {
-		runner := &defaultCommandRunner{}
-		ctx := context.Background()
-		config := ExecuteConfig{
-			Prompt:    "echo test",
-			StateFile: "/tmp/test.json",
-		}
+		// runner := &defaultCommandRunner{}
+		// ctx := context.Background()
+		// config := ExecuteConfig{
+		// 	Prompt:    "echo test",
+		// 	StateFile: "/tmp/test.json",
+		// }
 
 		// This would actually call claude, so we skip it
 		t.Skip("Integration test - would call actual claude command")
 
-		output, err := runner.Run(ctx, config)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		// output, err := runner.Run(ctx, config)
+		// if err != nil {
+		// 	t.Fatalf("unexpected error: %v", err)
+		// }
 
 		// With CombinedOutput, both stdout and stderr would be in output
-		if !strings.Contains(output, "test") {
-			t.Error("expected output to contain 'test'")
-		}
+		// if !strings.Contains(output, "test") {
+		// 	t.Error("expected output to contain 'test'")
+		// }
 	})
 }

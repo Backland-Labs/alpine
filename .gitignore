@@ -3,9 +3,9 @@
 
 # Go binaries
 /build/
-/river
+/alpine
 *.exe
-internal/performance/river
+internal/performance/alpine
 
 # Go workspace files
 go.work

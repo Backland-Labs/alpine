@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/maxmcd/river/internal/cli"
+	"github.com/maxmcd/alpine/internal/cli"
 )
 
 func main() {

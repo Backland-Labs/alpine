@@ -26,12 +26,12 @@ func newMultiCmd() *multiCmd {
 
 	mc.cmd = &cobra.Command{
 		Use:   "multi [path task]...",
-		Short: "Run multiple River agents in parallel",
-		Long: `Run multiple River agents in different codebases simultaneously.
+		Short: "Run multiple Alpine agents in parallel",
+		Long: `Run multiple Alpine agents in different codebases simultaneously.
 Each agent runs in its own process with isolated state.
 
 Example:
-  river multi ~/code/frontend "upgrade to React 18" ~/code/backend "add authentication"`,
+  alpine multi ~/code/frontend "upgrade to React 18" ~/code/backend "add authentication"`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return fmt.Errorf("requires at least one <path> <task> pair")
@@ -62,8 +62,8 @@ func (mc *multiCmd) execute(cmd *cobra.Command, args []string) error {
 	// Parse path/task pairs
 	pairs := ParsePathTaskPairs(args)
 
-	// Spawn River processes
-	return SpawnRiverProcesses(pairs)
+	// Spawn Alpine processes
+	return SpawnAlpineProcesses(pairs)
 }
 
 // PathTaskPair represents a project path and task description
@@ -118,8 +118,8 @@ func ExtractProjectName(path string) string {
 	return base
 }
 
-// SpawnRiverProcesses starts River processes for each path/task pair
-func SpawnRiverProcesses(pairs []PathTaskPair) error {
+// SpawnAlpineProcesses starts Alpine processes for each path/task pair
+func SpawnAlpineProcesses(pairs []PathTaskPair) error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(pairs))
 
@@ -139,8 +139,8 @@ func SpawnRiverProcesses(pairs []PathTaskPair) error {
 			stdoutWriter := NewPrefixWriter(os.Stdout, projectName, useColor, index)
 			stderrWriter := NewPrefixWriter(os.Stderr, projectName, useColor, index)
 
-			// Create the River command
-			cmd := exec.Command("river", p.Task)
+			// Create the Alpine command
+			cmd := exec.Command("alpine", p.Task)
 			cmd.Dir = p.Path
 			cmd.Stdout = stdoutWriter
 			cmd.Stderr = stderrWriter
@@ -148,7 +148,7 @@ func SpawnRiverProcesses(pairs []PathTaskPair) error {
 
 			// Run the command
 			if err := cmd.Run(); err != nil {
-				errChan <- fmt.Errorf("failed to run River in %s: %w", p.Path, err)
+				errChan <- fmt.Errorf("failed to run Alpine in %s: %w", p.Path, err)
 			}
 		}(i, pair)
 	}

@@ -3,7 +3,7 @@ package validation
 import (
 	"context"
 
-	"github.com/maxmcd/river/internal/core"
+	"github.com/maxmcd/alpine/internal/core"
 )
 
 // ComparisonResult represents the result of comparing Python and Go implementations
@@ -65,8 +65,8 @@ type ParityRunner interface {
 
 // ParityConfig configures the parity runner
 type ParityConfig struct {
-	PythonPath    string // Path to Python river script
-	GoPath        string // Path to Go river binary
+	PythonPath    string // Path to Python alpine script
+	GoPath        string // Path to Go alpine binary
 	WorkDir       string // Working directory for test runs
 	CleanupOnExit bool   // Whether to cleanup temp files
 }
@@ -87,7 +87,7 @@ type ParityResults struct {
 	GoExecution        *ExecutionResult
 }
 
-// ExecutionResult represents the result of running river
+// ExecutionResult represents the result of running alpine
 type ExecutionResult struct {
 	Command  []string
 	Output   string
