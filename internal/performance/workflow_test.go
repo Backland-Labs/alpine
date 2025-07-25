@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maxmcd/alpine/internal/claude"
-	"github.com/maxmcd/alpine/internal/config"
-	"github.com/maxmcd/alpine/internal/core"
-	gitxmock "github.com/maxmcd/alpine/internal/gitx/mock"
-	"github.com/maxmcd/alpine/internal/workflow"
+	"github.com/Backland-Labs/alpine/internal/claude"
+	"github.com/Backland-Labs/alpine/internal/config"
+	"github.com/Backland-Labs/alpine/internal/core"
+	gitxmock "github.com/Backland-Labs/alpine/internal/gitx/mock"
+	"github.com/Backland-Labs/alpine/internal/workflow"
 )
 
 // TestLongRunningWorkflowPerformance tests performance during long-running workflows

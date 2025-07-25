@@ -1,4 +1,4 @@
-module github.com/maxmcd/alpine
+module github.com/Backland-Labs/alpine
 
 go 1.24.5
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/maxmcd/alpine/internal/core"
+	"github.com/Backland-Labs/alpine/internal/core"
 )
 
 // CreateTestState creates a test state file with the given status

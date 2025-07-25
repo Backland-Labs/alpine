@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/maxmcd/alpine/internal/config"
-	"github.com/maxmcd/alpine/internal/output"
+	"github.com/Backland-Labs/alpine/internal/config"
+	"github.com/Backland-Labs/alpine/internal/output"
 )
 
 // TestExecuteWithStderrCapture_Integration tests stderr capture integration

@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/maxmcd/alpine/internal/claude"
-	"github.com/maxmcd/alpine/internal/config"
-	"github.com/maxmcd/alpine/internal/core"
-	"github.com/maxmcd/alpine/internal/gitx"
-	gitxmock "github.com/maxmcd/alpine/internal/gitx/mock"
-	"github.com/maxmcd/alpine/internal/output"
+	"github.com/Backland-Labs/alpine/internal/claude"
+	"github.com/Backland-Labs/alpine/internal/config"
+	"github.com/Backland-Labs/alpine/internal/core"
+	"github.com/Backland-Labs/alpine/internal/gitx"
+	gitxmock "github.com/Backland-Labs/alpine/internal/gitx/mock"
+	"github.com/Backland-Labs/alpine/internal/output"
 )
 
 // MockCommandRunner mocks the claude.CommandRunner interface

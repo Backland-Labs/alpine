@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/maxmcd/alpine/internal/hooks"
+	"github.com/Backland-Labs/alpine/internal/hooks"
 )
 
 // TestTodoMonitorConsoleOutput tests that the todo-monitor hook outputs to stderr

@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/maxmcd/alpine/internal/config"
-	"github.com/maxmcd/alpine/internal/gitx"
-	"github.com/maxmcd/alpine/internal/logger"
+	"github.com/Backland-Labs/alpine/internal/config"
+	"github.com/Backland-Labs/alpine/internal/gitx"
+	"github.com/Backland-Labs/alpine/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

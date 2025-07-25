@@ -3,7 +3,7 @@ package validation
 import (
 	"strings"
 
-	"github.com/maxmcd/alpine/internal/core"
+	"github.com/Backland-Labs/alpine/internal/core"
 )
 
 // stateValidator implements StateValidator interface

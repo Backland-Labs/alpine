@@ -3,7 +3,7 @@ package validation
 import (
 	"context"
 
-	"github.com/maxmcd/alpine/internal/core"
+	"github.com/Backland-Labs/alpine/internal/core"
 )
 
 // ComparisonResult represents the result of comparing Python and Go implementations

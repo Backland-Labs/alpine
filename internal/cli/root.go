@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/maxmcd/alpine/internal/output"
+	"github.com/Backland-Labs/alpine/internal/output"
 	"github.com/spf13/cobra"
 )
 
