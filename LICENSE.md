@@ -1,8 +1,8 @@
 # The Prosperity Public License 3.0.0
 
-Contributor: $name
+Contributor: mkrueger
 
-Source Code: $address
+Source Code: [$address](https://github.com/Backland-Labs/river)
 
 ## Purpose
 
