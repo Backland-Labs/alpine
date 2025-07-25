@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/maxmcd/alpine/internal/gitx"
+	"github.com/Backland-Labs/alpine/internal/gitx"
 )
 
 // WorktreeManager is a mock implementation of gitx.WorktreeManager.

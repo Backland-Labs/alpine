@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/maxmcd/alpine/internal/config"
-	"github.com/maxmcd/alpine/internal/logger"
-	"github.com/maxmcd/alpine/internal/output"
+	"github.com/Backland-Labs/alpine/internal/config"
+	"github.com/Backland-Labs/alpine/internal/logger"
+	"github.com/Backland-Labs/alpine/internal/output"
 )
 
 // ExecuteConfig holds configuration for executing Claude

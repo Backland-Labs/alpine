@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/maxmcd/alpine/internal/cli"
+	"github.com/Backland-Labs/alpine/internal/cli"
 )
 
 func main() {

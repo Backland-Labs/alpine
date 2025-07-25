@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/maxmcd/alpine/internal/performance"
+	"github.com/Backland-Labs/alpine/internal/performance"
 )
 
 func main() {

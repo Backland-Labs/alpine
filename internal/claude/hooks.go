@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/maxmcd/alpine/internal/hooks"
-	"github.com/maxmcd/alpine/internal/logger"
+	"github.com/Backland-Labs/alpine/internal/hooks"
+	"github.com/Backland-Labs/alpine/internal/logger"
 )
 
 // hookSettings represents Claude Code settings for hooks

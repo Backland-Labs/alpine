@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maxmcd/alpine/internal/config"
-	"github.com/maxmcd/alpine/internal/output"
+	"github.com/Backland-Labs/alpine/internal/config"
+	"github.com/Backland-Labs/alpine/internal/output"
 )
 
 func TestNewExecutor(t *testing.T) {

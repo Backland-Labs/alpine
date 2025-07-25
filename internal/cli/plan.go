@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maxmcd/alpine/internal/claude"
-	"github.com/maxmcd/alpine/internal/output"
+	"github.com/Backland-Labs/alpine/internal/claude"
+	"github.com/Backland-Labs/alpine/internal/output"
 	"github.com/spf13/cobra"
 )
 

@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/maxmcd/alpine/internal/core"
+	"github.com/Backland-Labs/alpine/internal/core"
 )
 
 // parityRunner implements ParityRunner interface

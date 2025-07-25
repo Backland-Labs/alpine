@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maxmcd/alpine/internal/claude"
-	"github.com/maxmcd/alpine/internal/config"
-	"github.com/maxmcd/alpine/internal/core"
-	"github.com/maxmcd/alpine/internal/gitx"
-	"github.com/maxmcd/alpine/internal/logger"
-	"github.com/maxmcd/alpine/internal/output"
+	"github.com/Backland-Labs/alpine/internal/claude"
+	"github.com/Backland-Labs/alpine/internal/config"
+	"github.com/Backland-Labs/alpine/internal/core"
+	"github.com/Backland-Labs/alpine/internal/gitx"
+	"github.com/Backland-Labs/alpine/internal/logger"
+	"github.com/Backland-Labs/alpine/internal/output"
 )
 
 // ClaudeExecutor interface for executing Claude commands
