@@ -1,5 +1,8 @@
 # Alpine CLI
 
+> [!WARNING]
+> **This repository is experimental and under active development.** APIs, commands, and behaviors may change without notice. Use in production at your own risk.
+
 Alpine is a CLI orchestrator for Claude Code that automates iterative AI-assisted development workflows. It accepts task descriptions and runs Claude Code in a loop based on a state-driven workflow.
 
 ## Features
