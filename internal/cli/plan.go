@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/Backland-Labs/alpine/internal/claude"
 	"github.com/Backland-Labs/alpine/internal/output"
+	"github.com/Backland-Labs/alpine/internal/prompts"
 	"github.com/spf13/cobra"
 )
 
@@ -39,6 +39,14 @@ that can be used with Alpine's implementation workflow.
 
 By default, the plan is generated using Gemini. Use the --cc flag to generate
 the plan using Claude Code instead.`,
+		Example: `  # Generate a plan using Gemini (default)
+  alpine plan "Implement user authentication"
+  
+  # Generate a plan using Claude Code
+  alpine plan --cc "Add caching layer"
+  
+  # Generate a plan from a GitHub issue
+  alpine plan gh-issue https://github.com/owner/repo/issues/123`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			task := args[0]
@@ -81,17 +89,8 @@ func generatePlan(task string) error {
 		return fmt.Errorf("GEMINI_API_KEY not set")
 	}
 
-	// Read the prompt template
-	promptPath := filepath.Join("prompts", "prompt-plan.md")
-	promptTemplate, err := os.ReadFile(promptPath)
-	if err != nil {
-		printer.Error("Failed to read prompt template: %v", err)
-		return fmt.Errorf("failed to read prompt template: %w", err)
-	}
-
 	// Replace placeholders in the prompt template
-	prompt := string(promptTemplate)
-	prompt = strings.ReplaceAll(prompt, "{{TASK}}", task)
+	prompt := strings.ReplaceAll(prompts.PromptPlan, "{{TASK}}", task)
 
 	// Execute Gemini CLI in non-interactive mode
 	cmd := exec.Command("gemini", "--all-files", "-y", "-p", prompt)
@@ -105,7 +104,7 @@ func generatePlan(task string) error {
 	cmd.Stderr = os.Stderr
 
 	// Execute the command
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			printer.Error("Gemini command failed with exit code %d", exitErr.ExitCode())
@@ -124,16 +123,8 @@ func generatePlanWithClaude(task string) error {
 	// Create printer for progress indicator
 	printer := output.NewPrinter()
 
-	// Read the prompt template
-	promptPath := filepath.Join("prompts", "prompt-plan.md")
-	promptTemplate, err := os.ReadFile(promptPath)
-	if err != nil {
-		return fmt.Errorf("failed to read prompt template: %w", err)
-	}
-
 	// Replace placeholders in the prompt template
-	prompt := string(promptTemplate)
-	prompt = strings.ReplaceAll(prompt, "{{TASK}}", task)
+	prompt := strings.ReplaceAll(prompts.PromptPlan, "{{TASK}}", task)
 
 	// Create a temporary state file (required by executor)
 	stateFile, err := os.CreateTemp("", "claude_state_*.json")

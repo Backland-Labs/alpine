@@ -244,21 +244,7 @@ func TestPlanCommand_RouteToGeminiByDefault(t *testing.T) {
 	}()
 	_ = os.Setenv("GEMINI_API_KEY", "test-key")
 
-	// Create a test prompt template
-	tempDir := t.TempDir()
-	promptsDir := filepath.Join(tempDir, "prompts")
-	if err := os.Mkdir(promptsDir, 0755); err != nil {
-		t.Fatalf("failed to create prompts dir: %v", err)
-	}
-	promptTemplate := `Task: {{TASK}}`
-	if err := os.WriteFile(filepath.Join(promptsDir, "prompt-plan.md"), []byte(promptTemplate), 0644); err != nil {
-		t.Fatalf("failed to write prompt template: %v", err)
-	}
-
-	// Change to temp directory for the test
-	originalDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(originalDir) }()
-	_ = os.Chdir(tempDir)
+	// No need to create prompt files anymore - they're embedded
 
 	// This test verifies the routing logic defaults to Gemini
 	// Full implementation will come after refactoring for testability
@@ -267,21 +253,7 @@ func TestPlanCommand_RouteToGeminiByDefault(t *testing.T) {
 
 // TestPlanCommand_RouteToClaude tests that --cc flag routes to Claude
 func TestPlanCommand_RouteToClaude(t *testing.T) {
-	// Create a test prompt template
-	tempDir := t.TempDir()
-	promptsDir := filepath.Join(tempDir, "prompts")
-	if err := os.Mkdir(promptsDir, 0755); err != nil {
-		t.Fatalf("failed to create prompts dir: %v", err)
-	}
-	promptTemplate := `Task: {{TASK}}`
-	if err := os.WriteFile(filepath.Join(promptsDir, "prompt-plan.md"), []byte(promptTemplate), 0644); err != nil {
-		t.Fatalf("failed to write prompt template: %v", err)
-	}
-
-	// Change to temp directory for the test
-	originalDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(originalDir) }()
-	_ = os.Chdir(tempDir)
+	// No need to create prompt files anymore - they're embedded
 
 	// This test verifies the routing logic routes to Claude when --cc is used
 	// Full implementation will come after implementing generatePlanWithClaude
@@ -326,10 +298,8 @@ func TestPlanCommand_ErrorPropagation(t *testing.T) {
 		if err == nil {
 			t.Error("expected error from generatePlanWithClaude")
 		}
-		// Since we're not in a directory with prompts/prompt-plan.md, we expect a prompt template error
-		if !strings.Contains(err.Error(), "failed to read prompt template") {
-			t.Errorf("expected prompt template error, got: %v", err)
-		}
+		// With embedded prompts, we now expect a different error (e.g., Claude CLI not found)
+		// The specific error depends on the execution environment
 	})
 }
 
@@ -383,8 +353,9 @@ func TestPlanCommand_RoutingLogic(t *testing.T) {
 		rootCmd.SetArgs([]string{"plan", "--cc", "test task"})
 
 		err := rootCmd.Execute()
-		if err == nil || !strings.Contains(err.Error(), "failed to read prompt template") {
-			t.Errorf("expected prompt template error (indicating Claude path), got: %v", err)
+		// With embedded prompts, we expect an error but not specifically about prompt template
+		if err == nil {
+			t.Error("expected error from generatePlanWithClaude")
 		}
 
 		// Close writer and read output
@@ -420,22 +391,7 @@ func TestGeneratePlanRefactored(t *testing.T) {
 		}
 	}
 
-	// Create test prompt template
-	promptsDir := filepath.Join(tempDir, "prompts")
-	if err := os.Mkdir(promptsDir, 0755); err != nil {
-		t.Fatalf("failed to create prompts dir: %v", err)
-	}
-	promptTemplate := `# Plan Generation Template
-
-Task: {{TASK}}
-
-Please generate an implementation plan based on the following specifications:
-{{SPECS}}
-
-Generate a detailed plan in markdown format.`
-	if err := os.WriteFile(filepath.Join(promptsDir, "prompt-plan.md"), []byte(promptTemplate), 0644); err != nil {
-		t.Fatalf("failed to write prompt template: %v", err)
-	}
+	// No need to create prompt files anymore - they're embedded
 
 	t.Run("builds correct prompt with all components", func(t *testing.T) {
 		// This test will be implemented once we refactor generatePlan
@@ -447,21 +403,10 @@ Generate a detailed plan in markdown format.`
 // TestGeneratePlanWithClaude tests the Claude plan generation logic
 func TestGeneratePlanWithClaude(t *testing.T) {
 	// Test basic functionality and error paths
-	t.Run("handles missing prompt template", func(t *testing.T) {
-		// Create a temporary directory without prompt template
-		tempDir := t.TempDir()
-
-		// Change to temp directory for the test
-		originalDir, _ := os.Getwd()
-		defer func() { _ = os.Chdir(originalDir) }()
-		_ = os.Chdir(tempDir)
-
-		// The function should fail to read the prompt template
-		err := generatePlanWithClaude("test task")
-
-		if err == nil || !strings.Contains(err.Error(), "failed to read prompt template") {
-			t.Errorf("expected prompt template error, got: %v", err)
-		}
+	t.Run("creates temporary state file", func(t *testing.T) {
+		// Prompts are now embedded, so we should test other aspects
+		// This test needs proper mocking of the Claude executor
+		t.Skip("Requires executor mocking to test state file creation")
 	})
 
 	t.Run("replaces task placeholder correctly", func(t *testing.T) {
@@ -474,10 +419,10 @@ func TestGeneratePlanWithClaude(t *testing.T) {
 
 // TestGeneratePlanWithClaude_PromptTemplate verifies correct prompt template usage
 func TestGeneratePlanWithClaude_PromptTemplate(t *testing.T) {
-	t.Run("reads and processes prompt template", func(t *testing.T) {
-		// This test will verify that the prompt template is read and {{TASK}} is replaced
+	t.Run("processes embedded prompt template", func(t *testing.T) {
+		// This test will verify that the embedded prompt template is processed correctly
 		// It should test that the function:
-		// 1. Reads prompts/prompt-plan.md
+		// 1. Uses the embedded prompt template
 		// 2. Replaces {{TASK}} with the actual task
 		// 3. Passes the processed prompt to Claude
 
@@ -485,21 +430,10 @@ func TestGeneratePlanWithClaude_PromptTemplate(t *testing.T) {
 		t.Skip("Waiting for generatePlanWithClaude implementation")
 	})
 
-	t.Run("handles missing prompt template", func(t *testing.T) {
-		// Create a temporary directory without prompt template
-		tempDir := t.TempDir()
-
-		// Change to temp directory for the test
-		originalDir, _ := os.Getwd()
-		defer func() { _ = os.Chdir(originalDir) }()
-		_ = os.Chdir(tempDir)
-
-		// The function should fail to read the prompt template
-		err := generatePlanWithClaude("test task")
-
-		if err == nil || !strings.Contains(err.Error(), "failed to read prompt template") {
-			t.Errorf("expected prompt template error, got: %v", err)
-		}
+	t.Run("handles task replacement in embedded template", func(t *testing.T) {
+		// With embedded prompts, this test should verify task replacement works
+		// However, we need proper mocking to test this effectively
+		t.Skip("Requires executor mocking to test task replacement")
 	})
 }
 
@@ -551,15 +485,7 @@ func TestGeneratePlanWithClaude_ProgressIndicator(t *testing.T) {
 		defer func() { _ = os.Chdir(originalDir) }()
 		_ = os.Chdir(tempDir)
 
-		// Create prompt template
-		promptsDir := filepath.Join(tempDir, "prompts")
-		if err := os.Mkdir(promptsDir, 0755); err != nil {
-			t.Fatalf("failed to create prompts dir: %v", err)
-		}
-		promptTemplate := `Task: {{TASK}}`
-		if err := os.WriteFile(filepath.Join(promptsDir, "prompt-plan.md"), []byte(promptTemplate), 0644); err != nil {
-			t.Fatalf("failed to write prompt template: %v", err)
-		}
+		// No need to create prompt files anymore - they're embedded
 
 		// Capture output to verify progress messages
 		oldStdout := os.Stdout
@@ -608,13 +534,13 @@ func TestGeneratePlanWithClaude_ProgressIndicator(t *testing.T) {
 
 	// Test that progress indicator is properly stopped on error
 	t.Run("stops progress indicator on error", func(t *testing.T) {
-		// Create a test environment with no prompt template
+		// Create a test environment
 		tempDir := t.TempDir()
 		originalDir, _ := os.Getwd()
 		defer func() { _ = os.Chdir(originalDir) }()
 		_ = os.Chdir(tempDir)
 
-		// Don't create prompt template - this will cause an error
+		// With embedded prompts, this test now focuses on other errors like missing Claude CLI
 
 		// Capture output
 		oldStdout := os.Stdout
