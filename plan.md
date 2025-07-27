@@ -96,22 +96,33 @@ This plan outlines the implementation of a basic HTTP server with a Server-Sent 
 
 ### P1: Integration with Main Workflow
 
-#### Task 4: Integrate Server into CLI
+#### Task 4: Integrate Server into CLI ✅ **IMPLEMENTED**
 **Acceptance Criteria:**
--   When the `alpine --serve` command is run, the HTTP server starts in the background.
--   The main Alpine workflow (task execution) proceeds as usual while the server is running.
--   The server is gracefully shut down when the main workflow completes or is interrupted.
+-   When the `alpine --serve` command is run, the HTTP server starts in the background. ✅
+-   The main Alpine workflow (task execution) proceeds as usual while the server is running. ✅
+-   The server is gracefully shut down when the main workflow completes or is interrupted. ✅
 
 **Test Cases:**
 ```go
-// TestServeFlagStartsServer verifies that the server is started when --serve is used.
-// TestWorkflowRunsConcurrentlyWithServer verifies that the main task is executed while the server is active.
+// TestServeFlagStartsServer verifies that the server is started when --serve is used. ✅
+// TestWorkflowRunsConcurrentlyWithServer verifies that the main task is executed while the server is active. ✅
+// TestServerShutdownOnWorkflowComplete verifies graceful shutdown on context cancellation. ✅
 ```
 
 **Implementation:**
--   In `internal/cli/workflow.go`, check if the `--serve` flag is present.
--   If it is, create and start the server in a separate goroutine.
--   Use a context to manage the lifecycle of the server, ensuring it's shut down when the main context is canceled.
+-   In `internal/cli/workflow.go`, check if the `--serve` flag is present. ✅
+-   If it is, create and start the server in a separate goroutine. ✅
+-   Use a context to manage the lifecycle of the server, ensuring it's shut down when the main context is canceled. ✅
+
+**Implementation Date:** 2025-07-27
+**Notes:** 
+- Implemented server integration in workflow.go using TDD approach
+- Server starts concurrently without blocking main workflow
+- Proper context-based lifecycle management for graceful shutdown
+- Extracted server startup logic into dedicated function for better organization
+- Added proper error handling and logging
+- Fixed port configuration to support dynamic port assignment (port 0)
+- Test coverage includes server startup, concurrent execution, and shutdown scenarios
 
 ## Success Criteria
 

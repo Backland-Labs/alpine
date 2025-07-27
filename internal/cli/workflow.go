@@ -3,9 +3,12 @@ package cli
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Backland-Labs/alpine/internal/logger"
+	"github.com/Backland-Labs/alpine/internal/server"
 )
 
 // runWorkflowWithDependencies is the testable version of runWorkflow with dependency injection
@@ -58,6 +61,11 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 	logger.InitializeFromConfig(cfg)
 	logger.Debugf("Starting Alpine workflow for task: %s", taskDescription)
 
+	// Start HTTP server if requested
+	if err := startServerIfRequested(ctx); err != nil {
+		return fmt.Errorf("failed to start server: %w", err)
+	}
+
 	// Create workflow engine with finalized config if not already created
 	if deps.WorkflowEngine == nil {
 		engine, wtMgr := CreateWorkflowEngine(cfg)
@@ -67,5 +75,52 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 
 	// Run the workflow (generatePlan is opposite of noPlan)
 	generatePlan := !noPlan
-	return deps.WorkflowEngine.Run(ctx, taskDescription, generatePlan)
+	workflowErr := deps.WorkflowEngine.Run(ctx, taskDescription, generatePlan)
+	
+	// Workflow has completed, no need to keep the server running
+	// The server will shut down when the context is cancelled
+	
+	return workflowErr
+}
+
+// startServerIfRequested starts the HTTP server if the --serve flag is set in the context.
+// The server runs in a separate goroutine and will be shut down when the context is cancelled.
+func startServerIfRequested(ctx context.Context) error {
+	serve, ok := ctx.Value(serveKey).(bool)
+	if !ok || !serve {
+		return nil // Server not requested
+	}
+
+	// Get port from context or use default
+	port := 3001
+	if p, ok := ctx.Value(portKey).(int); ok {
+		port = p
+	}
+
+	// Create and start the server
+	httpServer := server.NewServer(port)
+	
+	go func() {
+		logger.Infof("Starting HTTP server on port %d", port)
+		if err := httpServer.Start(ctx); err != nil {
+			// Only log unexpected errors (not normal shutdown)
+			if err != context.Canceled && err != http.ErrServerClosed {
+				logger.Errorf("Server error: %v", err)
+			}
+		}
+		logger.Debugf("HTTP server stopped")
+	}()
+	
+	// Give the server a moment to start
+	// TODO: Implement a proper readiness check
+	time.Sleep(100 * time.Millisecond)
+	
+	// Verify the server started successfully
+	addr := httpServer.Address()
+	if addr == "" {
+		return fmt.Errorf("server failed to start on port %d", port)
+	}
+	
+	logger.Infof("HTTP server listening on %s", addr)
+	return nil
 }
