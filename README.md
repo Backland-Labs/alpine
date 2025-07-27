@@ -60,7 +60,21 @@ alpine --continue
 
 # Generate plan from GitHub issue
 alpine plan gh-issue https://github.com/owner/repo/issues/123
+
+# Run HTTP server with Server-Sent Events (SSE)
+alpine --serve                    # Start server on default port 3001
+alpine --serve --port 8080        # Start server on custom port
 ```
+
+### HTTP Server Mode
+
+Alpine includes a built-in HTTP server with Server-Sent Events (SSE) support for real-time communication:
+
+- **Standalone mode**: Run `alpine --serve` to start just the HTTP server
+- **SSE endpoint**: Connect to `/events` to receive real-time events
+- **Port configuration**: Default port 3001, configurable with `--port`
+
+This allows frontend applications or monitoring tools to receive real-time updates from Alpine's execution.
 
 
 ## License

@@ -32,6 +32,15 @@ type GitConfig struct {
 	AutoCleanupWT bool
 }
 
+// ServerConfig holds server-related configuration
+type ServerConfig struct {
+	// Enabled controls whether the HTTP server is started
+	Enabled bool
+
+	// Port is the HTTP server port
+	Port int
+}
+
 // Config holds all configuration for the Alpine CLI
 type Config struct {
 	// WorkDir is the working directory for Claude execution
@@ -57,6 +66,9 @@ type Config struct {
 
 	// Git holds git-related configuration
 	Git GitConfig
+
+	// Server holds server-related configuration
+	Server ServerConfig
 }
 
 // New creates a new Config instance from environment variables

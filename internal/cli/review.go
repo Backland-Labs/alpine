@@ -50,7 +50,7 @@ func (rc *reviewCmd) execute(cmd *cobra.Command, args []string) error {
 
 	// Review the plan file
 	fmt.Fprintf(cmd.OutOrStdout(), "Reviewing plan file: %s\n", planFile)
-	
+
 	file, err := os.Open(planFile)
 	if err != nil {
 		return fmt.Errorf("failed to open plan file: %w", err)
@@ -59,7 +59,7 @@ func (rc *reviewCmd) execute(cmd *cobra.Command, args []string) error {
 
 	var totalTasks, implementedTasks, pendingTasks int
 	scanner := bufio.NewScanner(file)
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		// Look for task headers (## Task... or similar patterns)
