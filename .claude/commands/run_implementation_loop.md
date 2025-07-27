@@ -15,7 +15,7 @@ You are a senior software engineer tasked with implementing features from a proj
 - **Available tools**: Bash commands including `grep`, `ls`, `tree`, `git`, and `find`
 
 ### Subagents
-When applicable delegate tasks to subagents to decrease implementation time.
+When applicable delegate tasks to subagents to decrease implementation time. Always be thinking about how we can do this work faster. Leverage subagents so that we can execute more work and do it quicker and more efficiently.
 
 ## Detailed Implementation Process
 

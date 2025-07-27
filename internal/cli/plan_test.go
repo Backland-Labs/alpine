@@ -580,7 +580,7 @@ func TestValidatePlanFile(t *testing.T) {
 
 		// Test validatePlanFile handles permission error
 		err := validatePlanFile()
-		
+
 		// On macOS and some systems, os.Stat might still work on files with 0000 permissions
 		// The important behavior is that the function doesn't panic and returns a reasonable result
 		// Either nil (file exists and has content) or an error is acceptable
@@ -1054,7 +1054,7 @@ exit 0
 
 		// Verify output shows "Generating plan..." only once
 		if strings.Count(output, "Generating plan...") != 1 {
-			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences", 
+			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences",
 				strings.Count(output, "Generating plan..."))
 		}
 
@@ -1407,7 +1407,7 @@ exit 0
 
 		// Verify "Generating plan..." is shown only on first attempt
 		if strings.Count(output, "Generating plan...") != 1 {
-			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences", 
+			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences",
 				strings.Count(output, "Generating plan..."))
 		}
 
@@ -1492,7 +1492,7 @@ fi
 
 		// Verify "Generating plan..." appears only once (on first attempt)
 		if strings.Count(output, "Generating plan...") != 1 {
-			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences", 
+			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences",
 				strings.Count(output, "Generating plan..."))
 		}
 
@@ -1623,7 +1623,7 @@ fi
 
 		// Verify "Generating plan..." appears only once
 		if strings.Count(output, "Generating plan...") != 1 {
-			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences", 
+			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences",
 				strings.Count(output, "Generating plan..."))
 		}
 	})
