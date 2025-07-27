@@ -64,7 +64,15 @@ func TestReviewCommand_Success(t *testing.T) {
 	// Create a temporary plan file
 	tmpDir := t.TempDir()
 	planFile := filepath.Join(tmpDir, "plan.md")
-	err := os.WriteFile(planFile, []byte("# Test Plan"), 0644)
+	planContent := `# Test Plan
+
+## Task 1: Implement Feature A ✅ IMPLEMENTED
+- Status: Complete
+
+## Task 2: Implement Feature B
+- Status: Pending
+`
+	err := os.WriteFile(planFile, []byte(planContent), 0644)
 	require.NoError(t, err)
 
 	rootCmd := NewRootCommand()
@@ -73,9 +81,14 @@ func TestReviewCommand_Success(t *testing.T) {
 	rootCmd.SetErr(output)
 
 	// Test with the existing file
-	// We expect this to pass the file existence check.
-	// The generateReview function is not implemented yet, so it should return nil.
 	rootCmd.SetArgs([]string{"review", planFile})
 	err = rootCmd.Execute()
 	assert.NoError(t, err)
+	
+	// Check that output contains review information
+	outputStr := output.String()
+	assert.Contains(t, outputStr, "Reviewing plan file:")
+	assert.Contains(t, outputStr, "Tasks found: 2")
+	assert.Contains(t, outputStr, "Implemented: 1")
+	assert.Contains(t, outputStr, "Pending: 1")
 }
