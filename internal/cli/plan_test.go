@@ -475,6 +475,120 @@ func TestGeneratePlanWithClaude_MockExecution(t *testing.T) {
 	})
 }
 
+// TestValidatePlanFile tests the validatePlanFile function that checks if plan.md exists and has content
+func TestValidatePlanFile(t *testing.T) {
+	t.Run("returns nil when plan.md exists with content", func(t *testing.T) {
+		// Create a temporary directory for testing
+		tempDir := t.TempDir()
+		originalDir, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalDir) }()
+		_ = os.Chdir(tempDir)
+
+		// Create plan.md with content
+		content := []byte("# Implementation Plan\n\nThis is a test plan with content.")
+		if err := os.WriteFile("plan.md", content, 0644); err != nil {
+			t.Fatalf("failed to write plan.md: %v", err)
+		}
+
+		// Test validatePlanFile returns nil
+		err := validatePlanFile()
+		if err != nil {
+			t.Errorf("expected nil error for existing plan.md with content, got: %v", err)
+		}
+	})
+
+	t.Run("returns error when plan.md doesn't exist", func(t *testing.T) {
+		// Create a temporary directory for testing
+		tempDir := t.TempDir()
+		originalDir, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalDir) }()
+		_ = os.Chdir(tempDir)
+
+		// Ensure plan.md doesn't exist
+		_ = os.Remove("plan.md")
+
+		// Test validatePlanFile returns error
+		err := validatePlanFile()
+		if err == nil {
+			t.Error("expected error when plan.md doesn't exist, got nil")
+		}
+
+		// Check error message
+		expectedMsg := "plan.md does not exist"
+		if err != nil && err.Error() != expectedMsg {
+			t.Errorf("expected error message '%s', got: %v", expectedMsg, err)
+		}
+	})
+
+	t.Run("returns error when plan.md is empty (0 bytes)", func(t *testing.T) {
+		// Create a temporary directory for testing
+		tempDir := t.TempDir()
+		originalDir, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalDir) }()
+		_ = os.Chdir(tempDir)
+
+		// Create empty plan.md
+		if err := os.WriteFile("plan.md", []byte{}, 0644); err != nil {
+			t.Fatalf("failed to write empty plan.md: %v", err)
+		}
+
+		// Test validatePlanFile returns error
+		err := validatePlanFile()
+		if err == nil {
+			t.Error("expected error when plan.md is empty, got nil")
+		}
+
+		// Check error message
+		expectedMsg := "plan.md is empty"
+		if err != nil && err.Error() != expectedMsg {
+			t.Errorf("expected error message '%s', got: %v", expectedMsg, err)
+		}
+	})
+
+	t.Run("handles edge case of single byte file", func(t *testing.T) {
+		// Create a temporary directory for testing
+		tempDir := t.TempDir()
+		originalDir, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalDir) }()
+		_ = os.Chdir(tempDir)
+
+		// Create plan.md with single byte
+		if err := os.WriteFile("plan.md", []byte{' '}, 0644); err != nil {
+			t.Fatalf("failed to write plan.md: %v", err)
+		}
+
+		// Test validatePlanFile returns nil (file has content)
+		err := validatePlanFile()
+		if err != nil {
+			t.Errorf("expected nil error for plan.md with single byte, got: %v", err)
+		}
+	})
+
+	t.Run("handles permission errors gracefully", func(t *testing.T) {
+		// Create a temporary directory for testing
+		tempDir := t.TempDir()
+		originalDir, _ := os.Getwd()
+		defer func() { _ = os.Chdir(originalDir) }()
+		_ = os.Chdir(tempDir)
+
+		// Create plan.md with no read permissions
+		if err := os.WriteFile("plan.md", []byte("content"), 0000); err != nil {
+			t.Fatalf("failed to write plan.md: %v", err)
+		}
+		defer func() { _ = os.Chmod("plan.md", 0644) }() // Restore permissions for cleanup
+
+		// Test validatePlanFile handles permission error
+		err := validatePlanFile()
+		
+		// On macOS and some systems, os.Stat might still work on files with 0000 permissions
+		// The important behavior is that the function doesn't panic and returns a reasonable result
+		// Either nil (file exists and has content) or an error is acceptable
+		if err != nil && !strings.Contains(err.Error(), "permission denied") && !strings.Contains(err.Error(), "plan.md does not exist") {
+			t.Errorf("unexpected error type: %v", err)
+		}
+	})
+}
+
 // TestGeneratePlanWithClaude_ProgressIndicator tests that progress indicator is shown
 func TestGeneratePlanWithClaude_ProgressIndicator(t *testing.T) {
 	// Test that progress indicator is shown during Claude execution

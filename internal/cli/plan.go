@@ -243,6 +243,27 @@ func fetchGitHubIssue(url string) (title, body string, err error) {
 	return issue.Title, issue.Body, nil
 }
 
+// validatePlanFile checks if plan.md exists and has content
+func validatePlanFile() error {
+	// Check if plan.md exists
+	info, err := os.Stat("plan.md")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("plan.md does not exist")
+		}
+		// For permission errors or other issues, return the not exist error
+		// to maintain consistent behavior
+		return fmt.Errorf("plan.md does not exist")
+	}
+
+	// Check if plan.md is empty
+	if info.Size() == 0 {
+		return fmt.Errorf("plan.md is empty")
+	}
+
+	return nil
+}
+
 // newGhIssueCmd creates a new gh-issue subcommand
 func newGhIssueCmd() *cobra.Command {
 	return &cobra.Command{
