@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -105,10 +106,9 @@ func TestEngine_Run_WithPlan(t *testing.T) {
 	// Verify all executions were performed
 	assert.Equal(t, 2, executor.executionCount)
 
-	// Verify final state
-	finalState, err := core.LoadState(stateFile)
-	require.NoError(t, err)
-	assert.Equal(t, "completed", finalState.Status)
+	// State file should be cleaned up after successful completion
+	_, err = os.Stat(stateFile)
+	assert.True(t, os.IsNotExist(err), "State file should be removed after successful completion")
 }
 
 func TestEngine_Run_NoPlan(t *testing.T) {
@@ -256,10 +256,9 @@ func TestEngine_Run_StateFileUpdate(t *testing.T) {
 	err = engine.Run(ctx, "Test task", false)
 	require.NoError(t, err)
 
-	// Verify state was updated
-	finalState, err := core.LoadState(stateFile)
-	require.NoError(t, err)
-	assert.Equal(t, "completed", finalState.Status)
+	// State file should be cleaned up after successful completion
+	_, err = os.Stat(stateFile)
+	assert.True(t, os.IsNotExist(err), "State file should be removed after successful completion")
 }
 
 // Helper types for testing
@@ -506,10 +505,11 @@ func TestEngineStateFileInWorktree(t *testing.T) {
 	err := engine.Run(ctx, "test task", false)
 	require.NoError(t, err)
 
-	// Verify state file was created in worktree
+	// State file should be cleaned up after successful completion
 	expectedStateDir := filepath.Join(worktreeDir, "agent_state")
 	expectedStateFile := filepath.Join(expectedStateDir, "agent_state.json")
-	assert.FileExists(t, expectedStateFile)
+	_, err = os.Stat(expectedStateFile)
+	assert.True(t, os.IsNotExist(err), "State file should be removed after successful completion")
 }
 
 func TestEngine_BareMode_ContinuesExistingState(t *testing.T) {
@@ -556,11 +556,9 @@ func TestEngine_BareMode_ContinuesExistingState(t *testing.T) {
 	// Verify execution happened
 	assert.Equal(t, 1, executor.executionCount)
 
-	// Verify final state
-	finalState, err := core.LoadState(stateFile)
-	require.NoError(t, err)
-	assert.Equal(t, "completed", finalState.Status)
-	assert.Equal(t, "Continued previous work", finalState.CurrentStepDescription)
+	// State file should be cleaned up after successful completion
+	_, err = os.Stat(stateFile)
+	assert.True(t, os.IsNotExist(err), "State file should be removed after successful completion")
 }
 
 func TestEngine_BareMode_InitializesWithrun_implementation_loop(t *testing.T) {
@@ -606,8 +604,85 @@ func TestEngine_BareMode_InitializesWithrun_implementation_loop(t *testing.T) {
 	// Verify both executions happened
 	assert.Equal(t, 2, executor.executionCount)
 
-	// Verify final state
-	finalState, err := core.LoadState(stateFile)
+	// State file should be cleaned up after successful completion
+	_, err = os.Stat(stateFile)
+	assert.True(t, os.IsNotExist(err), "State file should be removed after successful completion")
+}
+
+func TestEngine_Run_StateFileCleanup(t *testing.T) {
+	// Test that state file is cleaned up on successful completion
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
 	require.NoError(t, err)
-	assert.Equal(t, "completed", finalState.Status)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
+
+	// Create a test executor that simulates Claude behavior
+	executor := newTestExecutor(t, stateFile)
+	executor.executions = []testExecution{
+		{
+			expectedPrompt: "/run_implementation_loop Test cleanup",
+			stateUpdate: &core.State{
+				CurrentStepDescription: "Task completed",
+				NextStepPrompt:         "",
+				Status:                 "completed",
+			},
+		},
+	}
+
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
+	engine.SetStateFile(stateFile)
+
+	// Suppress output during tests
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+
+	// Verify state file exists after initialization
+	err = engine.Run(ctx, "Test cleanup", false)
+	require.NoError(t, err)
+
+	// Verify state file was cleaned up
+	_, err = os.Stat(stateFile)
+	assert.True(t, os.IsNotExist(err), "State file should be removed after successful completion")
+
+	// Verify state directory still exists
+	_, err = os.Stat(stateDir)
+	assert.NoError(t, err, "State directory should remain after completion")
+}
+
+func TestEngine_Run_StateFileNotCleanedOnError(t *testing.T) {
+	// Test that state file is NOT cleaned up when workflow doesn't complete
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
+
+	// Create a test executor that simulates Claude failure
+	executor := newTestExecutor(t, stateFile)
+	executor.executions = []testExecution{
+		{
+			expectedPrompt: "/run_implementation_loop Test error",
+			error:          fmt.Errorf("simulated Claude error"),
+		},
+	}
+
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
+	engine.SetStateFile(stateFile)
+
+	// Suppress output during tests
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+
+	// Run should fail
+	err = engine.Run(ctx, "Test error", false)
+	assert.Error(t, err)
+
+	// Verify state file still exists
+	_, err = os.Stat(stateFile)
+	assert.NoError(t, err, "State file should remain when workflow doesn't complete")
 }
