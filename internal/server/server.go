@@ -90,6 +90,10 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// Create a new HTTP server for each start to avoid reuse issues
 	mux := http.NewServeMux()
+
+	// Register SSE endpoint handler
+	mux.HandleFunc("/events", s.sseHandler)
+
 	s.httpServer = &http.Server{
 		Handler: mux,
 	}
@@ -127,3 +131,27 @@ func (s *Server) Address() string {
 	return s.listener.Addr().String()
 }
 
+// sseHandler handles Server-Sent Events connections at the /events endpoint.
+// It sends an initial "hello world" event upon connection and manages the
+// client lifecycle, including proper cleanup on disconnect.
+func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
+	// Set SSE specific headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Ensure buffering is disabled for real-time updates
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+
+	// Send initial hello world event
+	_, _ = fmt.Fprintf(w, "data: hello world\n\n")
+	flusher.Flush()
+
+	// Keep connection open until client disconnects
+	<-r.Context().Done()
+}
