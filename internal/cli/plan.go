@@ -80,9 +80,6 @@ func generatePlan(task string) error {
 	// Create printer for consistent output
 	printer := output.NewPrinter()
 
-	// Notify user that plan generation is starting
-	printer.Info("Generating plan...")
-
 	// Check if GEMINI_API_KEY is set
 	if os.Getenv("GEMINI_API_KEY") == "" {
 		printer.Error("GEMINI_API_KEY not set")
@@ -92,30 +89,51 @@ func generatePlan(task string) error {
 	// Replace placeholders in the prompt template
 	prompt := strings.ReplaceAll(prompts.PromptPlan, "{{TASK}}", task)
 
-	// Execute Gemini CLI in non-interactive mode
-	cmd := exec.Command("gemini", "--all-files", "-y", "-p", prompt)
-
 	// Filter environment to remove CI variables that might trigger interactive mode
 	env := filterEnvironment(os.Environ())
-	cmd.Env = env
 
-	// Let Gemini output directly to stdout/stderr
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	// Execute the command
-	err := cmd.Run()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			printer.Error("Gemini command failed with exit code %d", exitErr.ExitCode())
-			return fmt.Errorf("gemini command failed with exit code %d", exitErr.ExitCode())
+	// Try up to 3 times to generate the plan
+	for i := 1; i <= 3; i++ {
+		// Show progress messages
+		if i == 1 {
+			printer.Info("Generating plan...")
+		} else {
+			printer.Info("Attempt %d of 3...", i)
 		}
-		printer.Error("Failed to execute gemini command: %v", err)
-		return fmt.Errorf("failed to execute gemini command: %w", err)
+
+		// Execute Gemini CLI in non-interactive mode
+		cmd := exec.Command("gemini", "--all-files", "-y", "-p", prompt)
+		cmd.Env = env
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		// Execute the command
+		err := cmd.Run()
+		if err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				printer.Error("Gemini command failed with exit code %d", exitErr.ExitCode())
+				return fmt.Errorf("gemini command failed with exit code %d", exitErr.ExitCode())
+			}
+			printer.Error("Failed to execute gemini command: %v", err)
+			return fmt.Errorf("failed to execute gemini command: %w", err)
+		}
+
+		// Check if plan.md was created
+		if err := validatePlanFile(); err == nil {
+			// Success!
+			printer.Success("Plan generation completed")
+			return nil
+		}
+
+		// If we're not on the last attempt, show retry message
+		if i < 3 {
+			printer.Warning("plan.md was not created, retrying...")
+		}
 	}
 
-	printer.Success("Plan generation completed")
-	return nil
+	// All attempts failed
+	printer.Error("Gemini failed to create plan")
+	return fmt.Errorf("gemini failed to create plan")
 }
 
 // generatePlanWithClaude generates an implementation plan using Claude Code
