@@ -84,7 +84,7 @@ func TestReviewCommand_Success(t *testing.T) {
 	rootCmd.SetArgs([]string{"review", planFile})
 	err = rootCmd.Execute()
 	assert.NoError(t, err)
-	
+
 	// Check that output contains review information
 	outputStr := output.String()
 	assert.Contains(t, outputStr, "Reviewing plan file:")

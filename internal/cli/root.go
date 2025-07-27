@@ -18,6 +18,8 @@ const (
 	noPlanKey     contextKey = "noPlan"
 	noWorktreeKey contextKey = "noWorktree"
 	continueKey   contextKey = "continue"
+	serveKey      contextKey = "serve"
+	portKey       contextKey = "port"
 )
 
 const version = "0.2.0" // Bumped version for new implementation
@@ -33,6 +35,8 @@ func NewRootCommand() *cobra.Command {
 	var noPlan bool
 	var noWorktree bool
 	var continueFlag bool
+	var serve bool
+	var port int
 
 	cmd := &cobra.Command{
 		Use:   "alpine <task-description>",
@@ -82,6 +86,8 @@ Examples:
 	cmd.Flags().BoolVar(&noPlan, "no-plan", false, "Skip plan generation and execute directly")
 	cmd.Flags().BoolVar(&noWorktree, "no-worktree", false, "Disable git worktree creation")
 	cmd.Flags().BoolVar(&continueFlag, "continue", false, "Continue from existing state (equivalent to --no-plan --no-worktree)")
+	cmd.Flags().BoolVar(&serve, "serve", false, "Start HTTP server with Server-Sent Events support")
+	cmd.Flags().IntVar(&port, "port", 3001, "HTTP server port (default: 3001)")
 
 	// Store flags in command context for runWorkflow
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
@@ -94,6 +100,8 @@ Examples:
 		ctx := context.WithValue(cmd.Context(), noPlanKey, noPlan)
 		ctx = context.WithValue(ctx, noWorktreeKey, noWorktree)
 		ctx = context.WithValue(ctx, continueKey, continueFlag)
+		ctx = context.WithValue(ctx, serveKey, serve)
+		ctx = context.WithValue(ctx, portKey, port)
 		cmd.SetContext(ctx)
 		return nil
 	}
