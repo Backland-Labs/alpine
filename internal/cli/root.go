@@ -101,6 +101,7 @@ Examples:
 	// Add subcommands
 	cmd.AddCommand(newMultiCmd().Command())
 	cmd.AddCommand(newPlanCmd().Command())
+	cmd.AddCommand(newReviewCmd().Command())
 
 	return cmd
 }
