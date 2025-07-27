@@ -41,7 +41,7 @@ func TestRootCommandFlags(t *testing.T) {
 // This validates that users can specify these flags on the command line
 // and that they are accessible to the workflow logic.
 func TestRootCommandFlagParsing(t *testing.T) {
-	t.Run("alpine --serve is a valid command", func(t *testing.T) {
+	t.Run("alpine --serve is a valid command without task", func(t *testing.T) {
 		cmd := NewRootCommand()
 
 		// Override RunE to prevent actual workflow execution
@@ -53,9 +53,18 @@ func TestRootCommandFlagParsing(t *testing.T) {
 			return nil
 		}
 
-		cmd.SetArgs([]string{"--serve", "test task"})
+		cmd.SetArgs([]string{"--serve"})
 		err := cmd.Execute()
 		require.NoError(t, err)
+	})
+
+	t.Run("alpine --serve with task description should error", func(t *testing.T) {
+		cmd := NewRootCommand()
+
+		cmd.SetArgs([]string{"--serve", "test task"})
+		err := cmd.Execute()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot use --serve with a task description")
 	})
 
 	t.Run("alpine --port 8080 is a valid command", func(t *testing.T) {

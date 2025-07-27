@@ -3,11 +3,72 @@ package cli
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Backland-Labs/alpine/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestServerOnlyMode(t *testing.T) {
+	t.Run("server-only mode runs without task description", func(t *testing.T) {
+		deps := &Dependencies{
+			FileReader:     &mockFileReader{},
+			ConfigLoader:   &mockConfigLoader{},
+			WorkflowEngine: &mockWorkflowEngine{},
+		}
+
+		// Create a context with serve flag set
+		ctx := context.WithValue(context.Background(), serveKey, true)
+		ctx = context.WithValue(ctx, portKey, 0) // Use port 0 for dynamic assignment in tests
+		
+		// Create a cancellable context to simulate shutdown
+		ctx, cancel := context.WithCancel(ctx)
+		
+		// Run in a goroutine and cancel after a short delay
+		errChan := make(chan error, 1)
+		go func() {
+			errChan <- runWorkflowWithDependencies(ctx, []string{}, false, false, false, deps)
+		}()
+		
+		// Give it a moment to start, then cancel
+		time.Sleep(200 * time.Millisecond)
+		cancel()
+		
+		// Should complete without error
+		err := <-errChan
+		assert.NoError(t, err, "server-only mode should run without error")
+	})
+	
+	t.Run("server-only mode doesn't require workflow engine", func(t *testing.T) {
+		deps := &Dependencies{
+			FileReader:     &mockFileReader{},
+			ConfigLoader:   &mockConfigLoader{},
+			WorkflowEngine: nil, // No workflow engine needed
+		}
+
+		// Create a context with serve flag set
+		ctx := context.WithValue(context.Background(), serveKey, true)
+		ctx = context.WithValue(ctx, portKey, 0) // Use port 0 for dynamic assignment in tests
+		
+		// Create a cancellable context to simulate shutdown
+		ctx, cancel := context.WithCancel(ctx)
+		
+		// Run in a goroutine and cancel after a short delay
+		errChan := make(chan error, 1)
+		go func() {
+			errChan <- runWorkflowWithDependencies(ctx, []string{}, false, false, false, deps)
+		}()
+		
+		// Give it a moment to start, then cancel
+		time.Sleep(200 * time.Millisecond)
+		cancel()
+		
+		// Should complete without error even without workflow engine
+		err := <-errChan
+		assert.NoError(t, err, "server-only mode should work without workflow engine")
+	})
+}
 
 func TestExtractTaskDescription_BareMode(t *testing.T) {
 	// Test that empty task description is accepted when both flags are set

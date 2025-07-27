@@ -13,6 +13,30 @@ import (
 
 // runWorkflowWithDependencies is the testable version of runWorkflow with dependency injection
 func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, noWorktree bool, continueFlag bool, deps *Dependencies) error {
+	// Check if we're in server-only mode
+	serve, _ := ctx.Value(serveKey).(bool)
+	if serve {
+		// Load configuration for server
+		cfg, err := deps.ConfigLoader.Load()
+		if err != nil {
+			return fmt.Errorf("failed to load config: %w", err)
+		}
+		
+		// Initialize logger based on configuration (for production use)
+		logger.InitializeFromConfig(cfg)
+		logger.Infof("Starting Alpine in server-only mode")
+		
+		// Start HTTP server
+		if err := startServerIfRequested(ctx); err != nil {
+			return fmt.Errorf("failed to start server: %w", err)
+		}
+		
+		// Keep the server running until context is cancelled
+		<-ctx.Done()
+		logger.Infof("Server shut down")
+		return nil
+	}
+	
 	var taskDescription string
 
 	// Check for --continue flag first
