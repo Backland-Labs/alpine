@@ -49,14 +49,6 @@ This guide covers common issues and their solutions when using Alpine.
 2. **Reduce verbosity**: Use `ALPINE_VERBOSITY=normal`. Debug mode can be slow.
 3. **Use --no-plan**: Skip the planning phase for simple tasks. See [CLI Commands](cli-commands.md).
 
-### File Input Problems
-
-**Symptom**: Error reading task file with `--file` flag.
-
-**Common Issues**:
-1. **File not found**: Use absolute paths or ensure the file is in the current working directory.
-2. **Permissions**: Check that the file is readable (`chmod 644 my-task.md`).
-3. For more details, see the [CLI Commands](cli-commands.md) specification.
 
 ### Environment Variable Issues
 
@@ -158,8 +150,7 @@ When reporting issues, include:
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| "task description required" | No task provided | Provide task as argument or via --file |
-| "failed to read task file" | File not found or not readable | Check file path and permissions |
+| "task description required" | No task provided | Provide task as argument |
 | "failed to create state file" | Permission or disk space issue | Check directory permissions and disk space |
 | "failed to execute claude" | Claude not found or not executable | Install Claude Code CLI |
 | "context canceled" | Operation interrupted | Normal when using Ctrl+C |

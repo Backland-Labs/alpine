@@ -60,7 +60,7 @@ func TestContinueFlag(t *testing.T) {
 		}
 
 		// Call with --continue flag
-		err := runWorkflowWithDependencies(context.Background(), []string{}, true, true, "", true, deps)
+		err := runWorkflowWithDependencies(context.Background(), []string{}, true, true, true, deps)
 
 		// Should get error about missing state file
 		require.Error(t, err)
@@ -82,7 +82,7 @@ func TestContinueFlag(t *testing.T) {
 		}
 
 		// Call with --continue flag
-		err := runWorkflowWithDependencies(context.Background(), []string{}, true, true, "", true, deps)
+		err := runWorkflowWithDependencies(context.Background(), []string{}, true, true, true, deps)
 
 		// Should succeed and pass empty task description to engine
 		assert.NoError(t, err)

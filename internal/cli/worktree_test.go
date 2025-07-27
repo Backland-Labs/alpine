@@ -37,7 +37,6 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 		args               []string
 		noPlan             bool
 		noWorktree         bool
-		fromFile           string
 		setupMocks         func(*Dependencies, *MockWorktreeManager)
 		expectWorktreeCall bool
 		wantErr            bool
@@ -145,37 +144,6 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 			expectWorktreeCall: false,
 			wantErr:            false,
 		},
-		{
-			name:       "worktree with file input",
-			args:       []string{},
-			noPlan:     false,
-			noWorktree: false,
-			fromFile:   "task.md",
-			setupMocks: func(deps *Dependencies, wtMgr *MockWorktreeManager) {
-				cfg := &config.Config{
-					WorkDir: "/tmp",
-					Git: config.GitConfig{
-						WorktreeEnabled: true,
-						BaseBranch:      "main",
-						AutoCleanupWT:   true,
-					},
-				}
-				deps.ConfigLoader.(*MockConfigLoader).On("Load").Return(cfg, nil)
-				deps.FileReader.(*MockFileReader).On("ReadFile", "task.md").Return([]byte("Build new feature"), nil)
-
-				// Expect worktree creation with task from file
-				wt := &gitx.Worktree{
-					Path:       "../alpine-alpine-build-new-feature",
-					Branch:     "alpine/build-new-feature",
-					ParentRepo: "/tmp",
-				}
-				wtMgr.On("Create", mock.Anything, "Build new feature").Return(wt, nil)
-
-				deps.WorkflowEngine.(*MockWorkflowEngine).On("Run", mock.Anything, "Build new feature", true).Return(nil)
-			},
-			expectWorktreeCall: true,
-			wantErr:            false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -196,19 +164,11 @@ func TestCLIWorktreeDisabled(t *testing.T) {
 			// Create a custom runWorkflow that uses our mock worktree manager
 			var taskDescription string
 
-			// Get task description from file or command line
-			if tt.fromFile != "" {
-				content, err := deps.FileReader.ReadFile(tt.fromFile)
-				if err != nil {
-					t.Fatalf("Failed to read file: %v", err)
-				}
-				taskDescription = string(content)
-			} else {
-				if len(tt.args) == 0 {
-					t.Fatal("Task description is required")
-				}
-				taskDescription = tt.args[0]
+			// Get task description from command line
+			if len(tt.args) == 0 {
+				t.Fatal("Task description is required")
 			}
+			taskDescription = tt.args[0]
 
 			// Validate task description
 			taskDescription = strings.TrimSpace(taskDescription)

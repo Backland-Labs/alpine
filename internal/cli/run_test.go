@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"errors"
-	"os"
 	"testing"
 	"time"
 
@@ -128,7 +127,7 @@ func TestRunWorkflowWithTaskDescription(t *testing.T) {
 			tt.setupMocks(deps)
 
 			// Test the workflow execution with dependency injection
-			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, false, "", false, deps)
+			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, false, false, deps)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -147,112 +146,6 @@ func TestRunWorkflowWithTaskDescription(t *testing.T) {
 	}
 }
 
-// TestRunWorkflowWithFileInput tests file input scenarios
-func TestRunWorkflowWithFileInput(t *testing.T) {
-	tests := []struct {
-		name             string
-		filename         string
-		fileContent      []byte
-		fileError        error
-		noPlan           bool
-		setupMocks       func(*Dependencies)
-		wantErr          bool
-		expectedErrorMsg string
-	}{
-		{
-			name:        "successful file input",
-			filename:    "task.md",
-			fileContent: []byte("Implement payment gateway integration"),
-			fileError:   nil,
-			noPlan:      false,
-			setupMocks: func(deps *Dependencies) {
-				cfg := &config.Config{WorkDir: "/tmp"}
-				deps.ConfigLoader.(*MockConfigLoader).On("Load").Return(cfg, nil)
-				deps.FileReader.(*MockFileReader).On("ReadFile", "task.md").Return([]byte("Implement payment gateway integration"), nil)
-				deps.WorkflowEngine.(*MockWorkflowEngine).On("Run", mock.Anything, "Implement payment gateway integration", true).Return(nil)
-			},
-			wantErr: false,
-		},
-		{
-			name:        "successful file input with --no-plan",
-			filename:    "urgent.md",
-			fileContent: []byte("Fix production bug immediately"),
-			fileError:   nil,
-			noPlan:      true,
-			setupMocks: func(deps *Dependencies) {
-				cfg := &config.Config{WorkDir: "/tmp"}
-				deps.ConfigLoader.(*MockConfigLoader).On("Load").Return(cfg, nil)
-				deps.FileReader.(*MockFileReader).On("ReadFile", "urgent.md").Return([]byte("Fix production bug immediately"), nil)
-				deps.WorkflowEngine.(*MockWorkflowEngine).On("Run", mock.Anything, "Fix production bug immediately", false).Return(nil)
-			},
-			wantErr: false,
-		},
-		{
-			name:        "file not found",
-			filename:    "missing.md",
-			fileContent: nil,
-			fileError:   os.ErrNotExist,
-			setupMocks: func(deps *Dependencies) {
-				deps.FileReader.(*MockFileReader).On("ReadFile", "missing.md").Return([]byte(nil), os.ErrNotExist)
-			},
-			wantErr:          true,
-			expectedErrorMsg: "failed to read task file",
-		},
-		{
-			name:        "empty file content",
-			filename:    "empty.md",
-			fileContent: []byte(""),
-			fileError:   nil,
-			setupMocks: func(deps *Dependencies) {
-				deps.FileReader.(*MockFileReader).On("ReadFile", "empty.md").Return([]byte(""), nil)
-			},
-			wantErr:          true,
-			expectedErrorMsg: "task description cannot be empty",
-		},
-		{
-			name:        "whitespace-only file content",
-			filename:    "whitespace.md",
-			fileContent: []byte("   \n\t  \n"),
-			fileError:   nil,
-			setupMocks: func(deps *Dependencies) {
-				deps.FileReader.(*MockFileReader).On("ReadFile", "whitespace.md").Return([]byte("   \n\t  \n"), nil)
-			},
-			wantErr:          true,
-			expectedErrorMsg: "task description cannot be empty",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create mock dependencies
-			deps := &Dependencies{
-				ConfigLoader:   &MockConfigLoader{},
-				WorkflowEngine: &MockWorkflowEngine{},
-				FileReader:     &MockFileReader{},
-			}
-
-			// Setup mocks
-			tt.setupMocks(deps)
-
-			// This test will fail until we refactor runWorkflow to accept dependencies
-			err := runWorkflowWithDependencies(context.Background(), []string{}, tt.noPlan, false, tt.filename, false, deps)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.expectedErrorMsg != "" {
-					assert.Contains(t, err.Error(), tt.expectedErrorMsg)
-				}
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// Verify mock expectations
-			deps.ConfigLoader.(*MockConfigLoader).AssertExpectations(t)
-			deps.WorkflowEngine.(*MockWorkflowEngine).AssertExpectations(t)
-			deps.FileReader.(*MockFileReader).AssertExpectations(t)
-		})
-	}
-}
 
 // TestSignalHandling tests interrupt signal behavior
 func TestSignalHandling(t *testing.T) {
@@ -273,7 +166,7 @@ func TestSignalHandling(t *testing.T) {
 		// Start the workflow in a goroutine
 		errChan := make(chan error, 1)
 		go func() {
-			err := runWorkflowWithDependencies(context.Background(), []string{"Long task"}, false, false, "", false, deps)
+			err := runWorkflowWithDependencies(context.Background(), []string{"Long task"}, false, false, false, deps)
 			errChan <- err
 		}()
 

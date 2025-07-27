@@ -46,8 +46,6 @@ func TestRunWorkflowBareMode(t *testing.T) {
 		args             []string
 		noPlan           bool
 		noWorktree       bool
-		fromFile         string
-		fileContent      string
 		setupMocks       func(*Dependencies)
 		wantErr          bool
 		expectedErrorMsg string
@@ -87,23 +85,6 @@ func TestRunWorkflowBareMode(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:       "bare mode - file with empty content",
-			args:       []string{},
-			noPlan:     true,
-			noWorktree: true,
-			fromFile:   "empty.md",
-			setupMocks: func(deps *Dependencies) {
-				cfg := &config.Config{
-					WorkDir: "/tmp",
-					Git:     config.GitConfig{},
-				}
-				deps.ConfigLoader.(*MockConfigLoader).On("Load").Return(cfg, nil)
-				deps.FileReader.(*MockFileReader).On("ReadFile", "empty.md").Return([]byte("   "), nil)
-				deps.WorkflowEngine.(*MockWorkflowEngine).On("Run", mock.Anything, "", false).Return(nil)
-			},
-			wantErr: false,
-		},
-		{
 			name:       "noWorktree flag overrides config",
 			args:       []string{"Test task"},
 			noPlan:     false,
@@ -132,7 +113,7 @@ func TestRunWorkflowBareMode(t *testing.T) {
 
 			tt.setupMocks(deps)
 
-			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, tt.noWorktree, tt.fromFile, false, deps)
+			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, tt.noWorktree, false, deps)
 
 			if tt.wantErr {
 				assert.Error(t, err)

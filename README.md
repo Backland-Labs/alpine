@@ -58,9 +58,6 @@ alpine "Fix the payment processing bug" --no-plan
 # Continue from existing state
 alpine --continue
 
-# Complex task from file
-alpine --file requirements.md
-
 # Generate plan from GitHub issue
 alpine plan gh-issue https://github.com/owner/repo/issues/123
 ```

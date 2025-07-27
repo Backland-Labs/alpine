@@ -4,7 +4,6 @@
 
 ```
 alpine [flags] <task-description>
-alpine [flags] --file <file-path>
 alpine plan [flags] <task-description>
 alpine plan [flags] gh-issue <github-issue-url>
 alpine --help
@@ -19,9 +18,6 @@ alpine "Implement user authentication"
 
 # Skip planning phase
 alpine --no-plan "Fix bug in payment processing"
-
-# Read task from file
-alpine --file task.md
 
 # Generate plan using Gemini (default)
 alpine plan "Implement caching layer"
@@ -40,7 +36,6 @@ alpine --version
 
 ### alpine command
 - `--no-plan` - Skip plan generation and execute `/run_implementation_loop` directly
-- `--file <path>` - Read task description from a file
 - `--help` - Show help message
 - `--version` - Show version information
 
@@ -56,14 +51,14 @@ alpine --version
 ## Behavior
 
 ### Default (with planning)
-1. Accepts task description from command line or file
+1. Accepts task description from command line
 2. Generates an execution plan using `/make_plan`
 3. Runs Claude Code iteratively based on state
 4. Updates `agent_state.json` after each step
 5. Continues until status is "completed"
 
 ### With --no-plan
-1. Accepts task description from command line or file
+1. Accepts task description from command line
 2. Executes `/run_implementation_loop` command directly
 3. Runs Claude Code iteratively based on state
 4. Updates `agent_state.json` after each step

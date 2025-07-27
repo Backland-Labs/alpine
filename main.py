@@ -6,7 +6,6 @@ Please use the Go version instead. See DEPRECATED.md for migration instructions.
 
 To use the new Go version:
   river "Your task description here"
-  river --file task.md
   river "Your task" --no-plan
 """
 

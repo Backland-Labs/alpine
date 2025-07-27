@@ -9,7 +9,7 @@ import (
 )
 
 // runWorkflowWithDependencies is the testable version of runWorkflow with dependency injection
-func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, noWorktree bool, fromFile string, continueFlag bool, deps *Dependencies) error {
+func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, noWorktree bool, continueFlag bool, deps *Dependencies) error {
 	var taskDescription string
 
 	// Check for --continue flag first
@@ -20,13 +20,6 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 		}
 		// Continue mode: empty task description
 		taskDescription = ""
-	} else if fromFile != "" {
-		// Get task description from file
-		content, err := deps.FileReader.ReadFile(fromFile)
-		if err != nil {
-			return fmt.Errorf("failed to read task file: %w", err)
-		}
-		taskDescription = string(content)
 	} else {
 		if len(args) == 0 {
 			// Check if we're in bare mode (both flags set)

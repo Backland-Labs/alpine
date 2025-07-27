@@ -66,7 +66,7 @@ func TestLongRunningWorkflowPerformance(t *testing.T) {
 	initialMemory, _ := measurer.MeasureMemoryUsage()
 
 	// Run workflow
-	err := engine.Run(ctx, "Long-running performance test workflow", true)
+	err = engine.Run(ctx, "Long-running performance test workflow", true)
 	if err != nil {
 		t.Fatalf("Workflow failed: %v", err)
 	}

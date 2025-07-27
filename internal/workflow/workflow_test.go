@@ -208,7 +208,7 @@ func TestEngine_Run_ContextCancellation(t *testing.T) {
 	engine.SetStateFile(stateFile)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
-	err := engine.Run(ctx, "Test task", true)
+	err = engine.Run(ctx, "Test task", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "context canceled")
 

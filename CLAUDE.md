@@ -71,9 +71,6 @@ golangci-lint run
 # Run without plan generation
 ./alpine "Fix bug in payment processing" --no-plan
 
-# Run with task from file
-./alpine --file task.md
-
 # Bare execution mode - continue from existing state or start fresh
 ./alpine --no-plan --no-worktree
 
@@ -158,9 +155,6 @@ go build -o alpine cmd/alpine/main.go && ./alpine --help
 # Verify state file creation
 ./alpine "Simple task" && cat agent_state/agent_state.json
 
-# Test task file input
-echo "Implement logging improvements" > task.md
-./alpine --file task.md
 ```
 
 ### 5. State Management Verification

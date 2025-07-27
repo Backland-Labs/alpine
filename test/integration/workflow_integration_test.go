@@ -225,7 +225,7 @@ func TestStateFileCreationAndUpdates(t *testing.T) {
 	stateFile := filepath.Join(stateDir, "agent_state.json")
 
 	// Verify state file doesn't exist initially
-	_, err := os.Stat(stateFile)
+	_, err = os.Stat(stateFile)
 	assert.True(t, os.IsNotExist(err))
 
 	stateUpdates := []core.State{}
