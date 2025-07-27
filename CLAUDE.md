@@ -44,6 +44,7 @@ Key specifications are located in the `specs/` directory:
 - [release-process.md](specs/release-process.md): Provides step-by-step instructions for publishing new releases.
 - [claude-code-hooks.md](specs/claude-code-hooks.md): Specification for integrating with Claude Code hooks.
 - [gemini-cli.md](specs/gemini-cli.md): Specification for integrating with the Gemini CLI.
+- [server.md](specs/server.md): HTTP server functionality with Server-Sent Events for real-time updates.
 - [troubleshooting.md](specs/troubleshooting.md): A guide to common issues and their solutions.
 
 ## Development Commands
