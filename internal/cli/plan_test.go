@@ -1052,14 +1052,17 @@ exit 0
 			t.Error("plan.md should have content")
 		}
 
-		// Verify output shows "Generating plan..." only once (no retry messages)
+		// Verify output shows "Generating plan..." only once
 		if strings.Count(output, "Generating plan...") != 1 {
 			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences", 
 				strings.Count(output, "Generating plan..."))
 		}
 
-		// Should not contain any retry messages
-		if strings.Contains(output, "Attempt") || strings.Contains(output, "retry") {
+		// Should show "Attempt 1 of 3..." but no retry messages
+		if !strings.Contains(output, "Attempt 1 of 3...") {
+			t.Error("Expected to see 'Attempt 1 of 3...' message")
+		}
+		if strings.Contains(output, "retry") {
 			t.Error("Should not show retry messages on first successful attempt")
 		}
 	})
@@ -1335,6 +1338,293 @@ exit 0
 		// Verify final error message in output
 		if !strings.Contains(output, "Gemini failed to create plan") {
 			t.Error("Expected to see 'Gemini failed to create plan' error message in output")
+		}
+	})
+}
+
+// TestGeneratePlan_ProgressMessages tests that progress messages are shown correctly
+// according to Task 3 requirements from plan.md
+func TestGeneratePlan_ProgressMessages(t *testing.T) {
+	// Test that "Attempt 1 of 3..." is shown before first execution
+	t.Run("shows Attempt 1 of 3 before first execution", func(t *testing.T) {
+		// Create a temporary directory for test
+		tmpDir := t.TempDir()
+		oldDir, _ := os.Getwd()
+		defer func() { _ = os.Chdir(oldDir) }()
+		_ = os.Chdir(tmpDir)
+
+		// Set GEMINI_API_KEY
+		originalKey := os.Getenv("GEMINI_API_KEY")
+		defer func() { _ = os.Setenv("GEMINI_API_KEY", originalKey) }()
+		_ = os.Setenv("GEMINI_API_KEY", "test-key")
+
+		// Create mock gemini that creates plan.md on first attempt
+		mockGeminiScript := `#!/bin/bash
+echo "# Generated Plan" > plan.md
+echo "Task implementation plan" >> plan.md
+echo "Gemini execution successful"
+exit 0
+`
+		mockGeminiPath := filepath.Join(tmpDir, "gemini")
+		if err := os.WriteFile(mockGeminiPath, []byte(mockGeminiScript), 0755); err != nil {
+			t.Fatalf("Failed to create mock gemini: %v", err)
+		}
+
+		// Add mock directory to PATH
+		oldPath := os.Getenv("PATH")
+		_ = os.Setenv("PATH", tmpDir+":"+oldPath)
+		defer func() { _ = os.Setenv("PATH", oldPath) }()
+
+		// Capture output to verify progress messages
+		oldStdout := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+
+		outputChan := make(chan string)
+		go func() {
+			var buf bytes.Buffer
+			_, _ = buf.ReadFrom(r)
+			outputChan <- buf.String()
+		}()
+
+		// Execute generatePlan
+		err := generatePlan("test task")
+
+		// Restore stdout and get output
+		_ = w.Close()
+		os.Stdout = oldStdout
+		output := <-outputChan
+
+		// Verify success
+		if err != nil {
+			t.Errorf("Expected success on first attempt, got error: %v", err)
+		}
+
+		// Verify output shows "Attempt 1 of 3..." before first execution
+		if !strings.Contains(output, "Attempt 1 of 3...") {
+			t.Error("Expected to see 'Attempt 1 of 3...' message before first execution")
+		}
+
+		// Verify "Generating plan..." is shown only on first attempt
+		if strings.Count(output, "Generating plan...") != 1 {
+			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences", 
+				strings.Count(output, "Generating plan..."))
+		}
+
+		// Verify order: "Attempt 1 of 3..." should come before "Generating plan..."
+		attemptIdx := strings.Index(output, "Attempt 1 of 3...")
+		generatingIdx := strings.Index(output, "Generating plan...")
+		if attemptIdx == -1 || generatingIdx == -1 || attemptIdx > generatingIdx {
+			t.Error("'Attempt 1 of 3...' should appear before 'Generating plan...'")
+		}
+	})
+
+	// Test that "Generating plan..." is shown only on first attempt
+	t.Run("shows Generating plan only on first attempt", func(t *testing.T) {
+		// Create a temporary directory for test
+		tmpDir := t.TempDir()
+		oldDir, _ := os.Getwd()
+		defer func() { _ = os.Chdir(oldDir) }()
+		_ = os.Chdir(tmpDir)
+
+		// Set GEMINI_API_KEY
+		originalKey := os.Getenv("GEMINI_API_KEY")
+		defer func() { _ = os.Setenv("GEMINI_API_KEY", originalKey) }()
+		_ = os.Setenv("GEMINI_API_KEY", "test-key")
+
+		// Create a counter file to track attempts
+		counterFile := filepath.Join(tmpDir, "counter")
+		_ = os.WriteFile(counterFile, []byte("1"), 0644)
+
+		// Create mock gemini that fails first time, succeeds second time
+		mockGeminiScript := fmt.Sprintf(`#!/bin/bash
+# Read the attempt counter
+counter=$(cat %s)
+
+if [ "$counter" -eq "1" ]; then
+    # First attempt - don't create plan.md
+    echo "First attempt - simulating failure"
+    echo "2" > %s
+    exit 0
+else
+    # Second attempt - create plan.md
+    echo "# Generated Plan" > plan.md
+    echo "Task implementation plan - created on second attempt" >> plan.md
+    echo "Second attempt - success"
+    exit 0
+fi
+`, counterFile, counterFile)
+
+		mockGeminiPath := filepath.Join(tmpDir, "gemini")
+		if err := os.WriteFile(mockGeminiPath, []byte(mockGeminiScript), 0755); err != nil {
+			t.Fatalf("Failed to create mock gemini: %v", err)
+		}
+
+		// Add mock directory to PATH
+		oldPath := os.Getenv("PATH")
+		_ = os.Setenv("PATH", tmpDir+":"+oldPath)
+		defer func() { _ = os.Setenv("PATH", oldPath) }()
+
+		// Capture output
+		oldStdout := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+
+		outputChan := make(chan string)
+		go func() {
+			var buf bytes.Buffer
+			_, _ = buf.ReadFrom(r)
+			outputChan <- buf.String()
+		}()
+
+		// Execute generatePlan
+		err := generatePlan("test task")
+
+		// Restore stdout and get output
+		_ = w.Close()
+		os.Stdout = oldStdout
+		output := <-outputChan
+
+		// Verify success
+		if err != nil {
+			t.Errorf("Expected success on second attempt, got error: %v", err)
+		}
+
+		// Verify "Generating plan..." appears only once (on first attempt)
+		if strings.Count(output, "Generating plan...") != 1 {
+			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences", 
+				strings.Count(output, "Generating plan..."))
+		}
+
+		// Verify correct attempt messages
+		if !strings.Contains(output, "Attempt 1 of 3...") {
+			t.Error("Expected to see 'Attempt 1 of 3...' message")
+		}
+		if !strings.Contains(output, "Attempt 2 of 3...") {
+			t.Error("Expected to see 'Attempt 2 of 3...' message")
+		}
+
+		// Should NOT see duplicate "Generating plan..." on retry
+		lines := strings.Split(output, "\n")
+		generatingCount := 0
+		for _, line := range lines {
+			if strings.Contains(line, "Generating plan...") {
+				generatingCount++
+			}
+		}
+		if generatingCount > 1 {
+			t.Errorf("'Generating plan...' should only appear once, found %d times", generatingCount)
+		}
+	})
+
+	// Test correct messages shown for each attempt
+	t.Run("correct messages shown for each attempt", func(t *testing.T) {
+		// Create a temporary directory for test
+		tmpDir := t.TempDir()
+		oldDir, _ := os.Getwd()
+		defer func() { _ = os.Chdir(oldDir) }()
+		_ = os.Chdir(tmpDir)
+
+		// Set GEMINI_API_KEY
+		originalKey := os.Getenv("GEMINI_API_KEY")
+		defer func() { _ = os.Setenv("GEMINI_API_KEY", originalKey) }()
+		_ = os.Setenv("GEMINI_API_KEY", "test-key")
+
+		// Create a counter file to track attempts
+		counterFile := filepath.Join(tmpDir, "counter")
+		_ = os.WriteFile(counterFile, []byte("1"), 0644)
+
+		// Create mock gemini that fails twice, succeeds third time
+		mockGeminiScript := fmt.Sprintf(`#!/bin/bash
+# Read the attempt counter
+counter=$(cat %s)
+
+if [ "$counter" -eq "1" ]; then
+    echo "First attempt - simulating failure"
+    echo "2" > %s
+    exit 0
+elif [ "$counter" -eq "2" ]; then
+    echo "Second attempt - simulating failure"
+    echo "3" > %s
+    exit 0
+else
+    echo "# Generated Plan" > plan.md
+    echo "Task implementation plan - created on third attempt" >> plan.md
+    echo "Third attempt - success"
+    exit 0
+fi
+`, counterFile, counterFile, counterFile)
+
+		mockGeminiPath := filepath.Join(tmpDir, "gemini")
+		if err := os.WriteFile(mockGeminiPath, []byte(mockGeminiScript), 0755); err != nil {
+			t.Fatalf("Failed to create mock gemini: %v", err)
+		}
+
+		// Add mock directory to PATH
+		oldPath := os.Getenv("PATH")
+		_ = os.Setenv("PATH", tmpDir+":"+oldPath)
+		defer func() { _ = os.Setenv("PATH", oldPath) }()
+
+		// Capture output
+		oldStdout := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+
+		outputChan := make(chan string)
+		go func() {
+			var buf bytes.Buffer
+			_, _ = buf.ReadFrom(r)
+			outputChan <- buf.String()
+		}()
+
+		// Execute generatePlan
+		err := generatePlan("test task")
+
+		// Restore stdout and get output
+		_ = w.Close()
+		os.Stdout = oldStdout
+		output := <-outputChan
+
+		// Verify success
+		if err != nil {
+			t.Errorf("Expected success on third attempt, got error: %v", err)
+		}
+
+		// Verify all attempt messages appear in correct order
+		messages := []string{
+			"Attempt 1 of 3...",
+			"Generating plan...",
+			"Attempt 2 of 3...",
+			"Attempt 3 of 3...",
+		}
+
+		// Check that all messages appear
+		for _, msg := range messages {
+			if !strings.Contains(output, msg) {
+				t.Errorf("Expected to see '%s' in output", msg)
+			}
+		}
+
+		// Verify order of messages
+		indices := make([]int, len(messages))
+		for i, msg := range messages {
+			indices[i] = strings.Index(output, msg)
+			if indices[i] == -1 {
+				t.Errorf("Message '%s' not found in output", msg)
+			}
+		}
+
+		// Check that indices are in increasing order
+		for i := 1; i < len(indices); i++ {
+			if indices[i] <= indices[i-1] {
+				t.Errorf("Message '%s' should appear after '%s'", messages[i], messages[i-1])
+			}
+		}
+
+		// Verify "Generating plan..." appears only once
+		if strings.Count(output, "Generating plan...") != 1 {
+			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences", 
+				strings.Count(output, "Generating plan..."))
 		}
 	})
 }

@@ -95,10 +95,9 @@ func generatePlan(task string) error {
 	// Try up to 3 times to generate the plan
 	for i := 1; i <= 3; i++ {
 		// Show progress messages
+		printer.Info("Attempt %d of 3...", i)
 		if i == 1 {
 			printer.Info("Generating plan...")
-		} else {
-			printer.Info("Attempt %d of 3...", i)
 		}
 
 		// Execute Gemini CLI in non-interactive mode
