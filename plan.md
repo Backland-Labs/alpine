@@ -31,25 +31,25 @@ The solution prioritizes simplicity: using Claude Code hooks for tool events and
 2. Define EventEmitter interface with RunStarted, RunFinished, RunError methods
 3. Create mock and no-op implementations
 
-#### Task 2: Add HTTP Server Configuration
+#### Task 2: Add HTTP Server Configuration ✅ [IMPLEMENTED: 2025-07-27]
 **TDD Cycle:** Test configuration loading for new HTTP server settings.
 
 **Acceptance Criteria:**
-- Add `HTTPEnabled` and `HTTPPort` to config.Config
-- Environment variables: `ALPINE_HTTP_ENABLED`, `ALPINE_HTTP_PORT`
-- Default: disabled, port 8080
+- Add `HTTPEnabled` and `HTTPPort` to config.Config ✓
+- Environment variables: `ALPINE_HTTP_ENABLED`, `ALPINE_HTTP_PORT` ✓
+- Default: disabled, port 8080 ✓
 
 **Test Cases:**
 ```go
-// Test default values (disabled, port 8080)
-// Test environment variable parsing
-// Test invalid port handling
+// Test default values (disabled, port 8080) ✓
+// Test environment variable parsing ✓
+// Test invalid port handling ✓
 ```
 
 **Implementation:**
-1. Update `internal/config/config.go`
-2. Add parsing for new environment variables
-3. Update config tests
+1. Update `internal/config/config.go` ✓
+2. Add parsing for new environment variables ✓
+3. Update config tests ✓
 
 #### Task 3: Implement Basic HTTP Server
 **TDD Cycle:** Test HTTP server endpoints respond correctly.
