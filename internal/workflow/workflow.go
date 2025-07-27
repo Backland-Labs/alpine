@@ -47,6 +47,14 @@ func NewEngine(executor ClaudeExecutor, wtMgr gitx.WorktreeManager, cfg *config.
 func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan bool) error {
 	logger.WithField("task_description", taskDescription).Debug("Starting workflow run")
 
+	// Ensure agent_state directory exists
+	stateDir := filepath.Dir(e.stateFile)
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		logger.WithField("error", err).Error("Failed to create agent_state directory")
+		return fmt.Errorf("failed to create agent_state directory: %w", err)
+	}
+	logger.WithField("directory", stateDir).Debug("Ensured agent_state directory exists")
+
 	// Check if this is bare mode
 	isBareMode := taskDescription == "" && !generatePlan && !e.cfg.Git.WorktreeEnabled
 

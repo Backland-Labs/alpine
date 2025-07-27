@@ -146,7 +146,6 @@ func TestRunWorkflowWithTaskDescription(t *testing.T) {
 	}
 }
 
-
 // TestSignalHandling tests interrupt signal behavior
 func TestSignalHandling(t *testing.T) {
 	t.Run("graceful shutdown on interrupt", func(t *testing.T) {
