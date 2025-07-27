@@ -1,12 +1,12 @@
 #!/bin/bash
 set -e
 
-# Build release binaries for River v0.2.0
+# Build release binaries for Alpine v0.2.0
 
 VERSION="v0.2.0"
-BINARY_NAME="river"
+BINARY_NAME="alpine"
 
-echo "Building River ${VERSION} release binaries..."
+echo "Building alpine ${VERSION} release binaries..."
 
 # Create release directory
 mkdir -p release
@@ -37,7 +37,7 @@ for platform in "${platforms[@]}"; do
     env GOOS=$GOOS GOARCH=$GOARCH go build \
         -ldflags="-s -w -X main.version=${VERSION}" \
         -o "release/${output_name}" \
-        cmd/river/main.go
+        cmd/alpine/main.go
     
     # Create archive
     if [ "$GOOS" = "windows" ]; then

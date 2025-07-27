@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/max/code/river/.claude/todo-monitor.rs"
+            "command": "/Users/max/code/alpine/.claude/todo-monitor.rs"
           }
         ]
       }
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/max/code/river/.claude/todo-monitor.rs"
+            "command": "/Users/max/code/alpine/.claude/todo-monitor.rs"
           }
         ]
       }

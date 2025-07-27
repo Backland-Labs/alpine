@@ -166,7 +166,7 @@ fn handle_todo_write(data: &Value, timestamp: &str, tool_input: Option<&serde_js
             eprintln!("[{}] [TODO] Current task: {}", timestamp, task);
             
             // Write to todo file if environment variable is set
-            if let Ok(todo_file) = env::var("RIVER_TODO_FILE") {
+            if let Ok(todo_file) = env::var("ALPINE_TODO_FILE") {
                 if let Ok(mut file) = File::create(&todo_file) {
                     let _ = file.write_all(task.as_bytes());
                 }

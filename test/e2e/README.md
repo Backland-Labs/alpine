@@ -7,7 +7,7 @@ This directory contains end-to-end tests for River's git worktree functionality.
 These tests are tagged with the `e2e` build tag and are not run by default. They require:
 - A working git installation
 - Ability to create temporary directories and git repositories
-- The River binary to be buildable
+- The Alpine binary to be buildable
 
 To run the e2e tests:
 
