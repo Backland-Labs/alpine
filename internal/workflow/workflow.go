@@ -8,9 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	
 	"github.com/Backland-Labs/alpine/internal/claude"
 	"github.com/Backland-Labs/alpine/internal/config"
 	"github.com/Backland-Labs/alpine/internal/core"
+	"github.com/Backland-Labs/alpine/internal/events"
 	"github.com/Backland-Labs/alpine/internal/gitx"
 	"github.com/Backland-Labs/alpine/internal/logger"
 	"github.com/Backland-Labs/alpine/internal/output"
@@ -28,8 +31,11 @@ type Engine struct {
 	cfg            *config.Config
 	stateFile      string
 	printer        *output.Printer
-	wt             *gitx.Worktree // Current worktree if created
-	originalDir    string         // Original directory to restore if needed
+	wt             *gitx.Worktree       // Current worktree if created
+	originalDir    string               // Original directory to restore if needed
+	eventEmitter   events.EventEmitter  // Optional event emitter for lifecycle events
+	runID          string               // Unique identifier for this run
+	taskDesc       string               // Task description for event tracking
 }
 
 // NewEngine creates a new workflow engine
@@ -44,8 +50,24 @@ func NewEngine(executor ClaudeExecutor, wtMgr gitx.WorktreeManager, cfg *config.
 }
 
 // Run executes the main workflow loop with a task description
-func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan bool) error {
+func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan bool) (runErr error) {
 	logger.WithField("task_description", taskDescription).Debug("Starting workflow run")
+
+	// Generate a unique run ID for event tracking
+	e.runID = uuid.New().String()
+	e.taskDesc = taskDescription
+	
+	// Emit RunStarted event if emitter is configured
+	if e.eventEmitter != nil {
+		e.eventEmitter.RunStarted(e.runID, taskDescription)
+	}
+	
+	// Ensure we emit RunError on any error return using named return value
+	defer func() {
+		if runErr != nil && e.eventEmitter != nil {
+			e.eventEmitter.RunError(e.runID, e.taskDesc, runErr)
+		}
+	}()
 
 	// Ensure agent_state directory exists
 	stateDir := filepath.Dir(e.stateFile)
@@ -151,6 +173,10 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 		if state.Status == "completed" {
 			logger.Info("Workflow completed successfully")
 			e.printer.Success("Workflow completed successfully")
+			// Emit RunFinished event
+			if e.eventEmitter != nil {
+				e.eventEmitter.RunFinished(e.runID, e.taskDesc)
+			}
 			return nil
 		}
 
@@ -294,6 +320,11 @@ func (e *Engine) SetStateFile(path string) {
 // SetPrinter allows overriding the printer (mainly for testing)
 func (e *Engine) SetPrinter(printer *output.Printer) {
 	e.printer = printer
+}
+
+// SetEventEmitter allows setting an event emitter (mainly for HTTP server mode)
+func (e *Engine) SetEventEmitter(emitter events.EventEmitter) {
+	e.eventEmitter = emitter
 }
 
 // createWorktree creates a worktree for the task if enabled
