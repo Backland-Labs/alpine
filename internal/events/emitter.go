@@ -116,3 +116,4 @@ func (n *NoOpEmitter) RunFinished(runID string, task string) {
 func (n *NoOpEmitter) RunError(runID string, task string, err error) {
 	// No operation
 }
+

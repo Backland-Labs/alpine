@@ -79,7 +79,9 @@ func TestClient_PostEvent(t *testing.T) {
 
 		mockUI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var event map[string]interface{}
-			json.NewDecoder(r.Body).Decode(&event)
+			if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+				t.Errorf("failed to decode event: %v", err)
+			}
 			receivedEvent <- event
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -162,7 +164,9 @@ func TestClient_PostEvent(t *testing.T) {
 
 		mockUI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var event map[string]interface{}
-			json.NewDecoder(r.Body).Decode(&event)
+			if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+				t.Errorf("failed to decode event: %v", err)
+			}
 			receivedEvent <- event
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -171,7 +175,9 @@ func TestClient_PostEvent(t *testing.T) {
 		client := NewClient(mockUI.URL, "run-123")
 
 		beforePost := time.Now()
-		client.PostEvent("TestEvent", nil)
+		if err := client.PostEvent("TestEvent", nil); err != nil {
+			t.Fatalf("failed to post event: %v", err)
+		}
 		afterPost := time.Now().Add(100 * time.Millisecond) // Add buffer for processing
 
 		select {

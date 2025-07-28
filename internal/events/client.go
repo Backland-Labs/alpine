@@ -68,10 +68,8 @@ func (c *Client) PostEventAsync(eventType string, eventData map[string]interface
 func (c *Client) formatEvent(eventType string, eventData map[string]interface{}) map[string]interface{} {
 	// Merge runId into event data
 	data := make(map[string]interface{})
-	if eventData != nil {
-		for k, v := range eventData {
-			data[k] = v
-		}
+	for k, v := range eventData {
+		data[k] = v
 	}
 	data["runId"] = c.runID
 
@@ -123,7 +121,9 @@ func (c *Client) post(event map[string]interface{}) error {
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("server returned status %d", resp.StatusCode)

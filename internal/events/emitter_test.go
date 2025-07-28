@@ -100,7 +100,7 @@ func TestMockEmitterReset(t *testing.T) {
 
 	mock.RunStarted("run1", "task1")
 	mock.RunFinished("run1", "task1")
-	
+
 	if len(mock.Calls) != 2 {
 		t.Errorf("Expected 2 calls before reset, got %d", len(mock.Calls))
 	}
@@ -188,3 +188,4 @@ func TestMockEmitterFindCallsByMethod(t *testing.T) {
 		t.Errorf("Expected 1 RunError call, got %d", len(errorCalls))
 	}
 }
+
