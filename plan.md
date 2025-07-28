@@ -74,25 +74,25 @@ The solution prioritizes simplicity: using Claude Code hooks for tool events and
 
 ### P1: Event Emission to UI Endpoint
 
-#### Task 4: Implement Event Posting to UI
+#### Task 4: Implement Event Posting to UI ✅ [IMPLEMENTED: 2025-07-28]
 **TDD Cycle:** Test events are POSTed to configured endpoint.
 
 **Acceptance Criteria:**
-- HTTP client posts events to UI endpoint
-- Events follow ag-ui protocol format
-- Handles connection failures gracefully
+- HTTP client posts events to UI endpoint ✓
+- Events follow ag-ui protocol format ✓
+- Handles connection failures gracefully ✓
 
 **Test Cases:**
 ```go
-// Test event formatting matches ag-ui spec
-// Test POST to endpoint with retry
-// Test handles endpoint unavailable
+// Test event formatting matches ag-ui spec ✓
+// Test POST to endpoint with retry ✓
+// Test handles endpoint unavailable ✓
 ```
 
 **Implementation:**
-1. Create `internal/events/client.go`
-2. Implement PostEvent method
-3. Add retry logic with backoff
+1. Create `internal/events/client.go` ✓
+2. Implement PostEvent method ✓
+3. Add retry logic with backoff ✓
 
 #### Task 5: Integrate EventEmitter with Workflow Engine
 **TDD Cycle:** Test workflow engine calls emitter at lifecycle points.
