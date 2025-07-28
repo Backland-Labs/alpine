@@ -4,6 +4,7 @@ import "time"
 
 // RunRequest represents the JSON request to start a new run
 type RunRequest struct {
+	ID            string `json:"-"`  // Set internally, not from JSON
 	Task          string `json:"task"`
 	EventEndpoint string `json:"eventEndpoint,omitempty"`
 }

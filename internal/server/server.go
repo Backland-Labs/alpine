@@ -16,15 +16,19 @@ import (
 	"github.com/google/uuid"
 )
 
+// RunHandler defines the interface for executing workflow runs
+type RunHandler func(ctx context.Context, req RunRequest) error
+
 // Server represents the Alpine HTTP server that provides REST API endpoints
 // for managing workflow runs and emitting events to UI endpoints.
 type Server struct {
-	port     int
-	server   *http.Server
-	router   http.ServeMux
-	runs     map[string]*Run
-	runsMux  sync.RWMutex
-	listener net.Listener
+	port       int
+	server     *http.Server
+	router     http.ServeMux
+	runs       map[string]*Run
+	runsMux    sync.RWMutex
+	listener   net.Listener
+	runHandler RunHandler
 }
 
 // NewServer creates a new HTTP server instance
@@ -35,6 +39,7 @@ func NewServer(port int) *Server {
 	}
 	
 	// Set up routes
+	s.router.HandleFunc("/health", s.handleHealth)
 	s.router.HandleFunc("/runs", s.handleRuns)
 	s.router.HandleFunc("/runs/", s.handleRunStatus)
 	
@@ -45,6 +50,11 @@ func NewServer(port int) *Server {
 	}
 	
 	return s
+}
+
+// SetRunHandler sets the handler function for executing workflow runs
+func (s *Server) SetRunHandler(handler RunHandler) {
+	s.runHandler = handler
 }
 
 // Start starts the HTTP server
@@ -131,8 +141,22 @@ func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request) {
 	
 	log.Printf("Created new run %s for task: %s", runID, req.Task)
 	
-	// TODO: Actually execute the workflow here
-	// For now, just store the run
+	// Execute the workflow if handler is set
+	if s.runHandler != nil {
+		// Pass request with ID to handler
+		reqWithID := req
+		reqWithID.ID = runID
+		
+		// Execute in background
+		go func() {
+			if err := s.runHandler(context.Background(), reqWithID); err != nil {
+				log.Printf("Run %s failed: %v", runID, err)
+				s.updateRunStatus(runID, "failed")
+			} else {
+				s.updateRunStatus(runID, "completed")
+			}
+		}()
+	}
 	
 	// Send response
 	resp := RunResponse{
@@ -191,4 +215,28 @@ func (s *Server) writeJSON(w http.ResponseWriter, data interface{}, statusCode i
 func (s *Server) writeError(w http.ResponseWriter, message string, statusCode int) {
 	errorResp := map[string]string{"error": message}
 	s.writeJSON(w, errorResp, statusCode)
+}
+
+// handleHealth handles GET /health requests
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	s.writeJSON(w, map[string]string{"status": "healthy"}, http.StatusOK)
+}
+
+// updateRunStatus updates the status of a run
+func (s *Server) updateRunStatus(runID, status string) {
+	s.runsMux.Lock()
+	defer s.runsMux.Unlock()
+	
+	if run, exists := s.runs[runID]; exists {
+		run.Status = status
+		if status == "completed" || status == "failed" {
+			now := time.Now()
+			run.EndTime = &now
+		}
+	}
 }

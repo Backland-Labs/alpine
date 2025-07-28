@@ -102,6 +102,7 @@ Examples:
 	cmd.AddCommand(newMultiCmd().Command())
 	cmd.AddCommand(newPlanCmd().Command())
 	cmd.AddCommand(newReviewCmd().Command())
+	cmd.AddCommand(newServerCommand())
 
 	return cmd
 }
