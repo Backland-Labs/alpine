@@ -138,28 +138,28 @@ The solution prioritizes simplicity: using Claude Code hooks for tool events and
 2. Parse tool data and format events ✓
 3. POST to ALPINE_EVENTS_ENDPOINT ✓
 
-#### Task 7: Configure Claude with Hooks
+#### Task 7: Configure Claude with Hooks ✅ [IMPLEMENTED: 2025-07-28]
 **TDD Cycle:** Test Claude settings include hooks when HTTP mode enabled.
 
 **Acceptance Criteria:**
-- Generate .claude/settings.json when HTTP enabled
-- Include PostToolUse hook configuration with full absolute path
-- Resolve hook script path to absolute path before writing config
-- Pass event endpoint via environment
+- Generate .claude/settings.json when HTTP enabled ✓
+- Include PostToolUse hook configuration with full absolute path ✓
+- Resolve hook script path to absolute path before writing config ✓
+- Pass event endpoint via environment ✓
 
 **Test Cases:**
 ```go
-// Test settings.json created correctly
-// Test hook path is resolved to absolute path
-// Test hook script exists at specified path
-// Test environment variables set
+// Test settings.json created correctly ✓
+// Test hook path is resolved to absolute path ✓
+// Test hook script exists at specified path ✓
+// Test environment variables set ✓
 ```
 
 **Implementation:**
-1. Add hook configuration logic to server
-2. Resolve hook script to absolute path using filepath.Abs()
-3. Write settings.json with full path before Claude execution
-4. Set required environment variables
+1. Add hook configuration logic to server ✓
+2. Resolve hook script to absolute path using filepath.Abs() ✓
+3. Write settings.json with full path before Claude execution ✓
+4. Set required environment variables ✓
 
 **Example settings.json:**
 ```json
