@@ -178,25 +178,28 @@ The solution prioritizes simplicity: using Claude Code hooks for tool events and
 
 ### P3: State Monitoring and Advanced Events
 
-#### Task 8: Monitor agent_state.json Changes
+#### Task 8: Monitor agent_state.json Changes ✅ [IMPLEMENTED: 2025-07-28]
 **TDD Cycle:** Test state changes trigger StateSnapshot events.
 
 **Acceptance Criteria:**
-- Watch agent_state.json for changes
-- Emit StateSnapshot on updates
-- Include full state in event
+- Watch agent_state.json for changes ✓
+- Emit StateSnapshot on updates ✓
+- Include full state in event ✓
 
 **Test Cases:**
 ```go
-// Test detects file changes
-// Test emits correct event format
-// Test handles missing file
+// Test detects file changes ✓
+// Test emits correct event format ✓
+// Test handles missing file ✓
+// Test stops on context cancel ✓
+// Test handles rapid changes ✓
 ```
 
 **Implementation:**
-1. Add file watcher to workflow engine
-2. Emit StateSnapshot on changes
-3. Handle file not found gracefully
+1. Create `internal/events/state_monitor.go` ✓
+2. Implement polling-based state monitoring ✓
+3. Add StateSnapshot to EventEmitter interface ✓
+4. Handle file not found gracefully ✓
 
 ## Testing Strategy
 

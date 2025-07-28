@@ -16,6 +16,9 @@ type EventEmitter interface {
 
 	// RunError is called when a workflow run encounters an error
 	RunError(runID string, task string, err error)
+
+	// StateSnapshot is called when the agent state changes
+	StateSnapshot(runID string, snapshot interface{})
 }
 
 // MockCall represents a single method call to the MockEmitter
@@ -24,6 +27,7 @@ type MockCall struct {
 	RunID     string
 	Task      string
 	Error     error
+	Snapshot  interface{}
 	Timestamp time.Time
 }
 
@@ -70,6 +74,16 @@ func (m *MockEmitter) RunError(runID string, task string, err error) {
 	})
 }
 
+// StateSnapshot records a StateSnapshot call
+func (m *MockEmitter) StateSnapshot(runID string, snapshot interface{}) {
+	m.Calls = append(m.Calls, MockCall{
+		Method:    "StateSnapshot",
+		RunID:     runID,
+		Snapshot:  snapshot,
+		Timestamp: time.Now(),
+	})
+}
+
 // GetLastCall returns the last recorded call or nil if no calls were made
 func (m *MockEmitter) GetLastCall() *MockCall {
 	if len(m.Calls) == 0 {
@@ -94,6 +108,40 @@ func (m *MockEmitter) FindCallsByMethod(method string) []MockCall {
 	return filtered
 }
 
+// GetStateSnapshots returns all StateSnapshot calls with their snapshot data
+func (m *MockEmitter) GetStateSnapshots() []MockCall {
+	return m.FindCallsByMethod("StateSnapshot")
+}
+
+// GetRawEvents returns all events as raw map data for testing event format
+func (m *MockEmitter) GetRawEvents() []map[string]interface{} {
+	var events []map[string]interface{}
+	for _, call := range m.Calls {
+		event := map[string]interface{}{
+			"type": call.Method,
+			"data": map[string]interface{}{
+				"runId": call.RunID,
+			},
+		}
+		
+		// Add method-specific data
+		switch call.Method {
+		case "RunStarted", "RunFinished":
+			event["data"].(map[string]interface{})["task"] = call.Task
+		case "RunError":
+			event["data"].(map[string]interface{})["task"] = call.Task
+			if call.Error != nil {
+				event["data"].(map[string]interface{})["error"] = call.Error.Error()
+			}
+		case "StateSnapshot":
+			event["data"].(map[string]interface{})["snapshot"] = call.Snapshot
+		}
+		
+		events = append(events, event)
+	}
+	return events
+}
+
 // NoOpEmitter is a no-operation implementation used in CLI mode where event emission is disabled
 type NoOpEmitter struct{}
 
@@ -114,6 +162,11 @@ func (n *NoOpEmitter) RunFinished(runID string, task string) {
 
 // RunError does nothing
 func (n *NoOpEmitter) RunError(runID string, task string, err error) {
+	// No operation
+}
+
+// StateSnapshot does nothing
+func (n *NoOpEmitter) StateSnapshot(runID string, snapshot interface{}) {
 	// No operation
 }
 

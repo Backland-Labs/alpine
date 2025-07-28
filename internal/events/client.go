@@ -132,3 +132,35 @@ func (c *Client) post(event map[string]interface{}) error {
 	return nil
 }
 
+// RunStarted implements EventEmitter by posting a RunStarted event
+func (c *Client) RunStarted(runID string, task string) {
+	_ = c.PostEventAsync("RunStarted", map[string]interface{}{
+		"task": task,
+	})
+}
+
+// RunFinished implements EventEmitter by posting a RunFinished event
+func (c *Client) RunFinished(runID string, task string) {
+	_ = c.PostEventAsync("RunFinished", map[string]interface{}{
+		"task": task,
+	})
+}
+
+// RunError implements EventEmitter by posting a RunError event
+func (c *Client) RunError(runID string, task string, err error) {
+	eventData := map[string]interface{}{
+		"task": task,
+	}
+	if err != nil {
+		eventData["error"] = err.Error()
+	}
+	_ = c.PostEventAsync("RunError", eventData)
+}
+
+// StateSnapshot implements EventEmitter by posting a StateSnapshot event
+func (c *Client) StateSnapshot(runID string, snapshot interface{}) {
+	_ = c.PostEventAsync("StateSnapshot", map[string]interface{}{
+		"snapshot": snapshot,
+	})
+}
+
