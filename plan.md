@@ -118,25 +118,25 @@ The solution prioritizes simplicity: using Claude Code hooks for tool events and
 
 ### P2: Claude Code Hook Integration
 
-#### Task 6: Create PostToolUse Hook for Tool Events
+#### Task 6: Create PostToolUse Hook for Tool Events ✅ [IMPLEMENTED: 2025-07-28]
 **TDD Cycle:** Test hook script generates correct events.
 
 **Acceptance Criteria:**
-- Rust hook script captures tool usage
-- Formats as ag-ui ToolCallStart/End events
-- Posts to configured endpoint
+- Rust hook script captures tool usage ✓
+- Formats as ag-ui ToolCallStart/End events ✓
+- Posts to configured endpoint ✓
 
 **Test Cases:**
 ```go
-// Test hook parses tool data correctly
-// Test generates valid ag-ui events
-// Test posts to endpoint from environment
+// Test hook parses tool data correctly ✓
+// Test generates valid ag-ui events ✓
+// Test posts to endpoint from environment ✓
 ```
 
 **Implementation:**
-1. Create `hooks/alpine-ag-ui-emitter.rs`
-2. Parse tool data and format events
-3. POST to ALPINE_EVENTS_ENDPOINT
+1. Create `hooks/alpine-ag-ui-emitter.rs` ✓
+2. Parse tool data and format events ✓
+3. POST to ALPINE_EVENTS_ENDPOINT ✓
 
 #### Task 7: Configure Claude with Hooks
 **TDD Cycle:** Test Claude settings include hooks when HTTP mode enabled.
