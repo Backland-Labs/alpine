@@ -224,7 +224,14 @@ func (e *workflowExecutor) executeWorkflow(ctx context.Context, run *runContext)
 		}
 		
 		// Start state monitoring
-		stateFile := filepath.Join("agent_state", "agent_state.json")
+		// Ensure agent_state directory exists
+		stateDir := filepath.Join("agent_state")
+		if err := os.MkdirAll(stateDir, 0755); err != nil {
+			logger.Errorf("Failed to create agent_state directory: %v", err)
+			// Continue without state monitoring - not critical for workflow execution
+		}
+		
+		stateFile := filepath.Join(stateDir, "agent_state.json")
 		stateMonitor := events.NewStateMonitor(stateFile, emitter, run.runID)
 		go stateMonitor.Start(ctx)
 		defer stateMonitor.Stop()
