@@ -56,6 +56,7 @@ Select the highest priority unimplemented feature based on:
 - Testing complexity
 
 ### Phase 2: Test-Driven Development Implementation
+YOU CAN ASSIGN UP TO 5 SUBAGENTS TO WORK ON CONCURRENT TASKS FROM PLAN.MD IF THEY ARE NOT DEPENDENT ON EACH OTHER.
 
 Once you've selected a feature, follow the TDD cycle rigorously. Remember: speed is important, but not at the expense of quality. Do the minimum necessary to accomplish the task effectively.
 
