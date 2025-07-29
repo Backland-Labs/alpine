@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### REST API for Programmatic Workflow Management
+- **Comprehensive REST API** - 10 endpoints for complete workflow management via HTTP
+- **Agent Management** - `GET /agents/list` to retrieve available agents
+- **Workflow Operations** - Start workflows from GitHub issues via `POST /agents/run`
+- **Run Management** - List, retrieve, and cancel workflow runs via `/runs` endpoints
+- **Real-time Monitoring** - Run-specific Server-Sent Events at `/runs/{id}/events`
+- **Plan Workflow** - Retrieve and approve execution plans via `/plans` endpoints
+- **Health Monitoring** - `/health` endpoint for service status checks
+- **WorkflowEngine Integration** - Clean abstraction layer connecting API to Alpine's workflow engine
+- **Thread-Safe State Management** - In-memory storage with mutex protection for concurrent access
+- **87% Test Coverage** - Comprehensive unit and integration tests following TDD methodology
+
 #### HTTP Server with Server-Sent Events (SSE)
 - **New HTTP server mode** - Run `alpine --serve` to start a standalone HTTP server
 - **Server-Sent Events endpoint** - Real-time event streaming at `/events` endpoint
@@ -41,6 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Updated all tests and documentation** to reflect the fixed state file path
 
 ### Changed
+
+#### HTTP Server Architecture
+- **Extended server package** - Enhanced existing `internal/server` with REST API handlers
+- **Data models** - Added `Agent`, `Run`, and `Plan` structs with full validation in `internal/server/models.go`
+- **WorkflowEngine abstraction** - Created interface for clean separation between API and workflow execution
+- **Event broadcasting** - Enhanced SSE system to support both global and run-specific event streams
+- **Documentation updates** - Updated `CLAUDE.md`, `specs/server.md`, and `specs/cli-commands.md` with REST API documentation
 
 #### Configuration
 - **Removed StateFile customization** - State file path is no longer configurable via environment variable
