@@ -5,28 +5,39 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	
+	"github.com/Backland-Labs/alpine/internal/logger"
+)
+
+// Common constants for handlers
+const (
+	contentTypeJSON = "application/json"
+	errorFieldName  = "error"
 )
 
 // healthHandler responds to health check requests
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 	
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", contentTypeJSON)
 	response := map[string]string{
 		"status": "healthy",
 		"service": "alpine-server",
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
-	json.NewEncoder(w).Encode(response)
+	
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.Errorf("Failed to encode health response: %v", err)
+	}
 }
 
 // agentsListHandler returns the list of available agents (hardcoded for MVP)
 func (s *Server) agentsListHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 	
@@ -39,14 +50,16 @@ func (s *Server) agentsListHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(agents)
+	w.Header().Set("Content-Type", contentTypeJSON)
+	if err := json.NewEncoder(w).Encode(agents); err != nil {
+		logger.Errorf("Failed to encode agents list: %v", err)
+	}
 }
 
 // agentsRunHandler starts a new workflow run from a GitHub issue
 func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 	
@@ -56,11 +69,18 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Invalid JSON payload",
-		})
+		logger.Infof("Invalid JSON payload in agentsRunHandler: %v", err)
+		s.respondWithError(w, http.StatusBadRequest, "Invalid JSON payload")
+		return
+	}
+	
+	// Validate payload
+	if payload.IssueURL == "" {
+		s.respondWithError(w, http.StatusBadRequest, "issue_url is required")
+		return
+	}
+	if payload.AgentID == "" {
+		s.respondWithError(w, http.StatusBadRequest, "agent_id is required")
 		return
 	}
 	
@@ -79,17 +99,33 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 	s.runs[run.ID] = run
 	s.mu.Unlock()
 	
-	// TODO: Start actual workflow execution
+	// Start workflow if engine is available
+	if s.workflowEngine != nil {
+		worktreeDir, err := s.workflowEngine.StartWorkflow(r.Context(), payload.IssueURL, run.ID)
+		if err != nil {
+			logger.Errorf("Failed to start workflow for run %s: %v", run.ID, err)
+			// Update run status to failed
+			s.updateRunStatus(run, "failed", "")
+		} else {
+			logger.Infof("Workflow started for run %s in directory: %s", run.ID, worktreeDir)
+			// Update run with worktree directory
+			s.updateRunStatus(run, run.Status, worktreeDir)
+		}
+	} else {
+		logger.Infof("Workflow engine not available, run %s created without execution", run.ID)
+	}
 	
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", contentTypeJSON)
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(run)
+	if err := json.NewEncoder(w).Encode(run); err != nil {
+		logger.Errorf("Failed to encode run response: %v", err)
+	}
 }
 
 // runsListHandler returns all runs from in-memory store
 func (s *Server) runsListHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 	
@@ -100,34 +136,61 @@ func (s *Server) runsListHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Unlock()
 	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(runs)
+	w.Header().Set("Content-Type", contentTypeJSON)
+	if err := json.NewEncoder(w).Encode(runs); err != nil {
+		logger.Errorf("Failed to encode runs list: %v", err)
+	}
 }
 
 // runDetailsHandler returns details for a specific run
 func (s *Server) runDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 	
 	runID := r.PathValue("id")
+	if runID == "" {
+		s.respondWithError(w, http.StatusBadRequest, "Run ID is required")
+		return
+	}
 	
 	s.mu.Lock()
 	run, exists := s.runs[runID]
 	s.mu.Unlock()
 	
 	if !exists {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Run not found",
-		})
+		s.respondWithError(w, http.StatusNotFound, "Run not found")
 		return
 	}
 	
+	// Create response with run details
+	response := map[string]interface{}{
+		"id":        run.ID,
+		"agent_id":  run.AgentID,
+		"status":    run.Status,
+		"issue":     run.Issue,
+		"created":   run.Created,
+		"updated":   run.Updated,
+		"worktree_dir": run.WorktreeDir,
+	}
+	
+	// Add workflow state if available
+	if s.workflowEngine != nil {
+		if state, err := s.workflowEngine.GetWorkflowState(r.Context(), runID); err == nil {
+			response["current_step"] = state.CurrentStepDescription
+			// Update run status based on workflow state
+			if state.Status == "completed" {
+				s.mu.Lock()
+				run.Status = "completed"
+				run.Updated = time.Now()
+				s.mu.Unlock()
+			}
+		}
+	}
+	
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(run)
+	json.NewEncoder(w).Encode(response)
 }
 
 // runEventsHandler provides SSE endpoint for run-specific events
@@ -164,6 +227,28 @@ func (s *Server) runEventsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "data: {\"type\":\"connected\",\"runId\":\"%s\"}\n\n", runID)
 	flusher.Flush()
 	
+	// Subscribe to workflow events if engine is available
+	if s.workflowEngine != nil {
+		events, err := s.workflowEngine.SubscribeToEvents(r.Context(), runID)
+		if err == nil {
+			// Forward events to SSE client
+			for {
+				select {
+				case event, ok := <-events:
+					if !ok {
+						return // Channel closed
+					}
+					// Send event as SSE
+					data, _ := json.Marshal(event)
+					fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, string(data))
+					flusher.Flush()
+				case <-r.Context().Done():
+					return // Client disconnected
+				}
+			}
+		}
+	}
+	
 	// Keep connection open until client disconnects
 	<-r.Context().Done()
 }
@@ -179,9 +264,14 @@ func (s *Server) runCancelHandler(w http.ResponseWriter, r *http.Request) {
 	
 	s.mu.Lock()
 	run, exists := s.runs[runID]
-	if exists {
-		run.Status = "cancelled"
-		run.Updated = time.Now()
+	if exists && run.Status != "running" {
+		s.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Cannot cancel non-running workflow",
+		})
+		return
 	}
 	s.mu.Unlock()
 	
@@ -194,7 +284,23 @@ func (s *Server) runCancelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// TODO: Cancel actual workflow execution
+	// Cancel workflow if engine is available
+	if s.workflowEngine != nil {
+		if err := s.workflowEngine.CancelWorkflow(r.Context(), runID); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Failed to cancel workflow",
+			})
+			return
+		}
+	}
+	
+	// Update run status
+	s.mu.Lock()
+	run.Status = "cancelled"
+	run.Updated = time.Now()
+	s.mu.Unlock()
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
@@ -240,10 +346,7 @@ func (s *Server) planApproveHandler(w http.ResponseWriter, r *http.Request) {
 	
 	s.mu.Lock()
 	plan, exists := s.plans[runID]
-	if exists {
-		plan.Status = "approved"
-		plan.Updated = time.Now()
-	}
+	run, runExists := s.runs[runID]
 	s.mu.Unlock()
 	
 	if !exists {
@@ -255,7 +358,28 @@ func (s *Server) planApproveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// TODO: Continue workflow execution with approved plan
+	// Approve plan in workflow engine
+	if s.workflowEngine != nil {
+		if err := s.workflowEngine.ApprovePlan(r.Context(), runID); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Failed to approve plan",
+			})
+			return
+		}
+	}
+	
+	// Update plan status only after successful workflow approval
+	s.mu.Lock()
+	plan.Status = "approved"
+	plan.Updated = time.Now()
+	// Update run status
+	if runExists {
+		run.Status = "running"
+		run.Updated = time.Now()
+	}
+	s.mu.Unlock()
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{

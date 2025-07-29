@@ -5,11 +5,13 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"sync"
+	"time"
 )
 
 // Constants for server configuration
@@ -38,6 +40,9 @@ type Server struct {
 	// In-memory storage for REST API
 	runs  map[string]*Run  // Storage for workflow runs
 	plans map[string]*Plan // Storage for workflow plans
+	
+	// Workflow engine integration
+	workflowEngine WorkflowEngine // Optional workflow engine for executing workflows
 }
 
 // NewServer creates a new HTTP server instance configured to run on the specified port.
@@ -147,6 +152,32 @@ func (s *Server) Address() string {
 	return s.listener.Addr().String()
 }
 
+// SetWorkflowEngine sets the workflow engine for the server
+func (s *Server) SetWorkflowEngine(engine WorkflowEngine) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.workflowEngine = engine
+}
+
+// BroadcastEvent broadcasts a workflow event to all connected SSE clients
+func (s *Server) BroadcastEvent(event WorkflowEvent) {
+	// Convert event to JSON for SSE
+	data, err := json.Marshal(event)
+	if err != nil {
+		return
+	}
+	
+	// Create SSE formatted message
+	message := fmt.Sprintf("event: %s\ndata: %s\n\n", event.Type, string(data))
+	
+	// Send to event channel (non-blocking)
+	select {
+	case s.eventsChan <- message:
+	default:
+		// Channel full, drop message
+	}
+}
+
 // sseHandler handles Server-Sent Events connections at the /events endpoint.
 // It sends an initial "hello world" event upon connection and manages the
 // client lifecycle, including proper cleanup on disconnect.
@@ -168,6 +199,43 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintf(w, "data: hello world\n\n")
 	flusher.Flush()
 
-	// Keep connection open until client disconnects
-	<-r.Context().Done()
+	// Listen for events from the event channel
+	for {
+		select {
+		case event := <-s.eventsChan:
+			// Send event to client
+			_, _ = fmt.Fprint(w, event)
+			flusher.Flush()
+		case <-r.Context().Done():
+			// Client disconnected
+			return
+		}
+	}
+}
+
+// Helper methods
+
+// respondWithError sends a JSON error response with the specified status code
+func (s *Server) respondWithError(w http.ResponseWriter, statusCode int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	response := map[string]string{
+		"error": message,
+	}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// Log the error but don't attempt to write more to the response
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// updateRunStatus updates a run's status and worktree directory in a thread-safe manner
+func (s *Server) updateRunStatus(run *Run, status string, worktreeDir string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	run.Status = status
+	run.Updated = time.Now()
+	if worktreeDir != "" {
+		run.WorktreeDir = worktreeDir
+	}
 }

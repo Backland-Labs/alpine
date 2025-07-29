@@ -116,8 +116,9 @@ func startServerIfRequested(ctx context.Context) error {
 	}
 
 	// Get port from context or use default
-	port := 3001
-	if p, ok := ctx.Value(portKey).(int); ok {
+	const defaultServerPort = 3001
+	port := defaultServerPort
+	if p, ok := ctx.Value(portKey).(int); ok && p > 0 {
 		port = p
 	}
 
@@ -137,7 +138,8 @@ func startServerIfRequested(ctx context.Context) error {
 	
 	// Give the server a moment to start
 	// TODO: Implement a proper readiness check
-	time.Sleep(100 * time.Millisecond)
+	const serverStartupDelay = 100 * time.Millisecond
+	time.Sleep(serverStartupDelay)
 	
 	// Verify the server started successfully
 	addr := httpServer.Address()

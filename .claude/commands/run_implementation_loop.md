@@ -78,11 +78,7 @@ Write the simplest code that makes all tests pass. This means:
 #### 2.3 REFACTOR Phase - Improve Code Quality
 
 With all tests passing, refactor to:
-- Improve code readability
-- Extract common functionality
-- Apply design patterns where appropriate
-- Ensure consistent coding style
-- Add necessary documentation
+- call ruby-architect-dhh agent to handle the refactoring
 
 ### Phase 3: Project Completion and Documentation
 
