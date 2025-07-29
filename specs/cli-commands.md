@@ -4,6 +4,7 @@
 
 ```
 alpine [flags] <task-description>
+alpine [flags]
 alpine plan [flags] <task-description>
 alpine plan [flags] gh-issue <github-issue-url>
 alpine --help
@@ -18,6 +19,15 @@ alpine "Implement user authentication"
 
 # Skip planning phase
 alpine --no-plan "Fix bug in payment processing"
+
+# Run with HTTP server for real-time updates
+alpine --serve "Implement user dashboard"
+
+# Run with server on custom port
+alpine --serve --port 8080 "Add search functionality"
+
+# Run server standalone (no workflow)
+alpine --serve
 
 # Generate plan using Gemini (default)
 alpine plan "Implement caching layer"
@@ -36,6 +46,8 @@ alpine --version
 
 ### alpine command
 - `--no-plan` - Skip plan generation and execute `/run_implementation_loop` directly
+- `--serve` - Enable HTTP server for real-time updates
+- `--port` - Port for HTTP server (default: 3001)
 - `--help` - Show help message
 - `--version` - Show version information
 
@@ -63,6 +75,20 @@ alpine --version
 3. Runs Claude Code iteratively based on state
 4. Updates `agent_state.json` after each step
 5. Continues until status is "completed"
+
+### With --serve (concurrent mode)
+1. Starts HTTP server on specified port (default: 3001)
+2. Server runs in background, non-blocking
+3. Executes workflow normally (with or without planning)
+4. Server provides SSE endpoint at `/events` for real-time updates
+5. Server shuts down gracefully when workflow completes
+
+### With --serve (standalone mode, no task)
+1. Starts HTTP server on specified port (default: 3001)
+2. Server runs in foreground, blocking
+3. No workflow execution occurs
+4. Server continues until interrupted (Ctrl+C)
+5. Useful for development and testing
 
 ### alpine plan command
 1. Accepts task description from command line

@@ -173,10 +173,20 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 		if state.Status == "completed" {
 			logger.Info("Workflow completed successfully")
 			e.printer.Success("Workflow completed successfully")
+			
 			// Emit RunFinished event
 			if e.eventEmitter != nil {
 				e.eventEmitter.RunFinished(e.runID, e.taskDesc)
 			}
+			
+			// Clean up state file on successful completion
+			if err := os.Remove(e.stateFile); err != nil && !os.IsNotExist(err) {
+				logger.WithField("error", err).Info("Failed to clean up state file")
+				// Don't fail the workflow for cleanup issues
+			} else {
+				logger.Debug("Cleaned up state file")
+			}
+			
 			return nil
 		}
 

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### HTTP Server with Server-Sent Events (SSE)
+- **New HTTP server mode** - Run `alpine --serve` to start a standalone HTTP server
+- **Server-Sent Events endpoint** - Real-time event streaming at `/events` endpoint
+- **Configurable port** - Use `--port` flag to specify custom port (default: 3001)
+- **Standalone operation** - Server can run without requiring a task description
+- **Concurrent execution** - Server runs alongside normal workflow when used with tasks
+- **Graceful shutdown** - Proper cleanup on interrupt signals
+- **Test-Driven Development** - Full TDD implementation with comprehensive test coverage
+
 #### GitHub Issue Integration for Plan Generation (#18)
 - **New `gh-issue` subcommand** - Generate implementation plans directly from GitHub issues
 - **Command syntax** - `alpine plan gh-issue <github-issue-url>` fetches issue details via `gh` CLI
@@ -18,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Updated documentation** - README.md and specs updated with usage examples and requirements
 
 ### Fixed
+
+#### Allow --serve flag without task description
+- **Fixed server-only mode** - The `--serve` flag now works standalone without requiring a task
+- **Updated validation logic** - Root command now properly validates --serve usage
+- **Server-only workflow** - Added dedicated server mode that doesn't require workflow engine
+- **Improved error messages** - Clear error when trying to use --serve with a task description
 
 #### State File Path Mismatch (#16)
 - **Fixed Alpine hanging after task completion** - Alpine now correctly monitors state file updates
