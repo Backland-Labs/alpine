@@ -1,133 +1,180 @@
-# Implementation Plan: HTTP Server with Server-Sent Events
+# Implementation Plan: REST API Endpoints for Alpine
 
 ## Overview
 
-This plan outlines the implementation of a basic HTTP server with a Server-Sent Events (SSE) endpoint. This will allow frontend applications to receive real-time updates from Alpine's AI workflows. The implementation will follow a Test-Driven Development (TDD) approach.
+This plan outlines the implementation of REST API endpoints that build on Alpine's existing HTTP server infrastructure. The goal is to enable programmatic workflow management while maintaining the current SSE functionality and following TDD principles.
 
 ### Objectives
--   Implement a non-blocking HTTP server that runs concurrently with the main workflow.
--   Provide an SSE endpoint at `/events` for real-time communication.
--   Add a `--serve` flag to the CLI to enable the server.
--   Ensure the implementation is modular and well-tested.
+- Add 10 REST API endpoints for agent and workflow management
+- Integrate with existing workflow engine and state management
+- Maintain backwards compatibility with current SSE implementation
+- Ensure comprehensive testing and documentation updates
 
-## Prioritized Features
+## Previous Implementation (Completed)
 
-### P0: Core Server Implementation
+### Basic HTTP Server with SSE ✅ **IMPLEMENTED**
+- Added `--serve` and `--port` CLI flags ✅
+- Created `internal/server` package with HTTP server ✅
+- Implemented `/events` SSE endpoint ✅
+- Integrated server into CLI workflow ✅
+- Achieved 81.1% test coverage ✅
 
-#### Task 1: Add CLI Flags ✅ **IMPLEMENTED**
+## Current Implementation: REST API Endpoints
+
+### Task 1: Create REST API Data Models (TDD) ⏳ **PENDING**
 **Acceptance Criteria:**
--   A `--serve` boolean flag is added to the root command. ✅
--   A `--port` integer flag is added, with a default value of `3001`. ✅
--   The flags are correctly parsed and accessible in the CLI logic. ✅
+- Define `Agent`, `Run`, and `Plan` structs in `internal/server/models.go`
+- Add comprehensive validation and JSON serialization
+- Create full test coverage in `internal/server/models_test.go`
+- Map data models to Alpine's existing workflow patterns
+
+**Key Data Structures:**
+```go
+type Agent struct {
+    ID          string `json:"id"`
+    Name        string `json:"name"`
+    Description string `json:"description"`
+}
+
+type Run struct {
+    ID        string    `json:"id"`
+    AgentID   string    `json:"agent_id"`
+    Status    string    `json:"status"` // running, completed, cancelled, failed
+    Issue     string    `json:"issue"`
+    Created   time.Time `json:"created"`
+    Updated   time.Time `json:"updated"`
+    WorktreeDir string  `json:"worktree_dir,omitempty"`
+}
+
+type Plan struct {
+    RunID     string    `json:"run_id"`
+    Content   string    `json:"content"`
+    Status    string    `json:"status"` // pending, approved, rejected
+    Created   time.Time `json:"created"`
+    Updated   time.Time `json:"updated"`
+}
+```
 
 **Test Cases:**
 ```go
-// Test that 'alpine --serve' is a valid command. ✅
-// Test that 'alpine --port 8080' is a valid command. ✅
-// Test that the default port is 3001 when --port is not specified. ✅
+// TestAgentValidation - Test agent struct validation and JSON marshaling
+// TestRunLifecycle - Test run status transitions and validation
+// TestPlanStatus - Test plan approval workflow
+// TestModelSerialization - Test JSON serialization/deserialization
 ```
 
-**Implementation:**
--   Modify `internal/cli/root.go` to add the `--serve` and `--port` flags using Cobra. ✅
--   Update the configuration logic in `internal/config/config.go` to handle the new server-related settings. ✅
-
-**Implementation Date:** 2025-07-27
-**Notes:** 
-- Added --serve and --port flags to root command
-- Flags are stored in context for access by workflow logic
-- Added ServerConfig struct to config package for future use
-- Full test coverage with TDD approach (RED-GREEN-REFACTOR)
-
-#### Task 2: Create Server Package and Basic Tests ✅ **IMPLEMENTED**
+### Task 2: Implement REST API Handlers (TDD) ⏳ **PENDING**
 **Acceptance Criteria:**
--   A new package `internal/server` is created. ✅
--   A `server.go` file is created with a `Server` struct. ✅
--   A `server_test.go` file is created with a basic test for server creation. ✅
+- Add all 10 REST endpoints to `internal/server/server.go`
+- Each endpoint has comprehensive unit tests
+- Follow existing server patterns and error handling
+- Integrate with Alpine's workflow engine
+
+**Endpoints to Implement:**
+1. `POST /agents/run` - Start workflow with GitHub issue
+2. `GET /agents/list` - Return available agents (hardcoded MVP)
+3. `GET /runs` - List all runs from in-memory store
+4. `GET /runs/{id}` - Get specific run details
+5. `GET /runs/{id}/events` - SSE endpoint for run-specific events
+6. `POST /runs/{id}/cancel` - Cancel running workflow
+7. `GET /plans/{runId}` - Get plan.md content
+8. `POST /plans/{runId}/approve` - Approve plan and continue
+9. `POST /plans/{runId}/feedback` - Send feedback on plan
+10. `GET /health` - Health check endpoint
 
 **Test Cases:**
 ```go
-// TestNewServer validates that a new server instance can be created. ✅
-// TestServerStartAndStop verifies that the server can be started and stopped gracefully. ✅
+// TestHealthEndpoint - Simple health check
+// TestAgentsRunEndpoint - Start workflow from GitHub issue
+// TestAgentsListEndpoint - Return agent list
+// TestRunsListEndpoint - List all runs
+// TestRunDetailsEndpoint - Get specific run
+// TestRunEventsSSE - Run-specific SSE events
+// TestRunCancelEndpoint - Cancel workflow
+// TestPlanGetEndpoint - Retrieve plan content
+// TestPlanApproveEndpoint - Approve plan workflow
+// TestPlanFeedbackEndpoint - Send plan feedback
 ```
 
-**Implementation:**
--   Create the `internal/server` directory. ✅
--   Create `server.go` and `server_test.go`. ✅
--   Define the `Server` struct with fields for the HTTP server and a channel for events. ✅
-
-**Implementation Date:** 2025-07-27
-**Notes:** 
-- Implemented using TDD approach with failing tests first
-- Server supports dynamic port assignment (port 0) for testing
-- Includes proper lifecycle management with context cancellation
-- Thread-safe with mutex protection for concurrent access
-- Follows Go best practices with error constants and proper documentation
-- 80.5% test coverage achieved
-
-#### Task 3: Implement the SSE Endpoint (TDD) ✅ **IMPLEMENTED**
+### Task 3: Integrate with Workflow Engine ⏳ **PENDING**
 **Acceptance Criteria:**
--   The server has an `/events` endpoint that supports SSE. ✅
--   When a client connects, it receives a "hello world" event. ✅
--   The server handles multiple concurrent client connections. ✅
--   The server gracefully handles client disconnections. ✅
+- Connect REST API to existing workflow execution
+- Enable workflow start/stop/cancel from API calls
+- Broadcast events to both global and run-specific SSE clients
+- Maintain existing state management patterns
 
-**Test Cases:**
-```go
-// TestSSEHelloWorldEvent verifies that a client receives the initial event. ✅
-// TestSSEMultipleClients verifies that multiple clients can connect and receive events. ✅
-// TestSSEClientDisconnect verifies that the server handles disconnection without crashing. ✅
-```
+**Integration Points:**
+- Modify `internal/cli/workflow.go` to accept GitHub issue URLs
+- Add event broadcasting hooks for REST API clients
+- Connect run lifecycle to existing `agent_state.json` management
+- Handle workflow cancellation through context propagation
 
-**Implementation:**
--   Add an HTTP handler for the `/events` endpoint in `server.go`. ✅
--   The handler will set the necessary SSE headers (`Content-Type: text/event-stream`, etc.). ✅
--   Implement the logic to send the "hello world" event upon connection. ✅
--   Use channels to manage client connections and event broadcasting. ✅
+### Task 4: Update Server Specification ⏳ **PENDING**
+**Files to Update:**
+- `specs/server.md` - Add complete REST API documentation
+- Include OpenAPI-style endpoint specifications
+- Add request/response examples for each endpoint
+- Document error handling and status codes
 
-**Implementation Date:** 2025-07-27
-**Notes:** 
-- Implemented using strict TDD approach (RED-GREEN-REFACTOR)
-- Added comprehensive tests for all acceptance criteria
-- SSE endpoint properly sets headers and sends initial "hello world" event
-- Handles multiple concurrent clients without issues
-- Gracefully manages client disconnections
-- Fixed all linting issues for clean code
-- Maintains 81.1% test coverage
+### Task 5: Update User Documentation ⏳ **PENDING**
+**Files to Update:**
+- `CLAUDE.md` - Add REST API usage examples
+- `specs/cli-commands.md` - Update server mode documentation
+- Include curl examples and integration patterns
 
-### P1: Integration with Main Workflow
-
-#### Task 4: Integrate Server into CLI ✅ **IMPLEMENTED**
+### Task 6: Comprehensive Integration Testing ⏳ **PENDING**
 **Acceptance Criteria:**
--   When the `alpine --serve` command is run, the HTTP server starts in the background. ✅
--   The main Alpine workflow (task execution) proceeds as usual while the server is running. ✅
--   The server is gracefully shut down when the main workflow completes or is interrupted. ✅
+- End-to-end tests for workflow start/stop via API
+- Test actual GitHub issue processing
+- Verify SSE events work for individual runs
+- Test concurrent API usage and server stability
+- Achieve >85% test coverage
 
-**Test Cases:**
-```go
-// TestServeFlagStartsServer verifies that the server is started when --serve is used. ✅
-// TestWorkflowRunsConcurrentlyWithServer verifies that the main task is executed while the server is active. ✅
-// TestServerShutdownOnWorkflowComplete verifies graceful shutdown on context cancellation. ✅
-```
+### Task 7: Verify Test Coverage ⏳ **PENDING**
+**Requirements:**
+- Run `go test -cover ./...` to verify coverage
+- Target >85% test coverage for new REST API code
+- Fix any coverage gaps with additional tests
 
-**Implementation:**
--   In `internal/cli/workflow.go`, check if the `--serve` flag is present. ✅
--   If it is, create and start the server in a separate goroutine. ✅
--   Use a context to manage the lifecycle of the server, ensuring it's shut down when the main context is canceled. ✅
-
-**Implementation Date:** 2025-07-27
-**Notes:** 
-- Implemented server integration in workflow.go using TDD approach
-- Server starts concurrently without blocking main workflow
-- Proper context-based lifecycle management for graceful shutdown
-- Extracted server startup logic into dedicated function for better organization
-- Added proper error handling and logging
-- Fixed port configuration to support dynamic port assignment (port 0)
-- Test coverage includes server startup, concurrent execution, and shutdown scenarios
+### Task 8: Update Implementation Status ⏳ **PENDING**
+**Final Task:**
+- Update this plan.md with final implementation status
+- Document any deviations from original plan
+- Note future enhancement opportunities
 
 ## Success Criteria
 
--   [x] All new code is covered by unit and integration tests. (Server: 81.1% coverage)
--   [x] The `alpine --serve` command starts the server without blocking the main task. ✅
--   [x] A simple JavaScript client can connect to `http://localhost:3001/events` and receive the "hello world" message. (Verified with curl)
--   [x] Existing CLI functionality remains unchanged and fully functional. ✅
--   [x] The implementation follows the project's coding conventions and quality standards. ✅
+- **Functionality**: All 10 REST endpoints operational and tested
+- **Integration**: REST API properly connects to Alpine workflow engine
+- **Testing**: >85% test coverage with comprehensive integration tests
+- **Documentation**: Complete API documentation with examples
+- **Backwards Compatibility**: Existing SSE and CLI functionality unchanged
+- **Code Quality**: Passes linting and follows project conventions
+
+## MVP Constraints
+
+**In-Memory Storage**: Store runs/plans in memory (defer persistence)
+**Hardcoded Agents**: Return static agent list initially
+**Basic Plan Flow**: Simple approve/reject workflow
+**No Authentication**: Security deferred to future iterations
+
+## Technical Architecture
+
+**Data Flow**: REST API → Workflow Engine → State Management → SSE Events
+**Storage**: Extend existing in-memory state management
+**Concurrency**: Use existing goroutine patterns and context cancellation
+**Error Handling**: Follow Alpine's existing error handling patterns
+
+## Implementation Status
+
+- [x] Basic HTTP Server with SSE (Previous work)
+- [ ] REST API Data Models (In Progress)
+- [ ] REST API Handlers Implementation
+- [ ] Workflow Engine Integration
+- [ ] Documentation Updates
+- [ ] Comprehensive Testing
+- [ ] Test Coverage Verification
+- [ ] Final Status Update
+
+**Current Phase**: Ready to implement REST API endpoints
+**Next Phase**: Start with data models using TDD approach
