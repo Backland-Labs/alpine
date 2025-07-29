@@ -98,9 +98,13 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 	
 	// Update state file path to be in workflow directory
 	workflowCfg.StateFile = filepath.Join(worktreeDir, stateFileRelativePath)
+	workflowCfg.WorkDir = worktreeDir
+	
+	// Disable worktree creation in workflow.Engine since we already created one
+	workflowCfg.Git.WorktreeEnabled = false
 	
 	// Create workflow engine
-	engine := workflow.NewEngine(e.claudeExecutor, e.wtMgr, &workflowCfg)
+	engine := workflow.NewEngine(e.claudeExecutor, nil, &workflowCfg)
 	engine.SetStateFile(workflowCfg.StateFile)
 	
 	// Create workflow instance
