@@ -24,27 +24,20 @@ When applicable delegate tasks to subagents to decrease implementation time. Alw
 Begin by creating a detailed TODO list for your implementation. This list should guide your work and ensure nothing is overlooked. Use TodoWrite to track all subtasks.
 
 #### 1.1 Understanding the Project Plan
-Deploy a subagent to thoroughly read and analyze `plan.md`. The subagent should:
+Thoroughly read and analyze `plan.md`. You should:
 - Document all features listed in the plan
 - Note their current implementation status
 - Identify dependencies between features
 - Extract any priority indicators or business value metrics
 
 #### 1.2 Specification Review
-Deploy another subagent to study the technical specifications in the @/specs directory. This subagent should:
+Deploy the spec-implementation-reviewer agent to study the technical specifications in the @/specs directory. This agent should:
 - Map specifications to planned features
 - Identify technical constraints or requirements
 - Note any architectural decisions that impact implementation
 - Document API contracts or interface definitions
 
-#### 1.3 Implementation Status Verification
-**Critical**: Never trust the "implemented" status in `plan.md` without verification. Always check the actual codebase to confirm whether a feature truly exists. This involves:
-- Searching for expected files, classes, or functions
-- Reviewing test files for existing coverage
-- Checking commit history for related changes
-- Verifying that marked features actually work as intended
-
-#### 1.4 Feature Selection Criteria
+#### 1.3 Feature Selection Criteria
 Select the highest priority unimplemented feature based on:
 
 **Dependencies First**: Implement prerequisite features before dependent ones. For example, if Feature B requires Feature A, implement Feature A first regardless of other factors.
@@ -117,23 +110,6 @@ For compiled languages (Go, Rust, TypeScript, etc.):
 - Verify the feature works in the built application
 - Do not consider the feature complete until the build succeeds
 
-## Parallel Subagent Strategy
-
-You may deploy up to 5 subagents working in parallel. Effective subagent usage includes:
-
-### Subagent Allocation Examples:
-1. **Analysis Subagent**: Reads and summarizes plan.md
-2. **Specification Subagent**: Reviews technical specs
-3. **Test Writing Subagent**: Creates test suites for specific components
-4. **Implementation Subagent**: Writes production code
-5. **Documentation Subagent**: Updates CLAUDE.md with learnings
-
-### Coordination Guidelines:
-- Each subagent should handle an isolated RED-GREEN-REFACTOR cycle
-- Subagents working on related features should share discoveries
-- Use clear task boundaries to prevent conflicts
-- Consolidate findings before making final decisions
-
 ## Progress Tracking and State Management
 
 After completing the feature implementation and committing all changes, create a state tracking file at `./agent_state/agent_state.json`:
@@ -192,7 +168,6 @@ Use a subagent to document:
 
 - Don't implement features not listed in plan.md
 - Don't skip the test-writing phase
-- Don't trust "implemented" status without verification
 - Don't over-engineer the solution
 - Don't forget to update plan.md after implementation
 - Don't mark status as "completed" prematurely
