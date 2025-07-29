@@ -80,6 +80,182 @@ golangci-lint run
 
 # Generate plan from GitHub issue using Claude Code
 ./alpine plan --cc gh-issue https://github.com/owner/repo/issues/123
+
+# Run with HTTP server for real-time updates
+./alpine --serve "Implement new feature"
+
+# Run server on custom port
+./alpine --serve --port 8080 "Add logging feature"
+
+# Run server standalone (no workflow)
+./alpine --serve
+```
+
+### REST API Server Usage
+
+Alpine provides a REST API for programmatic workflow management when running with the `--serve` flag. The server runs on port 3001 by default (configurable with `--port`).
+
+#### Starting the Server
+
+```bash
+# Start server with workflow execution
+./alpine --serve "Implement user authentication"
+
+# Start server on custom port
+./alpine --serve --port 8080 "Add caching layer"
+
+# Start server standalone (API only, no workflow)
+./alpine --serve
+```
+
+#### REST API Endpoints
+
+**Health Check**
+```bash
+curl http://localhost:3001/health
+```
+
+**List Available Agents**
+```bash
+curl http://localhost:3001/agents/list
+```
+
+**Start Workflow from GitHub Issue**
+```bash
+curl -X POST http://localhost:3001/agents/run \
+  -H "Content-Type: application/json" \
+  -d '{"github_issue_url": "https://github.com/owner/repo/issues/123"}'
+```
+
+**List All Runs**
+```bash
+curl http://localhost:3001/runs
+```
+
+**Get Run Details**
+```bash
+curl http://localhost:3001/runs/{run-id}
+```
+
+**Cancel Running Workflow**
+```bash
+curl -X POST http://localhost:3001/runs/{run-id}/cancel
+```
+
+**Get Plan Content**
+```bash
+curl http://localhost:3001/plans/{run-id}
+```
+
+**Approve Plan**
+```bash
+curl -X POST http://localhost:3001/plans/{run-id}/approve
+```
+
+**Send Plan Feedback**
+```bash
+curl -X POST http://localhost:3001/plans/{run-id}/feedback \
+  -H "Content-Type: application/json" \
+  -d '{"feedback": "Please add error handling for edge cases"}'
+```
+
+#### Complete Workflow Example
+
+1. **Start the server**:
+```bash
+./alpine --serve --port 3001
+```
+
+2. **Create a new run** from a GitHub issue:
+```bash
+curl -X POST http://localhost:3001/agents/run \
+  -H "Content-Type: application/json" \
+  -d '{"github_issue_url": "https://github.com/myorg/myrepo/issues/42"}'
+```
+Response:
+```json
+{
+  "run_id": "run_abc123",
+  "status": "running",
+  "message": "Workflow started successfully"
+}
+```
+
+3. **Monitor progress** via Server-Sent Events:
+```bash
+curl http://localhost:3001/runs/run_abc123/events
+```
+This will stream real-time events as the workflow executes.
+
+4. **Check run status** periodically:
+```bash
+curl http://localhost:3001/runs/run_abc123
+```
+
+5. **Approve plan** when ready:
+```bash
+curl -X POST http://localhost:3001/plans/run_abc123/approve
+```
+
+#### Notes
+
+- The REST API is available only when Alpine is running with the `--serve` flag
+- All endpoints return JSON responses (except SSE endpoints)
+- The server uses CORS with wildcard origin for development convenience
+- In-memory storage means runs are lost when the server restarts
+- Currently only one agent ("alpine-agent") is available
+
+#### Integration Examples
+
+**Python Example**
+```python
+import requests
+import json
+
+# Start a workflow
+response = requests.post(
+    "http://localhost:3001/agents/run",
+    headers={"Content-Type": "application/json"},
+    data=json.dumps({
+        "github_issue_url": "https://github.com/owner/repo/issues/123"
+    })
+)
+
+run_data = response.json()
+run_id = run_data["run_id"]
+
+# Monitor the run
+run_details = requests.get(f"http://localhost:3001/runs/{run_id}").json()
+print(f"Status: {run_details['status']}")
+
+# Approve the plan
+if run_details["status"] == "waiting_for_approval":
+    requests.post(f"http://localhost:3001/plans/{run_id}/approve")
+```
+
+**JavaScript Example**
+```javascript
+// Start a workflow
+const response = await fetch('http://localhost:3001/agents/run', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    github_issue_url: 'https://github.com/owner/repo/issues/123'
+  })
+});
+
+const { run_id } = await response.json();
+
+// Monitor events
+const events = new EventSource(`http://localhost:3001/runs/${run_id}/events`);
+events.onmessage = (event) => {
+  console.log('Event:', JSON.parse(event.data));
+};
+
+// Approve plan when ready
+await fetch(`http://localhost:3001/plans/${run_id}/approve`, {
+  method: 'POST'
+});
 ```
 
 ## How to Check Your Work

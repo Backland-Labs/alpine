@@ -90,6 +90,64 @@ alpine --version
 4. Server continues until interrupted (Ctrl+C)
 5. Useful for development and testing
 
+## REST API Endpoints
+
+When running with `--serve`, Alpine provides the following REST API endpoints:
+
+### Core Endpoints
+
+- `GET /health` - Health check endpoint
+- `GET /agents/list` - List available agents
+- `POST /agents/run` - Start workflow from GitHub issue
+- `GET /runs` - List all workflow runs
+- `GET /runs/{id}` - Get specific run details
+- `GET /runs/{id}/events` - Server-Sent Events for specific run
+- `POST /runs/{id}/cancel` - Cancel a running workflow
+- `GET /plans/{runId}` - Get plan content for a run
+- `POST /plans/{runId}/approve` - Approve a plan to continue
+- `POST /plans/{runId}/feedback` - Send feedback on a plan
+
+### REST API Usage Examples
+
+**Starting a workflow via API:**
+```bash
+# Start Alpine server
+./alpine --serve --port 3001
+
+# In another terminal, start a workflow
+curl -X POST http://localhost:3001/agents/run \
+  -H "Content-Type: application/json" \
+  -d '{"github_issue_url": "https://github.com/owner/repo/issues/123"}'
+```
+
+**Monitoring workflow progress:**
+```bash
+# List all runs
+curl http://localhost:3001/runs
+
+# Get specific run details
+curl http://localhost:3001/runs/run_abc123
+
+# Stream real-time events for a run
+curl http://localhost:3001/runs/run_abc123/events
+```
+
+**Managing workflow execution:**
+```bash
+# Cancel a running workflow
+curl -X POST http://localhost:3001/runs/run_abc123/cancel
+
+# Approve a plan
+curl -X POST http://localhost:3001/plans/run_abc123/approve
+
+# Send feedback on a plan
+curl -X POST http://localhost:3001/plans/run_abc123/feedback \
+  -H "Content-Type: application/json" \
+  -d '{"feedback": "Please add more error handling"}'
+```
+
+See the full REST API documentation in the [server specification](server.md#rest-api-endpoints) for detailed request/response formats and integration examples.
+
 ### alpine plan command
 1. Accepts task description from command line
 2. By default, uses Gemini CLI for plan generation (requires GEMINI_API_KEY)

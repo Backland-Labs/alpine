@@ -135,11 +135,22 @@ type Plan struct {
 - Listed current MVP limitations and future enhancements
 - Completed - 2025-07-29
 
-### Task 5: Update User Documentation ⏳ **PENDING**
+### Task 5: Update User Documentation ✅ **IMPLEMENTED**
 **Files to Update:**
-- `CLAUDE.md` - Add REST API usage examples
-- `specs/cli-commands.md` - Update server mode documentation
-- Include curl examples and integration patterns
+- `CLAUDE.md` - Add REST API usage examples ✅
+- `specs/cli-commands.md` - Update server mode documentation ✅
+- Include curl examples and integration patterns ✅
+
+**Implementation Notes (Task 5)**:
+- Added comprehensive REST API Server Usage section to CLAUDE.md
+- Documented all REST API endpoints with curl examples
+- Added complete workflow example showing full API usage
+- Provided integration examples in Python and JavaScript
+- Updated cli-commands.md with REST API Endpoints section
+- Added usage examples for all major API operations
+- Created comprehensive documentation tests using TDD approach
+- Followed TDD methodology (RED-GREEN-REFACTOR)
+- Completed - 2025-07-29
 
 ### Task 6: Comprehensive Integration Testing ⏳ **PENDING**
 **Acceptance Criteria:**
@@ -191,13 +202,13 @@ type Plan struct {
 - [x] REST API Handlers Implementation (Completed - 2025-07-29)
 - [x] Workflow Engine Integration (Completed - 2025-07-29)
 - [x] Server Specification Documentation (Completed - 2025-07-29)
-- [ ] User Documentation Updates (Task 5)
+- [x] User Documentation Updates (Completed - 2025-07-29)
 - [ ] Comprehensive Testing (Task 6)
 - [ ] Test Coverage Verification (Task 7)
 - [ ] Final Status Update (Task 8)
 
-**Current Phase**: Server documentation completed
-**Next Phase**: Update User Documentation (Task 5)
+**Current Phase**: User documentation completed
+**Next Phase**: Comprehensive Integration Testing (Task 6)
 
 **Implementation Notes (Task 1)**:
 - Added comprehensive validation for all models
