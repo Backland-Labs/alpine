@@ -34,6 +34,10 @@ type Server struct {
 	listener   net.Listener // Network listener for accepting connections
 	mu         sync.Mutex   // Protects server state during concurrent access
 	running    bool         // Indicates if the server is currently running
+	
+	// In-memory storage for REST API
+	runs  map[string]*Run  // Storage for workflow runs
+	plans map[string]*Plan // Storage for workflow plans
 }
 
 // NewServer creates a new HTTP server instance configured to run on the specified port.
@@ -48,6 +52,8 @@ func NewServer(port int) *Server {
 			Handler: mux,
 		},
 		eventsChan: make(chan string, defaultEventBufferSize),
+		runs:       make(map[string]*Run),
+		plans:      make(map[string]*Plan),
 	}
 }
 
@@ -91,8 +97,18 @@ func (s *Server) Start(ctx context.Context) error {
 	// Create a new HTTP server for each start to avoid reuse issues
 	mux := http.NewServeMux()
 
-	// Register SSE endpoint handler
+	// Register endpoint handlers
 	mux.HandleFunc("/events", s.sseHandler)
+	mux.HandleFunc("/health", s.healthHandler)
+	mux.HandleFunc("/agents/list", s.agentsListHandler)
+	mux.HandleFunc("/agents/run", s.agentsRunHandler)
+	mux.HandleFunc("/runs", s.runsListHandler)
+	mux.HandleFunc("/runs/{id}", s.runDetailsHandler)
+	mux.HandleFunc("/runs/{id}/events", s.runEventsHandler)
+	mux.HandleFunc("/runs/{id}/cancel", s.runCancelHandler)
+	mux.HandleFunc("/plans/{runId}", s.planGetHandler)
+	mux.HandleFunc("/plans/{runId}/approve", s.planApproveHandler)
+	mux.HandleFunc("/plans/{runId}/feedback", s.planFeedbackHandler)
 
 	s.httpServer = &http.Server{
 		Handler: mux,
