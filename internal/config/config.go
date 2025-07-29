@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 // Verbosity represents the output verbosity level
@@ -30,15 +31,6 @@ type GitConfig struct {
 
 	// AutoCleanupWT controls whether to clean up worktrees after completion
 	AutoCleanupWT bool
-}
-
-// ServerConfig holds server-related configuration
-type ServerConfig struct {
-	// Enabled controls whether the HTTP server is started
-	Enabled bool
-
-	// Port is the HTTP server port
-	Port int
 }
 
 // Config holds all configuration for the Alpine CLI
@@ -67,8 +59,11 @@ type Config struct {
 	// Git holds git-related configuration
 	Git GitConfig
 
-	// Server holds server-related configuration
-	Server ServerConfig
+	// HTTPEnabled controls whether HTTP server mode is enabled
+	HTTPEnabled bool
+
+	// HTTPPort is the port for the HTTP server
+	HTTPPort int
 }
 
 // New creates a new Config instance from environment variables
@@ -165,6 +160,25 @@ func New() (*Config, error) {
 	}
 	cfg.Git.AutoCleanupWT = autoCleanupWT
 
+	// Load HTTPEnabled - defaults to false
+	httpEnabled, err := parseBoolEnv("ALPINE_HTTP_ENABLED", false)
+	if err != nil {
+		return nil, err
+	}
+	cfg.HTTPEnabled = httpEnabled
+
+	// Load HTTPPort - defaults to 8080
+	httpPortStr := os.Getenv("ALPINE_HTTP_PORT")
+	if httpPortStr == "" {
+		cfg.HTTPPort = 8080
+	} else {
+		httpPort, err := parsePort(httpPortStr)
+		if err != nil {
+			return nil, fmt.Errorf("ALPINE_HTTP_PORT %s", err)
+		}
+		cfg.HTTPPort = httpPort
+	}
+
 	return cfg, nil
 }
 
@@ -192,4 +206,16 @@ func parseBoolEnv(key string, defaultValue bool) (bool, error) {
 	default:
 		return false, fmt.Errorf("%s must be true or false, got: %s", key, value)
 	}
+}
+
+// parsePort parses and validates a port number string
+func parsePort(portStr string) (int, error) {
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid port number: %s", portStr)
+	}
+	if port < 1 || port > 65535 {
+		return 0, fmt.Errorf("must be between 1 and 65535, got: %d", port)
+	}
+	return port, nil
 }

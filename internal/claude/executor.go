@@ -38,6 +38,9 @@ type ExecuteConfig struct {
 
 	// AdditionalArgs allows passing custom CLI arguments to Claude (optional)
 	AdditionalArgs []string
+
+	// EnvironmentVariables are additional environment variables to pass to Claude (optional)
+	EnvironmentVariables map[string]string
 }
 
 // Executor handles execution of Claude commands
@@ -45,6 +48,7 @@ type Executor struct {
 	commandRunner CommandRunner
 	config        *config.Config
 	printer       *output.Printer
+	envVars       map[string]string // Additional environment variables to pass to Claude
 }
 
 // CommandRunner interface for testing
@@ -58,6 +62,7 @@ func NewExecutor() *Executor {
 		commandRunner: &defaultCommandRunner{},
 		config:        nil,
 		printer:       nil,
+		envVars:       make(map[string]string),
 	}
 }
 
@@ -67,12 +72,23 @@ func NewExecutorWithConfig(cfg *config.Config, printer *output.Printer) *Executo
 		commandRunner: &defaultCommandRunner{},
 		config:        cfg,
 		printer:       printer,
+		envVars:       make(map[string]string),
 	}
 }
 
 // Execute runs Claude with the given configuration
 func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, error) {
 	logger.Debug("Starting Claude execution")
+	
+	// Merge executor's environment variables into config
+	if e.envVars != nil && len(e.envVars) > 0 {
+		if config.EnvironmentVariables == nil {
+			config.EnvironmentVariables = make(map[string]string)
+		}
+		for key, value := range e.envVars {
+			config.EnvironmentVariables[key] = value
+		}
+	}
 
 	// Validate required fields
 	if config.Prompt == "" {
@@ -369,6 +385,13 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 
 	// Set environment variables
 	cmd.Env = os.Environ()
+	
+	// Add any additional environment variables from config
+	if config.EnvironmentVariables != nil {
+		for key, value := range config.EnvironmentVariables {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
+		}
+	}
 
 	return cmd
 }

@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -19,6 +21,8 @@ func TestNewConfig(t *testing.T) {
 		"ALPINE_GIT_AUTO_CLEANUP",
 		"ALPINE_SHOW_TODO_UPDATES",
 		"ALPINE_SHOW_TOOL_UPDATES",
+		"ALPINE_HTTP_ENABLED",
+		"ALPINE_HTTP_PORT",
 	}
 	for _, env := range envVars {
 		_ = os.Unsetenv(env)
@@ -90,6 +94,8 @@ func TestConfigFromEnvironment(t *testing.T) {
 	_ = os.Setenv("ALPINE_GIT_AUTO_CLEANUP", "false")
 	_ = os.Setenv("ALPINE_SHOW_TODO_UPDATES", "false")
 	_ = os.Setenv("ALPINE_SHOW_TOOL_UPDATES", "false")
+	_ = os.Setenv("ALPINE_HTTP_ENABLED", "true")
+	_ = os.Setenv("ALPINE_HTTP_PORT", "9090")
 
 	defer func() {
 		// Clean up
@@ -103,6 +109,8 @@ func TestConfigFromEnvironment(t *testing.T) {
 		_ = os.Unsetenv("ALPINE_GIT_AUTO_CLEANUP")
 		_ = os.Unsetenv("ALPINE_SHOW_TODO_UPDATES")
 		_ = os.Unsetenv("ALPINE_SHOW_TOOL_UPDATES")
+		_ = os.Unsetenv("ALPINE_HTTP_ENABLED")
+		_ = os.Unsetenv("ALPINE_HTTP_PORT")
 	}()
 
 	cfg, err := New()
@@ -152,6 +160,16 @@ func TestConfigFromEnvironment(t *testing.T) {
 	// Test ShowToolUpdates
 	if cfg.ShowToolUpdates {
 		t.Error("ShowToolUpdates = true, want false")
+	}
+
+	// Test HTTPEnabled
+	if !cfg.HTTPEnabled {
+		t.Error("HTTPEnabled = false, want true")
+	}
+
+	// Test HTTPPort
+	if cfg.HTTPPort != 9090 {
+		t.Errorf("HTTPPort = %d, want 9090", cfg.HTTPPort)
 	}
 }
 
@@ -572,6 +590,201 @@ func TestConfigGitEnvironmentVariables(t *testing.T) {
 				}
 				if cfg.Git.AutoCleanupWT != tt.want.AutoCleanupWT {
 					t.Errorf("Git.AutoCleanupWT = %v, want %v", cfg.Git.AutoCleanupWT, tt.want.AutoCleanupWT)
+				}
+			}
+		})
+	}
+}
+
+// TestHTTPConfigDefaults tests that HTTP server configuration defaults to disabled
+// This test verifies the acceptance criteria that HTTP mode is disabled by default with port 8080
+func TestHTTPConfigDefaults(t *testing.T) {
+	// Clear HTTP-related environment variables to test defaults
+	_ = os.Unsetenv("ALPINE_HTTP_ENABLED")
+	_ = os.Unsetenv("ALPINE_HTTP_PORT")
+
+	cfg, err := New()
+	if err != nil {
+		t.Fatalf("New() returned unexpected error: %v", err)
+	}
+
+	// HTTP should be disabled by default
+	if cfg.HTTPEnabled {
+		t.Error("HTTPEnabled = true, want false (default)")
+	}
+
+	// Default port should be 8080
+	if cfg.HTTPPort != 8080 {
+		t.Errorf("HTTPPort = %d, want 8080 (default)", cfg.HTTPPort)
+	}
+}
+
+// TestHTTPConfigEnvironmentVariables tests loading HTTP configuration from environment
+// This test verifies that ALPINE_HTTP_ENABLED and ALPINE_HTTP_PORT are parsed correctly
+func TestHTTPConfigEnvironmentVariables(t *testing.T) {
+	tests := []struct {
+		name        string
+		httpEnabled string
+		httpPort    string
+		wantEnabled bool
+		wantPort    int
+		wantErr     bool
+	}{
+		{
+			name:        "HTTP enabled with custom port",
+			httpEnabled: "true",
+			httpPort:    "9090",
+			wantEnabled: true,
+			wantPort:    9090,
+			wantErr:     false,
+		},
+		{
+			name:        "HTTP disabled with default port",
+			httpEnabled: "false",
+			httpPort:    "",
+			wantEnabled: false,
+			wantPort:    8080,
+			wantErr:     false,
+		},
+		{
+			name:        "Invalid boolean for enabled",
+			httpEnabled: "yes",
+			httpPort:    "8080",
+			wantEnabled: false,
+			wantPort:    0,
+			wantErr:     true,
+		},
+		{
+			name:        "Invalid port number",
+			httpEnabled: "true",
+			httpPort:    "not-a-number",
+			wantEnabled: false,
+			wantPort:    0,
+			wantErr:     true,
+		},
+		{
+			name:        "Port out of range (negative)",
+			httpEnabled: "true",
+			httpPort:    "-1",
+			wantEnabled: false,
+			wantPort:    0,
+			wantErr:     true,
+		},
+		{
+			name:        "Port out of range (too high)",
+			httpEnabled: "true",
+			httpPort:    "70000",
+			wantEnabled: false,
+			wantPort:    0,
+			wantErr:     true,
+		},
+		{
+			name:        "Empty values use defaults",
+			httpEnabled: "",
+			httpPort:    "",
+			wantEnabled: false,
+			wantPort:    8080,
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variables
+			if tt.httpEnabled != "" {
+				_ = os.Setenv("ALPINE_HTTP_ENABLED", tt.httpEnabled)
+			} else {
+				_ = os.Unsetenv("ALPINE_HTTP_ENABLED")
+			}
+			if tt.httpPort != "" {
+				_ = os.Setenv("ALPINE_HTTP_PORT", tt.httpPort)
+			} else {
+				_ = os.Unsetenv("ALPINE_HTTP_PORT")
+			}
+
+			// Clean up after test
+			defer func() {
+				_ = os.Unsetenv("ALPINE_HTTP_ENABLED")
+				_ = os.Unsetenv("ALPINE_HTTP_PORT")
+			}()
+
+			cfg, err := New()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err == nil {
+				if cfg.HTTPEnabled != tt.wantEnabled {
+					t.Errorf("HTTPEnabled = %v, want %v", cfg.HTTPEnabled, tt.wantEnabled)
+				}
+				if cfg.HTTPPort != tt.wantPort {
+					t.Errorf("HTTPPort = %d, want %d", cfg.HTTPPort, tt.wantPort)
+				}
+			}
+		})
+	}
+}
+
+// TestHTTPPortValidation tests specific port validation edge cases
+// This test ensures we handle invalid port numbers gracefully
+func TestHTTPPortValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		port    string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "port 0 is invalid",
+			port:    "0",
+			wantErr: true,
+			errMsg:  "must be between 1 and 65535",
+		},
+		{
+			name:    "port 1 is valid",
+			port:    "1",
+			wantErr: false,
+		},
+		{
+			name:    "port 65535 is valid",
+			port:    "65535",
+			wantErr: false,
+		},
+		{
+			name:    "port 65536 is invalid",
+			port:    "65536",
+			wantErr: true,
+			errMsg:  "must be between 1 and 65535",
+		},
+		{
+			name:    "empty string uses default",
+			port:    "",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_ = os.Setenv("ALPINE_HTTP_PORT", tt.port)
+			defer func() {
+				_ = os.Unsetenv("ALPINE_HTTP_PORT")
+			}()
+
+			cfg, err := New()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err != nil && tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("error message %q does not contain %q", err.Error(), tt.errMsg)
+			}
+
+			if err == nil && tt.port != "" {
+				portNum, _ := strconv.Atoi(tt.port)
+				if cfg.HTTPPort != portNum {
+					t.Errorf("HTTPPort = %d, want %d", cfg.HTTPPort, portNum)
 				}
 			}
 		})

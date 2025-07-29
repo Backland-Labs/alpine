@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/Backland-Labs/alpine/internal/claude"
 	"github.com/Backland-Labs/alpine/internal/config"
 	"github.com/Backland-Labs/alpine/internal/core"
+	"github.com/Backland-Labs/alpine/internal/events"
 	"github.com/Backland-Labs/alpine/internal/gitx"
 	gitxmock "github.com/Backland-Labs/alpine/internal/gitx/mock"
 	"github.com/Backland-Labs/alpine/internal/output"
@@ -685,4 +687,181 @@ func TestEngine_Run_StateFileNotCleanedOnError(t *testing.T) {
 	// Verify state file still exists
 	_, err = os.Stat(stateFile)
 	assert.NoError(t, err, "State file should remain when workflow doesn't complete")
+}
+
+// TestEngine_EventEmitter_RunStarted verifies that the workflow engine calls EventEmitter.RunStarted
+// when a workflow begins execution. This ensures lifecycle events are properly emitted.
+func TestEngine_EventEmitter_RunStarted(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
+
+	// Create test executor
+	executor := newTestExecutor(t, stateFile)
+	executor.executions = []testExecution{
+		{
+			expectedPrompt: "/run_implementation_loop test task",
+			stateUpdate: &core.State{
+				CurrentStepDescription: "Task completed",
+				NextStepPrompt:         "",
+				Status:                 "completed",
+			},
+		},
+	}
+
+	// Create mock event emitter
+	mockEmitter := events.NewMockEmitter()
+
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
+	engine.SetStateFile(stateFile)
+	engine.SetEventEmitter(mockEmitter)
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+
+	// Run workflow
+	err = engine.Run(ctx, "test task", false)
+	require.NoError(t, err)
+
+	// Verify RunStarted was called
+	calls := mockEmitter.FindCallsByMethod("RunStarted")
+	assert.Len(t, calls, 1, "RunStarted should be called once")
+	assert.NotEmpty(t, calls[0].RunID, "RunID should not be empty")
+	assert.Equal(t, "test task", calls[0].Task, "Task should match input")
+}
+
+// TestEngine_EventEmitter_RunFinished verifies that the workflow engine calls EventEmitter.RunFinished
+// when a workflow completes successfully.
+func TestEngine_EventEmitter_RunFinished(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
+
+	// Create test executor
+	executor := newTestExecutor(t, stateFile)
+	executor.executions = []testExecution{
+		{
+			expectedPrompt: "/run_implementation_loop test task",
+			stateUpdate: &core.State{
+				CurrentStepDescription: "Task completed",
+				NextStepPrompt:         "",
+				Status:                 "completed",
+			},
+		},
+	}
+
+	// Create mock event emitter
+	mockEmitter := events.NewMockEmitter()
+
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
+	engine.SetStateFile(stateFile)
+	engine.SetEventEmitter(mockEmitter)
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+
+	// Run workflow
+	err = engine.Run(ctx, "test task", false)
+	require.NoError(t, err)
+
+	// Verify RunFinished was called
+	calls := mockEmitter.FindCallsByMethod("RunFinished")
+	assert.Len(t, calls, 1, "RunFinished should be called once")
+	
+	// Verify the same RunID was used for both start and finish
+	startCalls := mockEmitter.FindCallsByMethod("RunStarted")
+	assert.Equal(t, startCalls[0].RunID, calls[0].RunID, "RunID should be consistent")
+	assert.Equal(t, "test task", calls[0].Task, "Task should match input")
+}
+
+// TestEngine_EventEmitter_RunError verifies that the workflow engine calls EventEmitter.RunError
+// when a workflow encounters an error.
+func TestEngine_EventEmitter_RunError(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
+
+	testError := errors.New("test execution error")
+
+	// Create test executor that will fail
+	executor := newTestExecutor(t, stateFile)
+	executor.executions = []testExecution{
+		{
+			expectedPrompt: "/run_implementation_loop test task",
+			error:          testError,
+		},
+	}
+
+	// Create mock event emitter
+	mockEmitter := events.NewMockEmitter()
+
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
+	engine.SetStateFile(stateFile)
+	engine.SetEventEmitter(mockEmitter)
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+
+	// Run workflow (expect error)
+	err = engine.Run(ctx, "test task", false)
+	assert.Error(t, err)
+
+	// Verify RunStarted was called
+	startCalls := mockEmitter.FindCallsByMethod("RunStarted")
+	assert.Len(t, startCalls, 1, "RunStarted should be called once")
+
+	// Verify RunError was called
+	errorCalls := mockEmitter.FindCallsByMethod("RunError")
+	assert.Len(t, errorCalls, 1, "RunError should be called once")
+	assert.Equal(t, startCalls[0].RunID, errorCalls[0].RunID, "RunID should be consistent")
+	assert.Equal(t, "test task", errorCalls[0].Task, "Task should match input")
+	assert.NotNil(t, errorCalls[0].Error, "Error should be captured")
+
+	// Verify RunFinished was NOT called
+	finishCalls := mockEmitter.FindCallsByMethod("RunFinished")
+	assert.Len(t, finishCalls, 0, "RunFinished should not be called on error")
+}
+
+// TestEngine_EventEmitter_NilEmitter verifies that the workflow engine works correctly
+// when no EventEmitter is provided (nil emitter).
+func TestEngine_EventEmitter_NilEmitter(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	stateDir := filepath.Join(tempDir, "agent_state")
+	err := os.MkdirAll(stateDir, 0755)
+	require.NoError(t, err)
+	stateFile := filepath.Join(stateDir, "agent_state.json")
+
+	// Create test executor
+	executor := newTestExecutor(t, stateFile)
+	executor.executions = []testExecution{
+		{
+			expectedPrompt: "/run_implementation_loop test task",
+			stateUpdate: &core.State{
+				CurrentStepDescription: "Task completed",
+				NextStepPrompt:         "",
+				Status:                 "completed",
+			},
+		},
+	}
+
+	wtMgr := &gitxmock.WorktreeManager{}
+	cfg := testConfig(false)
+	engine := NewEngine(executor, wtMgr, cfg)
+	engine.SetStateFile(stateFile)
+	// Don't set event emitter - it should be nil
+	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
+
+	// Run workflow - should not panic or error
+	err = engine.Run(ctx, "test task", false)
+	require.NoError(t, err)
 }

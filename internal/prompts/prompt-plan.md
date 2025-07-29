@@ -16,6 +16,8 @@ Specifications Directory: All relevant technical specifications and design docum
 
 Codebase: The full source code is available in the current working directory.
 
+Github Issue: Be sure to review any links or additional context provided in the Github issue.
+
 ## Steps:
 1. **Deep Technical Analysis**
    - Study all relevant specifications in `specs/` directory
@@ -34,6 +36,7 @@ Codebase: The full source code is available in the current working directory.
    - Prioritized feature list (P0-P3 priority levels)
    - Each feature broken into atomic tasks
    - Each task formatted for one TDD cycle:
+     * Explaination of why this task is necessary
      * Clear acceptance criteria
      * Test cases to write
      * Implementation steps
