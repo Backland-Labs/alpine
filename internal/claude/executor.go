@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Backland-Labs/alpine/internal/config"
+	"github.com/Backland-Labs/alpine/internal/events"
 	"github.com/Backland-Labs/alpine/internal/logger"
 	"github.com/Backland-Labs/alpine/internal/output"
 )
@@ -48,7 +51,9 @@ type Executor struct {
 	commandRunner CommandRunner
 	config        *config.Config
 	printer       *output.Printer
-	envVars       map[string]string // Additional environment variables to pass to Claude
+	envVars       map[string]string   // Additional environment variables to pass to Claude
+	streamer      events.Streamer    // Optional streamer for real-time output
+	runID         string              // Run ID for stream correlation
 }
 
 // CommandRunner interface for testing
@@ -74,6 +79,16 @@ func NewExecutorWithConfig(cfg *config.Config, printer *output.Printer) *Executo
 		printer:       printer,
 		envVars:       make(map[string]string),
 	}
+}
+
+// SetStreamer sets the streamer for real-time output streaming
+func (e *Executor) SetStreamer(streamer events.Streamer) {
+	e.streamer = streamer
+}
+
+// SetRunID sets the run ID for stream correlation
+func (e *Executor) SetRunID(runID string) {
+	e.runID = runID
 }
 
 // Execute runs Claude with the given configuration
@@ -110,7 +125,8 @@ func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, e
 	}
 
 	// Check if we should capture stderr for tool logs (without todo monitoring)
-	if e.config != nil && e.config.ShowToolUpdates && e.printer != nil {
+	// OR if we have streaming enabled
+	if (e.config != nil && e.config.ShowToolUpdates && e.printer != nil) || (e.streamer != nil && e.runID != "") {
 		return e.executeClaudeCommand(ctx, config, "")
 	}
 
@@ -211,8 +227,8 @@ func (e *Executor) executeClaudeCommand(ctx context.Context, config ExecuteConfi
 	// Add todo file environment variable
 	cmd.Env = append(cmd.Env, fmt.Sprintf("ALPINE_TODO_FILE=%s", todoFile))
 
-	// Check if we should capture stderr for tool logs
-	if e.config != nil && e.config.ShowToolUpdates && e.printer != nil {
+	// Check if we should capture stderr for tool logs OR if streaming is enabled
+	if (e.config != nil && e.config.ShowToolUpdates && e.printer != nil) || (e.streamer != nil && e.runID != "") {
 		return e.executeWithStderrCapture(ctx, cmd)
 	}
 
@@ -237,8 +253,23 @@ func (e *Executor) executeClaudeCommand(ctx context.Context, config ExecuteConfi
 
 // executeWithStderrCapture runs a command with separate stdout/stderr handling
 // stderr lines are sent to printer.AddToolLog() in real-time
+// stdout is streamed in real-time if a streamer is configured
 func (e *Executor) executeWithStderrCapture(ctx context.Context, cmd *exec.Cmd) (string, error) {
 	startTime := time.Now()
+
+	// Generate message ID for streaming if streamer is available
+	var messageID string
+	if e.streamer != nil && e.runID != "" {
+		messageID = generateMessageID()
+		// Start streaming lifecycle
+		if err := e.streamer.StreamStart(e.runID, messageID); err != nil {
+			logger.WithFields(map[string]interface{}{
+				"error":     err,
+				"runID":     e.runID,
+				"messageID": messageID,
+			}).Debug("Failed to start streaming")
+		}
+	}
 
 	// Get stdout pipe
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -266,8 +297,29 @@ func (e *Executor) executeWithStderrCapture(ctx context.Context, cmd *exec.Cmd) 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if _, err := io.Copy(&stdoutBuf, stdoutPipe); err != nil {
-			logger.WithField("error", err).Error("Error reading stdout")
+		
+		// Create writers based on streaming configuration
+		var writer io.Writer = &stdoutBuf
+		
+		// If streaming is enabled, use MultiWriter to stream and capture
+		if e.streamer != nil && e.runID != "" && messageID != "" {
+			streamWriter := NewStreamWriter(e.streamer, e.runID, messageID)
+			multiWriter := newMultiWriterWithFlush(&stdoutBuf, streamWriter)
+			writer = multiWriter
+			
+			// Use TeeReader to read and write simultaneously
+			reader := io.TeeReader(stdoutPipe, writer)
+			io.Copy(io.Discard, reader)
+			
+			// Flush any remaining buffered content
+			if err := multiWriter.Flush(); err != nil {
+				logger.WithField("error", err).Debug("Error flushing stream writer")
+			}
+		} else {
+			// No streaming, just capture to buffer
+			if _, err := io.Copy(&stdoutBuf, stdoutPipe); err != nil {
+				logger.WithField("error", err).Error("Error reading stdout")
+			}
 		}
 	}()
 
@@ -298,6 +350,17 @@ func (e *Executor) executeWithStderrCapture(ctx context.Context, cmd *exec.Cmd) 
 
 	output := stdoutBuf.String()
 
+	// End streaming lifecycle if enabled
+	if e.streamer != nil && e.runID != "" && messageID != "" {
+		if err := e.streamer.StreamEnd(e.runID, messageID); err != nil {
+			logger.WithFields(map[string]interface{}{
+				"error":     err,
+				"runID":     e.runID,
+				"messageID": messageID,
+			}).Debug("Failed to end streaming")
+		}
+	}
+
 	if err != nil {
 		logger.WithFields(map[string]interface{}{
 			"error":    err,
@@ -309,6 +372,16 @@ func (e *Executor) executeWithStderrCapture(ctx context.Context, cmd *exec.Cmd) 
 
 	logger.WithField("duration", duration).Debug("Claude execution completed successfully with stderr capture")
 	return output, nil
+}
+
+// generateMessageID generates a unique message ID for streaming correlation
+func generateMessageID() string {
+	bytes := make([]byte, 8)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to timestamp-based ID if random generation fails
+		return fmt.Sprintf("msg-%d", time.Now().UnixNano())
+	}
+	return fmt.Sprintf("msg-%s", hex.EncodeToString(bytes))
 }
 
 // DefaultSystemPrompt is the default system prompt used when none is provided
