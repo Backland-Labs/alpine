@@ -116,8 +116,9 @@ func startServerIfRequested(ctx context.Context) error {
 	}
 
 	// Get port from context or use default
-	port := 3001
-	if p, ok := ctx.Value(portKey).(int); ok {
+	const defaultServerPort = 3001
+	port := defaultServerPort
+	if p, ok := ctx.Value(portKey).(int); ok && p > 0 {
 		port = p
 	}
 
@@ -126,7 +127,7 @@ func startServerIfRequested(ctx context.Context) error {
 	
 	go func() {
 		logger.Infof("Starting HTTP server on port %d", port)
-		if err := httpServer.Start(); err != nil {
+		if err := httpServer.Start(ctx); err != nil {
 			// Only log unexpected errors (not normal shutdown)
 			if err != context.Canceled && err != http.ErrServerClosed {
 				logger.Errorf("Server error: %v", err)
@@ -137,14 +138,15 @@ func startServerIfRequested(ctx context.Context) error {
 	
 	// Give the server a moment to start
 	// TODO: Implement a proper readiness check
-	time.Sleep(100 * time.Millisecond)
+	const serverStartupDelay = 100 * time.Millisecond
+	time.Sleep(serverStartupDelay)
 	
 	// Verify the server started successfully
-	actualPort := httpServer.GetPort()
-	if actualPort == 0 {
+	addr := httpServer.Address()
+	if addr == "" {
 		return fmt.Errorf("server failed to start on port %d", port)
 	}
 	
-	logger.Infof("HTTP server listening on port %d", actualPort)
+	logger.Infof("HTTP server listening on %s", addr)
 	return nil
 }

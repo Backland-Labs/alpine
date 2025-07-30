@@ -33,6 +33,15 @@ type GitConfig struct {
 	AutoCleanupWT bool
 }
 
+// ServerConfig holds server-related configuration
+type ServerConfig struct {
+	// Enabled controls whether the HTTP server is started
+	Enabled bool
+
+	// Port is the HTTP server port
+	Port int
+}
+
 // Config holds all configuration for the Alpine CLI
 type Config struct {
 	// WorkDir is the working directory for Claude execution
@@ -59,11 +68,8 @@ type Config struct {
 	// Git holds git-related configuration
 	Git GitConfig
 
-	// HTTPEnabled controls whether HTTP server mode is enabled
-	HTTPEnabled bool
-
-	// HTTPPort is the port for the HTTP server
-	HTTPPort int
+	// Server holds server-related configuration
+	Server ServerConfig
 }
 
 // New creates a new Config instance from environment variables
@@ -160,23 +166,26 @@ func New() (*Config, error) {
 	}
 	cfg.Git.AutoCleanupWT = autoCleanupWT
 
-	// Load HTTPEnabled - defaults to false
-	httpEnabled, err := parseBoolEnv("ALPINE_HTTP_ENABLED", false)
+	// Load Server configuration
+	cfg.Server = ServerConfig{}
+
+	// Load Server.Enabled - defaults to false
+	serverEnabled, err := parseBoolEnv("ALPINE_HTTP_ENABLED", false)
 	if err != nil {
 		return nil, err
 	}
-	cfg.HTTPEnabled = httpEnabled
+	cfg.Server.Enabled = serverEnabled
 
-	// Load HTTPPort - defaults to 8080
+	// Load Server.Port - defaults to 3001
 	httpPortStr := os.Getenv("ALPINE_HTTP_PORT")
 	if httpPortStr == "" {
-		cfg.HTTPPort = 8080
+		cfg.Server.Port = 3001
 	} else {
 		httpPort, err := parsePort(httpPortStr)
 		if err != nil {
 			return nil, fmt.Errorf("ALPINE_HTTP_PORT %s", err)
 		}
-		cfg.HTTPPort = httpPort
+		cfg.Server.Port = httpPort
 	}
 
 	return cfg, nil

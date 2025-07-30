@@ -1,242 +1,242 @@
-// Package server provides HTTP server functionality for Alpine,
-// enabling workflow execution via HTTP API and event emission to UI endpoints.
+// Package server implements an HTTP server with Server-Sent Events (SSE) support
+// and REST API endpoints for Alpine. This server allows frontend applications to 
+// receive real-time updates about workflow progress and state changes, as well as
+// programmatically manage workflows via REST API.
 package server
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
-// RunHandler defines the interface for executing workflow runs
-type RunHandler func(ctx context.Context, req RunRequest) error
+// Constants for server configuration
+const (
+	// defaultEventBufferSize is the default size for the events channel buffer
+	defaultEventBufferSize = 100
+)
 
-// Server represents the Alpine HTTP server that provides REST API endpoints
-// for managing workflow runs and emitting events to UI endpoints.
+// Common errors returned by the server
+var (
+	// ErrServerRunning is returned when attempting to start an already running server
+	ErrServerRunning = errors.New("server is already running")
+)
+
+// Server represents an HTTP server with Server-Sent Events support.
+// It provides real-time updates to connected clients about Alpine's
+// workflow progress and state changes.
 type Server struct {
-	port       int
-	server     *http.Server
-	router     http.ServeMux
-	runs       map[string]*Run
-	runsMux    sync.RWMutex
-	listener   net.Listener
-	runHandler RunHandler
+	port       int          // Port number to listen on (0 for auto-assignment)
+	httpServer *http.Server // Underlying HTTP server instance
+	eventsChan chan string  // Channel for broadcasting events to clients
+	listener   net.Listener // Network listener for accepting connections
+	mu         sync.Mutex   // Protects server state during concurrent access
+	running    bool         // Indicates if the server is currently running
+	
+	// In-memory storage for REST API
+	runs  map[string]*Run  // Storage for workflow runs
+	plans map[string]*Plan // Storage for workflow plans
+	
+	// Workflow engine integration
+	workflowEngine WorkflowEngine // Optional workflow engine for executing workflows
 }
 
-// NewServer creates a new HTTP server instance
+// NewServer creates a new HTTP server instance configured to run on the specified port.
+// The server is initialized but not started - use Start() to begin listening.
 func NewServer(port int) *Server {
-	s := &Server{
+	mux := http.NewServeMux()
+
+	return &Server{
 		port: port,
-		runs: make(map[string]*Run),
+		httpServer: &http.Server{
+			Addr:    fmt.Sprintf("localhost:%d", port),
+			Handler: mux,
+		},
+		eventsChan: make(chan string, defaultEventBufferSize),
+		runs:       make(map[string]*Run),
+		plans:      make(map[string]*Plan),
 	}
-	
-	// Set up routes
-	s.router.HandleFunc("/health", s.handleHealth)
-	s.router.HandleFunc("/runs", s.handleRuns)
-	s.router.HandleFunc("/runs/", s.handleRunStatus)
-	
-	// Create HTTP server
-	s.server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: &s.router,
-	}
-	
-	return s
 }
 
-// SetRunHandler sets the handler function for executing workflow runs
-func (s *Server) SetRunHandler(handler RunHandler) {
-	s.runHandler = handler
-}
-
-// Start starts the HTTP server
-func (s *Server) Start() error {
-	// Create listener
-	listener, err := net.Listen("tcp", s.server.Addr)
-	if err != nil {
-		return fmt.Errorf("failed to create listener: %w", err)
+// Start begins listening for HTTP requests on the configured port.
+// The server runs until the provided context is canceled.
+// Returns http.ErrServerClosed on graceful shutdown, or any other error if startup fails.
+func (s *Server) Start(ctx context.Context) error {
+	s.mu.Lock()
+	if s.running {
+		s.mu.Unlock()
+		return ErrServerRunning
 	}
-	s.listener = listener
-	
-	// Update port if it was 0 (auto-assigned)
+	s.running = true
+	s.mu.Unlock()
+
+	// Check if context is already canceled
+	select {
+	case <-ctx.Done():
+		s.mu.Lock()
+		s.running = false
+		s.mu.Unlock()
+		return ctx.Err()
+	default:
+	}
+
+	// Create listener with dynamic address for reuse
+	addr := s.httpServer.Addr
 	if s.port == 0 {
-		if addr, ok := listener.Addr().(*net.TCPAddr); ok {
-			s.port = addr.Port
-		}
+		addr = "localhost:0" // Let OS assign port
 	}
-	
-	log.Printf("Starting Alpine HTTP server on port %d", s.port)
-	
-	// Start server in background
+
+	var err error
+	s.listener, err = net.Listen("tcp", addr)
+	if err != nil {
+		s.mu.Lock()
+		s.running = false
+		s.mu.Unlock()
+		return fmt.Errorf("failed to listen: %w", err)
+	}
+
+	// Create a new HTTP server for each start to avoid reuse issues
+	mux := http.NewServeMux()
+
+	// Register endpoint handlers
+	mux.HandleFunc("/events", s.sseHandler)
+	mux.HandleFunc("/health", s.healthHandler)
+	mux.HandleFunc("/agents/list", s.agentsListHandler)
+	mux.HandleFunc("/agents/run", s.agentsRunHandler)
+	mux.HandleFunc("/runs", s.runsListHandler)
+	mux.HandleFunc("/runs/{id}", s.runDetailsHandler)
+	mux.HandleFunc("/runs/{id}/events", s.runEventsHandler)
+	mux.HandleFunc("/runs/{id}/cancel", s.runCancelHandler)
+	mux.HandleFunc("/plans/{runId}", s.planGetHandler)
+	mux.HandleFunc("/plans/{runId}/approve", s.planApproveHandler)
+	mux.HandleFunc("/plans/{runId}/feedback", s.planFeedbackHandler)
+
+	s.httpServer = &http.Server{
+		Handler: mux,
+	}
+
+	// Handle shutdown when context is canceled
 	go func() {
-		if err := s.server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			log.Printf("HTTP server error: %v", err)
-		}
+		<-ctx.Done()
+		_ = s.httpServer.Shutdown(context.Background())
 	}()
-	
-	return nil
+
+	// Start serving
+	err = s.httpServer.Serve(s.listener)
+
+	s.mu.Lock()
+	s.running = false
+	s.listener = nil
+	s.mu.Unlock()
+
+	// http.ErrServerClosed is expected when shutting down gracefully
+	if err == http.ErrServerClosed {
+		return err
+	}
+	return err
 }
 
-// Stop gracefully shuts down the server
-func (s *Server) Stop(ctx context.Context) error {
-	log.Printf("Shutting down Alpine HTTP server")
-	return s.server.Shutdown(ctx)
+// Address returns the actual address the server is listening on.
+// Returns empty string if the server is not running.
+func (s *Server) Address() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.listener == nil {
+		return ""
+	}
+	return s.listener.Addr().String()
 }
 
-// GetPort returns the actual port the server is listening on
-func (s *Server) GetPort() int {
-	return s.port
+// SetWorkflowEngine sets the workflow engine for the server
+func (s *Server) SetWorkflowEngine(engine WorkflowEngine) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.workflowEngine = engine
 }
 
-// GetRun retrieves a run by ID
-func (s *Server) GetRun(runID string) *Run {
-	s.runsMux.RLock()
-	defer s.runsMux.RUnlock()
-	return s.runs[runID]
-}
-
-// handleRuns handles POST /runs requests to create new workflow runs
-func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		s.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+// BroadcastEvent broadcasts a workflow event to all connected SSE clients
+func (s *Server) BroadcastEvent(event WorkflowEvent) {
+	// Convert event to JSON for SSE
+	data, err := json.Marshal(event)
+	if err != nil {
 		return
 	}
 	
-	// Parse request
-	var req RunRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Failed to decode request: %v", err)
-		s.writeError(w, "Invalid JSON", http.StatusBadRequest)
-		return
+	// Create SSE formatted message
+	message := fmt.Sprintf("event: %s\ndata: %s\n\n", event.Type, string(data))
+	
+	// Send to event channel (non-blocking)
+	select {
+	case s.eventsChan <- message:
+	default:
+		// Channel full, drop message
 	}
-	
-	// Validate request
-	if req.Task == "" {
-		s.writeError(w, "Task field is required", http.StatusBadRequest)
-		return
-	}
-	
-	// Create new run
-	runID := uuid.New().String()
-	run := &Run{
-		ID:            runID,
-		Task:          req.Task,
-		Status:        "running",
-		EventEndpoint: req.EventEndpoint,
-		StartTime:     time.Now(),
-	}
-	
-	// Store run
-	s.runsMux.Lock()
-	s.runs[runID] = run
-	s.runsMux.Unlock()
-	
-	log.Printf("Created new run %s for task: %s", runID, req.Task)
-	
-	// Execute the workflow if handler is set
-	if s.runHandler != nil {
-		// Pass request with ID to handler
-		reqWithID := req
-		reqWithID.ID = runID
-		
-		// Execute in background
-		go func() {
-			if err := s.runHandler(context.Background(), reqWithID); err != nil {
-				log.Printf("Run %s failed: %v", runID, err)
-				s.updateRunStatus(runID, "failed")
-			} else {
-				s.updateRunStatus(runID, "completed")
-			}
-		}()
-	}
-	
-	// Send response
-	resp := RunResponse{
-		RunID: runID,
-	}
-	
-	s.writeJSON(w, resp, http.StatusCreated)
 }
 
-// handleRunStatus handles GET /runs/{id}/status requests to query run status
-func (s *Server) handleRunStatus(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		s.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+// sseHandler handles Server-Sent Events connections at the /events endpoint.
+// It sends an initial "hello world" event upon connection and manages the
+// client lifecycle, including proper cleanup on disconnect.
+func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
+	// Set SSE specific headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Ensure buffering is disabled for real-time updates
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
-	
-	// Extract run ID from path
-	path := strings.TrimPrefix(r.URL.Path, "/runs/")
-	parts := strings.Split(path, "/")
-	if len(parts) != 2 || parts[1] != "status" {
-		s.writeError(w, "Not found", http.StatusNotFound)
-		return
+
+	// Send initial hello world event
+	_, _ = fmt.Fprintf(w, "data: hello world\n\n")
+	flusher.Flush()
+
+	// Listen for events from the event channel
+	for {
+		select {
+		case event := <-s.eventsChan:
+			// Send event to client
+			_, _ = fmt.Fprint(w, event)
+			flusher.Flush()
+		case <-r.Context().Done():
+			// Client disconnected
+			return
+		}
 	}
-	runID := parts[0]
-	
-	// Get run
-	s.runsMux.RLock()
-	run, exists := s.runs[runID]
-	s.runsMux.RUnlock()
-	
-	if !exists {
-		s.writeError(w, "Run not found", http.StatusNotFound)
-		return
-	}
-	
-	// Send response
-	resp := RunStatusResponse{
-		RunID:  run.ID,
-		Status: run.Status,
-		Task:   run.Task,
-	}
-	
-	s.writeJSON(w, resp, http.StatusOK)
 }
 
-// writeJSON writes a JSON response with the given status code
-func (s *Server) writeJSON(w http.ResponseWriter, data interface{}, statusCode int) {
+// Helper methods
+
+// respondWithError sends a JSON error response with the specified status code
+func (s *Server) respondWithError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Printf("Failed to encode response: %v", err)
+	response := map[string]string{
+		"error": message,
+	}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// Log the error but don't attempt to write more to the response
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
 
-// writeError writes a JSON error response
-func (s *Server) writeError(w http.ResponseWriter, message string, statusCode int) {
-	errorResp := map[string]string{"error": message}
-	s.writeJSON(w, errorResp, statusCode)
-}
-
-// handleHealth handles GET /health requests
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		s.writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+// updateRunStatus updates a run's status and worktree directory in a thread-safe manner
+func (s *Server) updateRunStatus(run *Run, status string, worktreeDir string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	
-	s.writeJSON(w, map[string]string{"status": "healthy"}, http.StatusOK)
-}
-
-// updateRunStatus updates the status of a run
-func (s *Server) updateRunStatus(runID, status string) {
-	s.runsMux.Lock()
-	defer s.runsMux.Unlock()
-	
-	if run, exists := s.runs[runID]; exists {
-		run.Status = status
-		if status == "completed" || status == "failed" {
-			now := time.Now()
-			run.EndTime = &now
-		}
+	run.Status = status
+	run.Updated = time.Now()
+	if worktreeDir != "" {
+		run.WorktreeDir = worktreeDir
 	}
 }

@@ -68,13 +68,64 @@ alpine --serve --port 8080        # Start server on custom port
 
 ### HTTP Server Mode
 
-Alpine includes a built-in HTTP server with Server-Sent Events (SSE) support for real-time communication:
+Alpine includes a built-in HTTP server with both REST API and Server-Sent Events (SSE) support for programmatic workflow management:
 
+#### Server Modes
 - **Standalone mode**: Run `alpine --serve` to start just the HTTP server
-- **SSE endpoint**: Connect to `/events` to receive real-time events
+- **With workflow**: Run `alpine --serve "Your task"` to execute a task with API access
 - **Port configuration**: Default port 3001, configurable with `--port`
+- **SSE endpoint**: Connect to `/events` to receive real-time events
 
 This allows frontend applications or monitoring tools to receive real-time updates from Alpine's execution.
+
+#### REST API Endpoints
+
+Alpine provides a comprehensive REST API for programmatic workflow management:
+
+```bash
+# Health check
+curl http://localhost:3001/health
+
+# Start a workflow from GitHub issue
+curl -X POST http://localhost:3001/agents/run \
+  -H "Content-Type: application/json" \
+  -d '{"github_issue_url": "https://github.com/owner/repo/issues/123"}'
+
+# List all workflow runs
+curl http://localhost:3001/runs
+
+# Get specific run details
+curl http://localhost:3001/runs/{run-id}
+
+# Monitor run progress via Server-Sent Events
+curl http://localhost:3001/runs/{run-id}/events
+
+# Cancel a running workflow
+curl -X POST http://localhost:3001/runs/{run-id}/cancel
+
+# Approve an execution plan
+curl -X POST http://localhost:3001/plans/{run-id}/approve
+```
+
+#### Complete Workflow Example
+
+```bash
+# Start the server
+./alpine --serve --port 3001
+
+# Create a new run from GitHub issue
+curl -X POST http://localhost:3001/agents/run \
+  -H "Content-Type: application/json" \
+  -d '{"github_issue_url": "https://github.com/myorg/myrepo/issues/42"}'
+
+# Monitor progress in real-time
+curl http://localhost:3001/runs/{run-id}/events
+
+# Approve plan when generated
+curl -X POST http://localhost:3001/plans/{run-id}/approve
+```
+
+The REST API enables integration with CI/CD pipelines, monitoring tools, and custom applications for automated development workflows.
 
 
 ## License

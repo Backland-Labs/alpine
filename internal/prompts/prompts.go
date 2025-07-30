@@ -7,8 +7,3 @@ import _ "embed"
 //
 //go:embed prompt-plan.md
 var PromptPlan string
-
-// AmpImplement contains the embedded content of amp-implement.md
-//
-//go:embed amp-implement.md
-var AmpImplement string
