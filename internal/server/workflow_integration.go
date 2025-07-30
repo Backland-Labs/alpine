@@ -39,6 +39,7 @@ type AlpineWorkflowEngine struct {
 	claudeExecutor workflow.ClaudeExecutor
 	wtMgr          gitx.WorktreeManager
 	cfg            *config.Config
+	server         *Server // Reference to server for streaming support
 	
 	// Track active workflows with thread-safe access
 	mu        sync.RWMutex
@@ -68,6 +69,11 @@ func NewAlpineWorkflowEngine(executor workflow.ClaudeExecutor, wtMgr gitx.Worktr
 		cfg:            cfg,
 		workflows:      make(map[string]*workflowInstance),
 	}
+}
+
+// SetServer sets the server reference for streaming support
+func (e *AlpineWorkflowEngine) SetServer(server *Server) {
+	e.server = server
 }
 
 // StartWorkflow initiates a new workflow run with the given GitHub issue URL.
@@ -104,8 +110,14 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 	// Disable worktree creation in workflow.Engine since we already created one
 	workflowCfg.Git.WorktreeEnabled = false
 	
-	// Create workflow engine
-	engine := workflow.NewEngine(e.claudeExecutor, nil, &workflowCfg, nil)
+	// Create workflow engine with server as streamer if available
+	var streamer events.Streamer
+	if e.server != nil {
+		streamer = NewServerStreamer(e.server)
+		logger.Debugf("Created server streamer for workflow %s", runID)
+	}
+	
+	engine := workflow.NewEngine(e.claudeExecutor, nil, &workflowCfg, streamer)
 	engine.SetStateFile(workflowCfg.StateFile)
 	
 	// Create workflow instance

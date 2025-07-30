@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/Backland-Labs/alpine/internal/claude"
 	"github.com/Backland-Labs/alpine/internal/events"
+	"github.com/Backland-Labs/alpine/internal/gitx"
 	"github.com/Backland-Labs/alpine/internal/logger"
 	"github.com/Backland-Labs/alpine/internal/server"
 )
@@ -16,7 +19,7 @@ import (
 func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, noWorktree bool, continueFlag bool, deps *Dependencies) error {
 	// Check if we're in server-only mode
 	serve, _ := ctx.Value(serveKey).(bool)
-	if serve {
+	if serve && len(args) == 0 {
 		// Load configuration for server
 		cfg, err := deps.ConfigLoader.Load()
 		if err != nil {
@@ -28,8 +31,29 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 		logger.Infof("Starting Alpine in server-only mode")
 		
 		// Start HTTP server
-		if _, err := startServerIfRequested(ctx); err != nil {
+		httpServer, err := startServerIfRequested(ctx)
+		if err != nil {
 			return fmt.Errorf("failed to start server: %w", err)
+		}
+		
+		// Create Alpine workflow engine for REST API
+		if httpServer != nil {
+			// Create Claude executor
+			claudeExecutor := claude.NewExecutor()
+			
+			// Create worktree manager
+			cwd, _ := os.Getwd()
+			var wtMgr gitx.WorktreeManager
+			if cwd != "" && cfg.Git.WorktreeEnabled {
+				wtMgr = gitx.NewCLIWorktreeManager(cwd, cfg.Git.BaseBranch)
+			}
+			
+			// Create AlpineWorkflowEngine for REST API operations
+			alpineEngine := server.NewAlpineWorkflowEngine(claudeExecutor, wtMgr, cfg)
+			alpineEngine.SetServer(httpServer)
+			httpServer.SetWorkflowEngine(alpineEngine)
+			
+			logger.Infof("Configured Alpine workflow engine for REST API")
 		}
 		
 		// Keep the server running until context is cancelled
