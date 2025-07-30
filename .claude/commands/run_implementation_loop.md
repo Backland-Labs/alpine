@@ -141,15 +141,6 @@ After completing the feature implementation and committing all changes, create a
 
 ## Continuous Learning and Documentation
 
-When you discover new patterns, commands, or solutions during implementation:
-
-### Update CLAUDE.md
-Use a subagent to document:
-- Correct command syntax you've learned through trial
-- Build or test commands specific to this project
-- Environment setup steps
-- Common error resolutions
-
 ### Add a spec
 - If a new design pattern is emerging consider writing a new spec in @/specs. Leep is concise.
 
