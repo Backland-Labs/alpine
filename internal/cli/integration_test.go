@@ -63,7 +63,7 @@ func TestNewRealWorkflowEngine(t *testing.T) {
 	}
 	wtMgr := gitx.NewCLIWorktreeManager(cwd, cfg.Git.BaseBranch)
 
-	engine := NewRealWorkflowEngine(cfg, wtMgr)
+	engine := NewRealWorkflowEngine(cfg, wtMgr, nil)
 
 	assert.NotNil(t, engine)
 	assert.NotNil(t, engine.engine)

@@ -104,7 +104,7 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 	workflowCfg.Git.WorktreeEnabled = false
 	
 	// Create workflow engine
-	engine := workflow.NewEngine(e.claudeExecutor, nil, &workflowCfg)
+	engine := workflow.NewEngine(e.claudeExecutor, nil, &workflowCfg, nil)
 	engine.SetStateFile(workflowCfg.StateFile)
 	
 	// Create workflow instance

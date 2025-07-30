@@ -720,7 +720,7 @@ func TestRunWorkflowAsync(t *testing.T) {
 		defer cancel()
 
 		// Create a workflow engine for the instance
-		workflowEngine := workflow.NewEngine(mockExecutor, &MockWorktreeManager{}, &config.Config{WorkDir: tempDir})
+		workflowEngine := workflow.NewEngine(mockExecutor, &MockWorktreeManager{}, &config.Config{WorkDir: tempDir}, nil)
 		workflowEngine.SetStateFile(stateFile)
 		
 		instance := &workflowInstance{
@@ -794,7 +794,7 @@ func TestRunWorkflowAsync(t *testing.T) {
 		defer cancel()
 
 		// Create a workflow engine for the instance
-		workflowEngine := workflow.NewEngine(mockExecutor, &MockWorktreeManager{}, &config.Config{WorkDir: tempDir})
+		workflowEngine := workflow.NewEngine(mockExecutor, &MockWorktreeManager{}, &config.Config{WorkDir: tempDir}, nil)
 		workflowEngine.SetStateFile(stateFile)
 		
 		instance := &workflowInstance{

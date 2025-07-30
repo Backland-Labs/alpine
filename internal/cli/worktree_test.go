@@ -238,7 +238,7 @@ func TestCreateWorkflowEngine(t *testing.T) {
 	}
 
 	// Create workflow engine
-	engine, wtMgr := CreateWorkflowEngine(cfg)
+	engine, wtMgr := CreateWorkflowEngine(cfg, nil)
 
 	// Check that engine and worktree manager are created
 	assert.NotNil(t, engine, "CreateWorkflowEngine should create a workflow engine")
@@ -246,7 +246,7 @@ func TestCreateWorkflowEngine(t *testing.T) {
 
 	// Test with worktree disabled
 	cfg.Git.WorktreeEnabled = false
-	engine2, wtMgr2 := CreateWorkflowEngine(cfg)
+	engine2, wtMgr2 := CreateWorkflowEngine(cfg, nil)
 
 	assert.NotNil(t, engine2, "CreateWorkflowEngine should create a workflow engine")
 	assert.Nil(t, wtMgr2, "CreateWorkflowEngine should not create a WorktreeManager when disabled")

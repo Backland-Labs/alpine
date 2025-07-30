@@ -90,13 +90,15 @@ func TestExecutorStreaming(t *testing.T) {
 - Modifies existing `internal/claude/executor.go` executeWithStderrCapture method
 - Uses existing stdout/stderr capture infrastructure
 
-#### Feature 3: Workflow Integration and Dependency Passing
+#### Feature 3: Workflow Integration and Dependency Passing ✅ IMPLEMENTED
 
 **Acceptance Criteria:**
-- Server instance passed as Streamer through workflow chain
-- Workflow engine propagates Streamer to Claude executor
-- Run ID tracking for stream correlation
-- Non-server mode continues to work without streaming
+- ✅ Server instance passed as Streamer through workflow chain
+- ✅ Workflow engine propagates Streamer to Claude executor
+- ✅ Run ID tracking for stream correlation
+- ✅ Non-server mode continues to work without streaming
+
+**Implementation Date**: 2025-07-30
 
 **TDD Cycle:**
 
@@ -295,11 +297,11 @@ func TestStreamingPerformance(t *testing.T) {
 ## Success Criteria Checklist
 
 ### Functional Requirements
-- [ ] Real-time stdout streaming during Claude execution
+- [x] Real-time stdout streaming during Claude execution
 - [ ] SSE delivery to connected frontend clients via `/runs/{id}/events`
-- [ ] Complete backward compatibility with CLI-only usage
-- [ ] Proper streaming lifecycle management (start/content/end events)
-- [ ] Run ID correlation between streams and REST API
+- [x] Complete backward compatibility with CLI-only usage
+- [x] Proper streaming lifecycle management (start/content/end events)
+- [x] Run ID correlation between streams and REST API
 
 ### Technical Requirements  
 - [x] Streamer interface properly abstracts streaming concerns

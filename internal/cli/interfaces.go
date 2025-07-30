@@ -6,6 +6,7 @@ import (
 
 	"github.com/Backland-Labs/alpine/internal/claude"
 	"github.com/Backland-Labs/alpine/internal/config"
+	"github.com/Backland-Labs/alpine/internal/events"
 	"github.com/Backland-Labs/alpine/internal/gitx"
 	"github.com/Backland-Labs/alpine/internal/output"
 	"github.com/Backland-Labs/alpine/internal/workflow"
@@ -40,10 +41,10 @@ type RealWorkflowEngine struct {
 	engine *workflow.Engine
 }
 
-func NewRealWorkflowEngine(cfg *config.Config, wtMgr gitx.WorktreeManager) *RealWorkflowEngine {
+func NewRealWorkflowEngine(cfg *config.Config, wtMgr gitx.WorktreeManager, streamer events.Streamer) *RealWorkflowEngine {
 	printer := output.NewPrinter()
 	executor := claude.NewExecutorWithConfig(cfg, printer)
-	engine := workflow.NewEngine(executor, wtMgr, cfg)
+	engine := workflow.NewEngine(executor, wtMgr, cfg, streamer)
 	return &RealWorkflowEngine{engine: engine}
 }
 
@@ -69,7 +70,7 @@ func NewRealDependencies() *Dependencies {
 }
 
 // CreateWorkflowEngine creates the workflow engine with finalized config
-func CreateWorkflowEngine(cfg *config.Config) (WorkflowEngine, gitx.WorktreeManager) {
+func CreateWorkflowEngine(cfg *config.Config, streamer events.Streamer) (WorkflowEngine, gitx.WorktreeManager) {
 	// Get current working directory for parent repo
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -84,7 +85,7 @@ func CreateWorkflowEngine(cfg *config.Config) (WorkflowEngine, gitx.WorktreeMana
 	}
 
 	// Create workflow engine
-	engine := NewRealWorkflowEngine(cfg, wtMgr)
+	engine := NewRealWorkflowEngine(cfg, wtMgr, streamer)
 
 	return engine, wtMgr
 }

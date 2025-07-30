@@ -24,6 +24,12 @@ type ClaudeExecutor interface {
 	Execute(ctx context.Context, config claude.ExecuteConfig) (string, error)
 }
 
+// StreamingExecutor is an optional interface that executors can implement to support streaming
+type StreamingExecutor interface {
+	SetStreamer(streamer events.Streamer)
+	SetRunID(runID string)
+}
+
 // Engine orchestrates the workflow execution
 type Engine struct {
 	claudeExecutor ClaudeExecutor
@@ -36,16 +42,18 @@ type Engine struct {
 	eventEmitter   events.EventEmitter  // Optional event emitter for lifecycle events
 	runID          string               // Unique identifier for this run
 	taskDesc       string               // Task description for event tracking
+	streamer       events.Streamer      // Optional streamer for real-time output
 }
 
 // NewEngine creates a new workflow engine
-func NewEngine(executor ClaudeExecutor, wtMgr gitx.WorktreeManager, cfg *config.Config) *Engine {
+func NewEngine(executor ClaudeExecutor, wtMgr gitx.WorktreeManager, cfg *config.Config, streamer events.Streamer) *Engine {
 	return &Engine{
 		claudeExecutor: executor,
 		wtMgr:          wtMgr,
 		cfg:            cfg,
 		stateFile:      cfg.StateFile,
 		printer:        output.NewPrinter(),
+		streamer:       streamer,
 	}
 }
 
@@ -196,6 +204,15 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 
 		// Show progress indicator during Claude execution
 		progress := e.printer.StartProgressWithIteration("Executing Claude", iteration)
+
+		// Pass streamer and runID to executor if available
+		if e.streamer != nil && e.claudeExecutor != nil {
+			// Check if executor supports streaming (interface assertion)
+			if exec, ok := e.claudeExecutor.(StreamingExecutor); ok {
+				exec.SetStreamer(e.streamer)
+				exec.SetRunID(e.runID)
+			}
+		}
 
 		config := claude.ExecuteConfig{
 			Prompt:    state.NextStepPrompt,
