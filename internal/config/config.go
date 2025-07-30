@@ -40,6 +40,12 @@ type ServerConfig struct {
 
 	// Port is the HTTP server port
 	Port int
+
+	// StreamBufferSize is the size of event buffers for streaming
+	StreamBufferSize int
+
+	// MaxClientsPerRun is the maximum number of clients per run
+	MaxClientsPerRun int
 }
 
 // Config holds all configuration for the Alpine CLI
@@ -186,6 +192,34 @@ func New() (*Config, error) {
 			return nil, fmt.Errorf("ALPINE_HTTP_PORT %s", err)
 		}
 		cfg.Server.Port = httpPort
+	}
+
+	// Load Server.StreamBufferSize - defaults to 100
+	streamBufferSizeStr := os.Getenv("ALPINE_STREAM_BUFFER_SIZE")
+	if streamBufferSizeStr == "" {
+		cfg.Server.StreamBufferSize = 100
+	} else {
+		streamBufferSize, err := strconv.Atoi(streamBufferSizeStr)
+		if err != nil || streamBufferSize <= 0 {
+			// Invalid value, use default
+			cfg.Server.StreamBufferSize = 100
+		} else {
+			cfg.Server.StreamBufferSize = streamBufferSize
+		}
+	}
+
+	// Load Server.MaxClientsPerRun - defaults to 100
+	maxClientsStr := os.Getenv("ALPINE_MAX_CLIENTS_PER_RUN")
+	if maxClientsStr == "" {
+		cfg.Server.MaxClientsPerRun = 100
+	} else {
+		maxClients, err := strconv.Atoi(maxClientsStr)
+		if err != nil || maxClients <= 0 {
+			// Invalid value, use default
+			cfg.Server.MaxClientsPerRun = 100
+		} else {
+			cfg.Server.MaxClientsPerRun = maxClients
+		}
 	}
 
 	return cfg, nil

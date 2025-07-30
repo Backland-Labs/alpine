@@ -1,0 +1,5 @@
+{
+  "current_step_description": "Initializing workflow for task",
+  "next_step_prompt": "/run_implementation_loop test task",
+  "status": "running"
+}

@@ -67,6 +67,29 @@ func NewServer(port int) *Server {
 	}
 }
 
+// NewServerWithConfig creates a new HTTP server instance with custom configuration
+func NewServerWithConfig(port int, streamBufferSize int, maxClientsPerRun int) *Server {
+	mux := http.NewServeMux()
+	
+	// Use provided buffer size or default
+	bufferSize := streamBufferSize
+	if bufferSize <= 0 {
+		bufferSize = defaultEventBufferSize
+	}
+
+	return &Server{
+		port: port,
+		httpServer: &http.Server{
+			Addr:    fmt.Sprintf("localhost:%d", port),
+			Handler: mux,
+		},
+		eventsChan:  make(chan string, bufferSize),
+		runs:        make(map[string]*Run),
+		plans:       make(map[string]*Plan),
+		runEventHub: newRunSpecificEventHubWithConfig(bufferSize, maxClientsPerRun),
+	}
+}
+
 // Start begins listening for HTTP requests on the configured port.
 // The server runs until the provided context is canceled.
 // Returns http.ErrServerClosed on graceful shutdown, or any other error if startup fails.
@@ -168,9 +191,19 @@ func (s *Server) SetWorkflowEngine(engine WorkflowEngine) {
 
 // BroadcastEvent broadcasts a workflow event to all connected SSE clients
 func (s *Server) BroadcastEvent(event WorkflowEvent) {
+	// Add panic recovery for robustness
+	defer func() {
+		if r := recover(); r != nil {
+			// Log the panic but don't crash the server
+			// In production, this would use proper logging
+			_ = r // Panic recovered, server continues
+		}
+	}()
+
 	// Convert event to JSON for SSE
 	data, err := json.Marshal(event)
 	if err != nil {
+		// Log marshaling error but don't crash
 		return
 	}
 	
@@ -181,7 +214,8 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 	select {
 	case s.eventsChan <- message:
 	default:
-		// Channel full, drop message
+		// Channel full, drop message - this is expected behavior
+		// for graceful degradation under load
 	}
 	
 	// Also send to run-specific subscribers
@@ -211,12 +245,26 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintf(w, "data: hello world\n\n")
 	flusher.Flush()
 
+	// Create keepalive ticker for connection health
+	keepaliveTicker := time.NewTicker(30 * time.Second)
+	defer keepaliveTicker.Stop()
+
 	// Listen for events from the event channel
 	for {
 		select {
 		case event := <-s.eventsChan:
 			// Send event to client
-			_, _ = fmt.Fprint(w, event)
+			if _, err := fmt.Fprint(w, event); err != nil {
+				// Client write failed, disconnect
+				return
+			}
+			flusher.Flush()
+		case <-keepaliveTicker.C:
+			// Send keepalive comment to maintain connection
+			if _, err := fmt.Fprintf(w, ":keepalive\n\n"); err != nil {
+				// Keepalive failed, client disconnected
+				return
+			}
 			flusher.Flush()
 		case <-r.Context().Done():
 			// Client disconnected
@@ -250,4 +298,16 @@ func (s *Server) updateRunStatus(run *Run, status string, worktreeDir string) {
 	if worktreeDir != "" {
 		run.WorktreeDir = worktreeDir
 	}
+}
+
+// UpdateRunStatus updates a run's status (exported for testing)
+func (s *Server) UpdateRunStatus(run *Run, status string, worktreeDir string) {
+	s.updateRunStatus(run, status, worktreeDir)
+	
+	// Ensure run is in the map
+	s.mu.Lock()
+	if _, exists := s.runs[run.ID]; !exists {
+		s.runs[run.ID] = run
+	}
+	s.mu.Unlock()
 }
