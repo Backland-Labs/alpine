@@ -57,6 +57,21 @@ install: build
 	@go install ./cmd/alpine
 	@echo "Installation complete"
 
+# Install to /usr/local/bin with proper code signing (macOS)
+install-system: build
+	@echo "Installing Alpine to /usr/local/bin..."
+	@echo "Building optimized binary..."
+	@go build -ldflags="-s -w" -o build/alpine cmd/alpine/main.go
+	@echo "Signing binary (macOS ad-hoc)..."
+	@codesign -s - build/alpine
+	@echo "Copying to /usr/local/bin (requires sudo)..."
+	@sudo cp build/alpine /usr/local/bin/alpine
+	@echo "Setting permissions..."
+	@sudo chmod 755 /usr/local/bin/alpine
+	@echo "Removing quarantine attributes..."
+	@sudo xattr -cr /usr/local/bin/alpine
+	@echo "Installation complete: /usr/local/bin/alpine"
+
 # Run linter
 lint:
 	@echo "Running linter..."
@@ -116,6 +131,7 @@ help:
 	@echo "  make test-coverage      - Run tests with coverage report"
 	@echo "  make clean              - Remove build artifacts"
 	@echo "  make install            - Install Alpine to GOPATH/bin"
+	@echo "  make install-system     - Install to /usr/local/bin with code signing (macOS)"
 	@echo "  make lint               - Run golangci-lint"
 	@echo "  make fmt                - Format code with go fmt"
 	@echo "  make run                - Build and run Alpine"
