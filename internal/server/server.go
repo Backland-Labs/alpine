@@ -44,6 +44,9 @@ type Server struct {
 	
 	// Workflow engine integration
 	workflowEngine WorkflowEngine // Optional workflow engine for executing workflows
+	
+	// Run-specific event filtering
+	runEventHub *runSpecificEventHub // Hub for run-specific event subscriptions
 }
 
 // NewServer creates a new HTTP server instance configured to run on the specified port.
@@ -57,9 +60,10 @@ func NewServer(port int) *Server {
 			Addr:    fmt.Sprintf("localhost:%d", port),
 			Handler: mux,
 		},
-		eventsChan: make(chan string, defaultEventBufferSize),
-		runs:       make(map[string]*Run),
-		plans:      make(map[string]*Plan),
+		eventsChan:  make(chan string, defaultEventBufferSize),
+		runs:        make(map[string]*Run),
+		plans:       make(map[string]*Plan),
+		runEventHub: newRunSpecificEventHub(),
 	}
 }
 
@@ -110,7 +114,9 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/agents/run", s.agentsRunHandler)
 	mux.HandleFunc("/runs", s.runsListHandler)
 	mux.HandleFunc("/runs/{id}", s.runDetailsHandler)
-	mux.HandleFunc("/runs/{id}/events", s.runEventsHandler)
+	mux.HandleFunc("/runs/{id}/events", func(w http.ResponseWriter, r *http.Request) {
+		s.enhancedRunEventsHandler(w, r, s.runEventHub)
+	})
 	mux.HandleFunc("/runs/{id}/cancel", s.runCancelHandler)
 	mux.HandleFunc("/plans/{runId}", s.planGetHandler)
 	mux.HandleFunc("/plans/{runId}/approve", s.planApproveHandler)
@@ -171,11 +177,16 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 	// Create SSE formatted message
 	message := fmt.Sprintf("event: %s\ndata: %s\n\n", event.Type, string(data))
 	
-	// Send to event channel (non-blocking)
+	// Send to global event channel (non-blocking)
 	select {
 	case s.eventsChan <- message:
 	default:
 		// Channel full, drop message
+	}
+	
+	// Also send to run-specific subscribers
+	if s.runEventHub != nil && event.RunID != "" {
+		s.runEventHub.broadcast(event)
 	}
 }
 
