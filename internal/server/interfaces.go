@@ -28,7 +28,16 @@ type WorkflowEngine interface {
 // WorkflowEvent represents an event emitted during workflow execution
 type WorkflowEvent struct {
 	Type      string                 `json:"type"`
-	RunID     string                 `json:"run_id"`
+	RunID     string                 `json:"runId"`                   // Changed to camelCase per AG-UI spec
+	MessageID string                 `json:"messageId,omitempty"`     // For text message correlation
 	Timestamp time.Time              `json:"timestamp"`
-	Data      map[string]interface{} `json:"data"`
+	
+	// AG-UI streaming fields
+	Content   string                 `json:"content,omitempty"`       // Text chunks
+	Delta     bool                   `json:"delta,omitempty"`         // Incremental content flag
+	Source    string                 `json:"source,omitempty"`        // Agent attribution (e.g., "claude")
+	Complete  bool                   `json:"complete,omitempty"`      // Stream completion marker
+	
+	// Flexible event data (backward compatibility)
+	Data      map[string]interface{} `json:"data,omitempty"`
 }

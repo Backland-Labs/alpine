@@ -162,14 +162,14 @@ func TestConfigFromEnvironment(t *testing.T) {
 		t.Error("ShowToolUpdates = true, want false")
 	}
 
-	// Test HTTPEnabled
-	if !cfg.HTTPEnabled {
-		t.Error("HTTPEnabled = false, want true")
+	// Test Server.Enabled
+	if !cfg.Server.Enabled {
+		t.Error("Server.Enabled = false, want true")
 	}
 
-	// Test HTTPPort
-	if cfg.HTTPPort != 9090 {
-		t.Errorf("HTTPPort = %d, want 9090", cfg.HTTPPort)
+	// Test Server.Port
+	if cfg.Server.Port != 9090 {
+		t.Errorf("Server.Port = %d, want 9090", cfg.Server.Port)
 	}
 }
 
@@ -609,13 +609,13 @@ func TestHTTPConfigDefaults(t *testing.T) {
 	}
 
 	// HTTP should be disabled by default
-	if cfg.HTTPEnabled {
-		t.Error("HTTPEnabled = true, want false (default)")
+	if cfg.Server.Enabled {
+		t.Error("Server.Enabled = true, want false (default)")
 	}
 
-	// Default port should be 8080
-	if cfg.HTTPPort != 8080 {
-		t.Errorf("HTTPPort = %d, want 8080 (default)", cfg.HTTPPort)
+	// Default port should be 3001
+	if cfg.Server.Port != 3001 {
+		t.Errorf("Server.Port = %d, want 3001 (default)", cfg.Server.Port)
 	}
 }
 
@@ -643,7 +643,7 @@ func TestHTTPConfigEnvironmentVariables(t *testing.T) {
 			httpEnabled: "false",
 			httpPort:    "",
 			wantEnabled: false,
-			wantPort:    8080,
+			wantPort:    3001,
 			wantErr:     false,
 		},
 		{
@@ -683,7 +683,7 @@ func TestHTTPConfigEnvironmentVariables(t *testing.T) {
 			httpEnabled: "",
 			httpPort:    "",
 			wantEnabled: false,
-			wantPort:    8080,
+			wantPort:    3001,
 			wantErr:     false,
 		},
 	}
@@ -715,11 +715,11 @@ func TestHTTPConfigEnvironmentVariables(t *testing.T) {
 			}
 
 			if err == nil {
-				if cfg.HTTPEnabled != tt.wantEnabled {
-					t.Errorf("HTTPEnabled = %v, want %v", cfg.HTTPEnabled, tt.wantEnabled)
+				if cfg.Server.Enabled != tt.wantEnabled {
+					t.Errorf("Server.Enabled = %v, want %v", cfg.Server.Enabled, tt.wantEnabled)
 				}
-				if cfg.HTTPPort != tt.wantPort {
-					t.Errorf("HTTPPort = %d, want %d", cfg.HTTPPort, tt.wantPort)
+				if cfg.Server.Port != tt.wantPort {
+					t.Errorf("Server.Port = %d, want %d", cfg.Server.Port, tt.wantPort)
 				}
 			}
 		})
@@ -783,8 +783,8 @@ func TestHTTPPortValidation(t *testing.T) {
 
 			if err == nil && tt.port != "" {
 				portNum, _ := strconv.Atoi(tt.port)
-				if cfg.HTTPPort != portNum {
-					t.Errorf("HTTPPort = %d, want %d", cfg.HTTPPort, portNum)
+				if cfg.Server.Port != portNum {
+					t.Errorf("Server.Port = %d, want %d", cfg.Server.Port, portNum)
 				}
 			}
 		})

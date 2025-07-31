@@ -55,7 +55,7 @@ func TestNewEngine(t *testing.T) {
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
 
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 
 	assert.Equal(t, executor, engine.claudeExecutor)
 	assert.Equal(t, wtMgr, engine.wtMgr)
@@ -95,7 +95,7 @@ func TestEngine_Run_WithPlan(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Suppress output during tests
@@ -137,7 +137,7 @@ func TestEngine_Run_NoPlan(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Suppress output during tests
@@ -157,7 +157,7 @@ func TestEngine_Run_EmptyTaskDescription(t *testing.T) {
 	executor := claude.NewExecutor()
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 
 	// Test empty string
 	err := engine.Run(ctx, "", true)
@@ -206,7 +206,7 @@ func TestEngine_Run_ContextCancellation(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
@@ -250,7 +250,7 @@ func TestEngine_Run_StateFileUpdate(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
@@ -404,7 +404,7 @@ func TestEngineCreatesWorktree(t *testing.T) {
 	// Enable worktree in config
 	cfg := testConfig(true)
 
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
 	// Run workflow
@@ -448,7 +448,7 @@ func TestEngineWorktreeDisabled(t *testing.T) {
 	// Disable worktree in config
 	cfg := testConfig(false)
 
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
@@ -500,7 +500,7 @@ func TestEngineStateFileInWorktree(t *testing.T) {
 	// Enable worktree in config
 	cfg := testConfig(true)
 
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
 	// Run workflow
@@ -547,7 +547,7 @@ func TestEngine_BareMode_ContinuesExistingState(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
@@ -595,7 +595,7 @@ func TestEngine_BareMode_InitializesWithrun_implementation_loop(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
 
@@ -635,7 +635,7 @@ func TestEngine_Run_StateFileCleanup(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Suppress output during tests
@@ -674,7 +674,7 @@ func TestEngine_Run_StateFileNotCleanedOnError(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Suppress output during tests
@@ -717,7 +717,7 @@ func TestEngine_EventEmitter_RunStarted(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 	engine.SetEventEmitter(mockEmitter)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
@@ -761,7 +761,7 @@ func TestEngine_EventEmitter_RunFinished(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 	engine.SetEventEmitter(mockEmitter)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
@@ -806,7 +806,7 @@ func TestEngine_EventEmitter_RunError(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 	engine.SetEventEmitter(mockEmitter)
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))
@@ -856,7 +856,7 @@ func TestEngine_EventEmitter_NilEmitter(t *testing.T) {
 
 	wtMgr := &gitxmock.WorktreeManager{}
 	cfg := testConfig(false)
-	engine := NewEngine(executor, wtMgr, cfg)
+	engine := NewEngine(executor, wtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 	// Don't set event emitter - it should be nil
 	engine.SetPrinter(output.NewPrinterWithWriters(io.Discard, io.Discard, false))

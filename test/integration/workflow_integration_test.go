@@ -81,7 +81,7 @@ func TestFullWorkflowWithMockClaude(t *testing.T) {
 			WorktreeEnabled: false, // Disable worktree for integration tests
 		},
 	}
-	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Run the workflow
@@ -135,7 +135,7 @@ func TestWorkflowWithNoPlanFlag(t *testing.T) {
 			WorktreeEnabled: false,
 		},
 	}
-	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Run with no-plan flag
@@ -195,7 +195,7 @@ func TestWorkflowInterruptHandling(t *testing.T) {
 			WorktreeEnabled: false,
 		},
 	}
-	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Run should return context canceled error
@@ -264,7 +264,7 @@ func TestStateFileCreationAndUpdates(t *testing.T) {
 			WorktreeEnabled: false,
 		},
 	}
-	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	err = engine.Run(ctx, "Test state management", true)
@@ -329,7 +329,7 @@ func TestCleanupBehavior(t *testing.T) {
 			WorktreeEnabled: false,
 		},
 	}
-	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	err = engine.Run(ctx, "Test cleanup", false)

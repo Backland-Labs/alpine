@@ -54,7 +54,7 @@ func TestLongRunningWorkflowPerformance(t *testing.T) {
 			WorktreeEnabled: false, // Disable worktree for performance tests
 		},
 	}
-	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Measure performance over the workflow execution
@@ -126,7 +126,7 @@ func BenchmarkLongRunningWorkflow(b *testing.B) {
 				WorktreeEnabled: false,
 			},
 		}
-		engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+		engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 		engine.SetStateFile(stateFile)
 
 		b.StartTimer()
@@ -219,7 +219,7 @@ func TestWorkflowMemoryStability(t *testing.T) {
 				WorktreeEnabled: false,
 			},
 		}
-		engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+		engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 		engine.SetStateFile(stateFile)
 		ctx := context.Background()
 

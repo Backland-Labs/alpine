@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/Backland-Labs/alpine/internal/claude"
+	"github.com/Backland-Labs/alpine/internal/events"
+	"github.com/Backland-Labs/alpine/internal/gitx"
 	"github.com/Backland-Labs/alpine/internal/logger"
 	"github.com/Backland-Labs/alpine/internal/server"
 )
@@ -15,7 +19,7 @@ import (
 func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, noWorktree bool, continueFlag bool, deps *Dependencies) error {
 	// Check if we're in server-only mode
 	serve, _ := ctx.Value(serveKey).(bool)
-	if serve {
+	if serve && len(args) == 0 {
 		// Load configuration for server
 		cfg, err := deps.ConfigLoader.Load()
 		if err != nil {
@@ -27,8 +31,29 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 		logger.Infof("Starting Alpine in server-only mode")
 		
 		// Start HTTP server
-		if err := startServerIfRequested(ctx); err != nil {
+		httpServer, err := startServerIfRequested(ctx)
+		if err != nil {
 			return fmt.Errorf("failed to start server: %w", err)
+		}
+		
+		// Create Alpine workflow engine for REST API
+		if httpServer != nil {
+			// Create Claude executor
+			claudeExecutor := claude.NewExecutor()
+			
+			// Create worktree manager
+			cwd, _ := os.Getwd()
+			var wtMgr gitx.WorktreeManager
+			if cwd != "" && cfg.Git.WorktreeEnabled {
+				wtMgr = gitx.NewCLIWorktreeManager(cwd, cfg.Git.BaseBranch)
+			}
+			
+			// Create AlpineWorkflowEngine for REST API operations
+			alpineEngine := server.NewAlpineWorkflowEngine(claudeExecutor, wtMgr, cfg)
+			alpineEngine.SetServer(httpServer)
+			httpServer.SetWorkflowEngine(alpineEngine)
+			
+			logger.Infof("Configured Alpine workflow engine for REST API")
 		}
 		
 		// Keep the server running until context is cancelled
@@ -86,13 +111,20 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 	logger.Debugf("Starting Alpine workflow for task: %s", taskDescription)
 
 	// Start HTTP server if requested
-	if err := startServerIfRequested(ctx); err != nil {
+	httpServer, err := startServerIfRequested(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to start server: %w", err)
 	}
 
 	// Create workflow engine with finalized config if not already created
 	if deps.WorkflowEngine == nil {
-		engine, wtMgr := CreateWorkflowEngine(cfg)
+		// Check if we're in server mode and need to pass streamer
+		var streamer events.Streamer
+		if httpServer != nil {
+			streamer = server.NewServerStreamer(httpServer)
+		}
+		
+		engine, wtMgr := CreateWorkflowEngine(cfg, streamer)
 		deps.WorkflowEngine = engine
 		deps.WorktreeManager = wtMgr
 	}
@@ -109,10 +141,11 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 
 // startServerIfRequested starts the HTTP server if the --serve flag is set in the context.
 // The server runs in a separate goroutine and will be shut down when the context is cancelled.
-func startServerIfRequested(ctx context.Context) error {
+// Returns the server instance if started, nil otherwise.
+func startServerIfRequested(ctx context.Context) (*server.Server, error) {
 	serve, ok := ctx.Value(serveKey).(bool)
 	if !ok || !serve {
-		return nil // Server not requested
+		return nil, nil // Server not requested
 	}
 
 	// Get port from context or use default
@@ -144,9 +177,9 @@ func startServerIfRequested(ctx context.Context) error {
 	// Verify the server started successfully
 	addr := httpServer.Address()
 	if addr == "" {
-		return fmt.Errorf("server failed to start on port %d", port)
+		return nil, fmt.Errorf("server failed to start on port %d", port)
 	}
 	
 	logger.Infof("HTTP server listening on %s", addr)
-	return nil
+	return httpServer, nil
 }

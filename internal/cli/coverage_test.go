@@ -22,7 +22,7 @@ func TestRealWorkflowEngineCreation(t *testing.T) {
 	}
 
 	// Create the real workflow engine
-	engine := NewRealWorkflowEngine(cfg, nil)
+	engine := NewRealWorkflowEngine(cfg, nil, nil)
 
 	// Verify the engine was created
 	assert.NotNil(t, engine)
@@ -164,7 +164,7 @@ func TestCreateWorkflowEngineWithErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			engine, wtMgr := CreateWorkflowEngine(tt.cfg)
+			engine, wtMgr := CreateWorkflowEngine(tt.cfg, nil)
 
 			assert.NotNil(t, engine)
 

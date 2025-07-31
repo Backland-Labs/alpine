@@ -64,7 +64,7 @@ func TestBareMode_StartsWithrun_implementation_loop(t *testing.T) {
 			WorktreeEnabled: false, // --no-worktree
 		},
 	}
-	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Run with empty task description and no plan generation (bare mode)
@@ -129,7 +129,7 @@ func TestBareMode_ContinuesExistingState(t *testing.T) {
 			WorktreeEnabled: false,
 		},
 	}
-	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Run in bare mode
@@ -196,7 +196,7 @@ func TestBareMode_HandlesInterrupt(t *testing.T) {
 			WorktreeEnabled: false,
 		},
 	}
-	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Run in bare mode - should be interrupted
@@ -241,7 +241,7 @@ func TestBareMode_RequiresBothFlags(t *testing.T) {
 			WorktreeEnabled: false,
 		},
 	}
-	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// This should fail because empty task is only allowed in bare mode
@@ -309,7 +309,7 @@ func TestBareMode_CompleteWorkflow(t *testing.T) {
 			WorktreeEnabled: false,
 		},
 	}
-	engine1 := workflow.NewEngine(mockExecutor1, mockWtMgr, cfg)
+	engine1 := workflow.NewEngine(mockExecutor1, mockWtMgr, cfg, nil)
 	engine1.SetStateFile(stateFile)
 
 	err = engine1.Run(ctx, "", false)
@@ -355,7 +355,7 @@ func TestBareMode_CompleteWorkflow(t *testing.T) {
 		},
 	}
 
-	engine2 := workflow.NewEngine(mockExecutor2, mockWtMgr, cfg)
+	engine2 := workflow.NewEngine(mockExecutor2, mockWtMgr, cfg, nil)
 	engine2.SetStateFile(stateFile)
 
 	err = engine2.Run(ctx, "", false)
@@ -410,7 +410,7 @@ func TestBareMode_ErrorHandling(t *testing.T) {
 			WorktreeEnabled: false,
 		},
 	}
-	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg)
+	engine := workflow.NewEngine(mockExecutor, mockWtMgr, cfg, nil)
 	engine.SetStateFile(stateFile)
 
 	// Run should fail on second execution

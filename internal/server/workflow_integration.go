@@ -12,6 +12,7 @@ import (
 
 	"github.com/Backland-Labs/alpine/internal/config"
 	"github.com/Backland-Labs/alpine/internal/core"
+	"github.com/Backland-Labs/alpine/internal/events"
 	"github.com/Backland-Labs/alpine/internal/gitx"
 	"github.com/Backland-Labs/alpine/internal/logger"
 	"github.com/Backland-Labs/alpine/internal/workflow"
@@ -38,6 +39,7 @@ type AlpineWorkflowEngine struct {
 	claudeExecutor workflow.ClaudeExecutor
 	wtMgr          gitx.WorktreeManager
 	cfg            *config.Config
+	server         *Server // Reference to server for streaming support
 	
 	// Track active workflows with thread-safe access
 	mu        sync.RWMutex
@@ -67,6 +69,11 @@ func NewAlpineWorkflowEngine(executor workflow.ClaudeExecutor, wtMgr gitx.Worktr
 		cfg:            cfg,
 		workflows:      make(map[string]*workflowInstance),
 	}
+}
+
+// SetServer sets the server reference for streaming support
+func (e *AlpineWorkflowEngine) SetServer(server *Server) {
+	e.server = server
 }
 
 // StartWorkflow initiates a new workflow run with the given GitHub issue URL.
@@ -103,8 +110,14 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 	// Disable worktree creation in workflow.Engine since we already created one
 	workflowCfg.Git.WorktreeEnabled = false
 	
-	// Create workflow engine
-	engine := workflow.NewEngine(e.claudeExecutor, nil, &workflowCfg)
+	// Create workflow engine with server as streamer if available
+	var streamer events.Streamer
+	if e.server != nil {
+		streamer = NewServerStreamer(e.server)
+		logger.Debugf("Created server streamer for workflow %s", runID)
+	}
+	
+	engine := workflow.NewEngine(e.claudeExecutor, nil, &workflowCfg, streamer)
 	engine.SetStateFile(workflowCfg.StateFile)
 	
 	// Create workflow instance
@@ -326,14 +339,15 @@ func (e *AlpineWorkflowEngine) createWorkflowDirectory(ctx context.Context, runI
 func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issueURL string, runID string) {
 	defer close(instance.events)
 	
-	// Send start event
+	// Send start event (AG-UI compliant)
 	instance.events <- WorkflowEvent{
-		Type:      "workflow_started",
+		Type:      events.AGUIEventRunStarted,
 		RunID:     runID,
 		Timestamp: time.Now(),
 		Data: map[string]interface{}{
-			"issue": issueURL,
-			"worktree_dir": instance.worktreeDir,
+			"task": fmt.Sprintf("Process GitHub issue: %s", issueURL),
+			"worktreeDir": instance.worktreeDir,
+			"planMode": true,
 		},
 	}
 	
@@ -341,11 +355,11 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 	logger.Infof("Executing workflow %s", runID)
 	err := instance.engine.Run(instance.ctx, issueURL, true) // Generate plan by default
 	
-	// Send completion event
+	// Send completion event (AG-UI compliant)
 	if err != nil {
 		logger.Errorf("Workflow %s failed: %v", runID, err)
 		instance.events <- WorkflowEvent{
-			Type:      "workflow_failed",
+			Type:      events.AGUIEventRunError,
 			RunID:     runID,
 			Timestamp: time.Now(),
 			Data: map[string]interface{}{
@@ -354,11 +368,25 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 		}
 	} else {
 		logger.Infof("Workflow %s completed successfully", runID)
+		
+		// Load final state to get completion info
+		finalState, stateErr := core.LoadState(instance.stateFile)
+		result := map[string]interface{}{
+			"status": "completed",
+		}
+		
+		if stateErr == nil && finalState != nil {
+			// Add more result data if available
+			if finalState.Status == core.StatusCompleted {
+				result["status"] = "completed"
+			}
+		}
+		
 		instance.events <- WorkflowEvent{
-			Type:      "workflow_completed",
+			Type:      events.AGUIEventRunFinished,
 			RunID:     runID,
 			Timestamp: time.Now(),
-			Data:      map[string]interface{}{},
+			Data:      result,
 		}
 	}
 }
