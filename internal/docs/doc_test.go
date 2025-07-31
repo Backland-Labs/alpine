@@ -39,7 +39,7 @@ func TestCLAUDEDocumentationComplete(t *testing.T) {
 	// Test 3: REST API endpoints documentation
 	t.Run("REST API Endpoints Documentation", func(t *testing.T) {
 		requiredEndpoints := []struct {
-			endpoint string
+			endpoint     string
 			alternatives []string
 		}{
 			{"/health", nil},
@@ -133,7 +133,7 @@ func TestCLICommandsDocumentationComplete(t *testing.T) {
 func TestDocumentationConsistency(t *testing.T) {
 	claudeContent, err1 := os.ReadFile("../../CLAUDE.md")
 	cliContent, err2 := os.ReadFile("../../specs/cli-commands.md")
-	
+
 	if err1 != nil || err2 != nil {
 		t.Fatal("Failed to read documentation files")
 	}
@@ -178,14 +178,14 @@ func TestRESTAPIWorkflowExamples(t *testing.T) {
 			"Monitor progress",
 			"Approve plan",
 		}
-		
+
 		missingSteps := []string{}
 		for _, step := range workflowSteps {
 			if !strings.Contains(strings.ToLower(doc), strings.ToLower(step)) {
 				missingSteps = append(missingSteps, step)
 			}
 		}
-		
+
 		if len(missingSteps) > 0 {
 			t.Errorf("CLAUDE.md missing workflow steps: %v", missingSteps)
 		}

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	
+
 	"github.com/Backland-Labs/alpine/internal/claude"
 	"github.com/Backland-Labs/alpine/internal/config"
 	"github.com/Backland-Labs/alpine/internal/core"
@@ -37,12 +37,12 @@ type Engine struct {
 	cfg            *config.Config
 	stateFile      string
 	printer        *output.Printer
-	wt             *gitx.Worktree       // Current worktree if created
-	originalDir    string               // Original directory to restore if needed
-	eventEmitter   events.EventEmitter  // Optional event emitter for lifecycle events
-	runID          string               // Unique identifier for this run
-	taskDesc       string               // Task description for event tracking
-	streamer       events.Streamer      // Optional streamer for real-time output
+	wt             *gitx.Worktree      // Current worktree if created
+	originalDir    string              // Original directory to restore if needed
+	eventEmitter   events.EventEmitter // Optional event emitter for lifecycle events
+	runID          string              // Unique identifier for this run
+	taskDesc       string              // Task description for event tracking
+	streamer       events.Streamer     // Optional streamer for real-time output
 }
 
 // NewEngine creates a new workflow engine
@@ -64,12 +64,12 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 	// Generate a unique run ID for event tracking
 	e.runID = uuid.New().String()
 	e.taskDesc = taskDescription
-	
+
 	// Emit RunStarted event if emitter is configured
 	if e.eventEmitter != nil {
 		e.eventEmitter.RunStarted(e.runID, taskDescription)
 	}
-	
+
 	// Ensure we emit RunError on any error return using named return value
 	defer func() {
 		if runErr != nil && e.eventEmitter != nil {
@@ -181,12 +181,12 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 		if state.Status == "completed" {
 			logger.Info("Workflow completed successfully")
 			e.printer.Success("Workflow completed successfully")
-			
+
 			// Emit RunFinished event
 			if e.eventEmitter != nil {
 				e.eventEmitter.RunFinished(e.runID, e.taskDesc)
 			}
-			
+
 			// Clean up state file on successful completion
 			if err := os.Remove(e.stateFile); err != nil && !os.IsNotExist(err) {
 				logger.WithField("error", err).Info("Failed to clean up state file")
@@ -194,7 +194,7 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 			} else {
 				logger.Debug("Cleaned up state file")
 			}
-			
+
 			return nil
 		}
 

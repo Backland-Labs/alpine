@@ -92,14 +92,14 @@ func TestNewAlpineWorkflowEngine(t *testing.T) {
 // TestStartWorkflow tests the StartWorkflow method
 func TestStartWorkflow(t *testing.T) {
 	tests := []struct {
-		name          string
-		issueURL      string
-		runID         string
-		isGitRepo     bool
-		createError   error
-		executeError  error
-		expectError   bool
-		expectedDir   string
+		name         string
+		issueURL     string
+		runID        string
+		isGitRepo    bool
+		createError  error
+		executeError error
+		expectError  bool
+		expectedDir  string
 	}{
 		{
 			name:        "successful start with git repo",
@@ -116,12 +116,12 @@ func TestStartWorkflow(t *testing.T) {
 			expectedDir: "/tmp/alpine-run-456",
 		},
 		{
-			name:         "worktree creation failure",
-			issueURL:     "https://github.com/owner/repo/issues/789",
-			runID:        "run-789",
-			isGitRepo:    true,
-			createError:  errors.New("failed to create worktree"),
-			expectError:  true,
+			name:        "worktree creation failure",
+			issueURL:    "https://github.com/owner/repo/issues/789",
+			runID:       "run-789",
+			isGitRepo:   true,
+			createError: errors.New("failed to create worktree"),
+			expectError: true,
 		},
 	}
 
@@ -302,16 +302,16 @@ func TestGetWorkflowState(t *testing.T) {
 				// Create workflow directory
 				workDir := filepath.Join(tempDir, "run-123")
 				os.MkdirAll(filepath.Join(workDir, "agent_state"), 0755)
-				
+
 				// Create state file
 				state := &core.State{
 					CurrentStepDescription: "Testing",
-					NextStepPrompt:        "/continue",
-					Status:                core.StatusRunning,
+					NextStepPrompt:         "/continue",
+					Status:                 core.StatusRunning,
 				}
 				stateFile := filepath.Join(workDir, stateFileRelativePath)
 				state.Save(stateFile)
-				
+
 				// Track workflow
 				engine.workflows["run-123"] = &workflowInstance{
 					worktreeDir: workDir,
@@ -321,8 +321,8 @@ func TestGetWorkflowState(t *testing.T) {
 			},
 			expectState: &core.State{
 				CurrentStepDescription: "Testing",
-				NextStepPrompt:        "/continue",
-				Status:                core.StatusRunning,
+				NextStepPrompt:         "/continue",
+				Status:                 core.StatusRunning,
 			},
 		},
 		{
@@ -379,13 +379,13 @@ func TestGetWorkflowState(t *testing.T) {
 					t.Fatal("expected state but got nil")
 				}
 				if state.CurrentStepDescription != tt.expectState.CurrentStepDescription {
-					t.Errorf("expected description %s, got %s", 
-						tt.expectState.CurrentStepDescription, 
+					t.Errorf("expected description %s, got %s",
+						tt.expectState.CurrentStepDescription,
 						state.CurrentStepDescription)
 				}
 				if state.Status != tt.expectState.Status {
-					t.Errorf("expected status %s, got %s", 
-						tt.expectState.Status, 
+					t.Errorf("expected status %s, got %s",
+						tt.expectState.Status,
 						state.Status)
 				}
 			}
@@ -409,16 +409,16 @@ func TestApprovePlan(t *testing.T) {
 				// Create workflow directory with state
 				workDir := filepath.Join(tempDir, "run-123")
 				os.MkdirAll(filepath.Join(workDir, "agent_state"), 0755)
-				
+
 				// Create initial state
 				state := &core.State{
 					CurrentStepDescription: "Waiting for plan approval",
-					NextStepPrompt:        "/make_plan",
-					Status:                core.StatusRunning,
+					NextStepPrompt:         "/make_plan",
+					Status:                 core.StatusRunning,
 				}
 				stateFile := filepath.Join(workDir, stateFileRelativePath)
 				state.Save(stateFile)
-				
+
 				// Track workflow
 				ctx, cancel := context.WithCancel(context.Background())
 				engine.workflows["run-123"] = &workflowInstance{
@@ -570,7 +570,7 @@ func TestSubscribeToEvents(t *testing.T) {
 					select {
 					case event := <-eventChan:
 						if event.Type != expectedEvent.Type {
-							t.Errorf("event %d: expected type %s, got %s", 
+							t.Errorf("event %d: expected type %s, got %s",
 								i, expectedEvent.Type, event.Type)
 						}
 					case <-time.After(100 * time.Millisecond):
@@ -687,8 +687,8 @@ func TestRunWorkflowAsync(t *testing.T) {
 		// Create initial state
 		initialState := &core.State{
 			CurrentStepDescription: "Starting",
-			NextStepPrompt:        "/make_plan",
-			Status:                core.StatusRunning,
+			NextStepPrompt:         "/make_plan",
+			Status:                 core.StatusRunning,
 		}
 		stateFile := filepath.Join(tempDir, stateFileRelativePath)
 		initialState.Save(stateFile)
@@ -701,8 +701,8 @@ func TestRunWorkflowAsync(t *testing.T) {
 				if executeCalls == 1 {
 					completedState := &core.State{
 						CurrentStepDescription: "Completed",
-						NextStepPrompt:        "",
-						Status:                core.StatusCompleted,
+						NextStepPrompt:         "",
+						Status:                 core.StatusCompleted,
 					}
 					completedState.Save(stateFile)
 				}
@@ -722,7 +722,7 @@ func TestRunWorkflowAsync(t *testing.T) {
 		// Create a workflow engine for the instance
 		workflowEngine := workflow.NewEngine(mockExecutor, &MockWorktreeManager{}, &config.Config{WorkDir: tempDir}, nil)
 		workflowEngine.SetStateFile(stateFile)
-		
+
 		instance := &workflowInstance{
 			engine:      workflowEngine,
 			ctx:         ctx,
@@ -796,7 +796,7 @@ func TestRunWorkflowAsync(t *testing.T) {
 		// Create a workflow engine for the instance
 		workflowEngine := workflow.NewEngine(mockExecutor, &MockWorktreeManager{}, &config.Config{WorkDir: tempDir}, nil)
 		workflowEngine.SetStateFile(stateFile)
-		
+
 		instance := &workflowInstance{
 			engine:      workflowEngine,
 			ctx:         ctx,
@@ -932,7 +932,7 @@ func TestConcurrentOperations(t *testing.T) {
 		wg.Add(1)
 		go func(id string) {
 			defer wg.Done()
-			_, err := engine.StartWorkflow(context.Background(), 
+			_, err := engine.StartWorkflow(context.Background(),
 				"https://github.com/test/repo/issues/1", id)
 			if err != nil {
 				t.Errorf("failed to start workflow %s: %v", id, err)
@@ -946,7 +946,7 @@ func TestConcurrentOperations(t *testing.T) {
 	engine.mu.RLock()
 	workflowCount := len(engine.workflows)
 	engine.mu.RUnlock()
-	
+
 	if workflowCount != 10 {
 		t.Errorf("expected 10 workflows, got %d", workflowCount)
 	}

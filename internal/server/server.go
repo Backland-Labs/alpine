@@ -1,5 +1,5 @@
 // Package server implements an HTTP server with Server-Sent Events (SSE) support
-// and REST API endpoints for Alpine. This server allows frontend applications to 
+// and REST API endpoints for Alpine. This server allows frontend applications to
 // receive real-time updates about workflow progress and state changes, as well as
 // programmatically manage workflows via REST API.
 package server
@@ -37,14 +37,14 @@ type Server struct {
 	listener   net.Listener // Network listener for accepting connections
 	mu         sync.Mutex   // Protects server state during concurrent access
 	running    bool         // Indicates if the server is currently running
-	
+
 	// In-memory storage for REST API
 	runs  map[string]*Run  // Storage for workflow runs
 	plans map[string]*Plan // Storage for workflow plans
-	
+
 	// Workflow engine integration
 	workflowEngine WorkflowEngine // Optional workflow engine for executing workflows
-	
+
 	// Run-specific event filtering
 	runEventHub *runSpecificEventHub // Hub for run-specific event subscriptions
 }
@@ -70,7 +70,7 @@ func NewServer(port int) *Server {
 // NewServerWithConfig creates a new HTTP server instance with custom configuration
 func NewServerWithConfig(port int, streamBufferSize int, maxClientsPerRun int) *Server {
 	mux := http.NewServeMux()
-	
+
 	// Use provided buffer size or default
 	bufferSize := streamBufferSize
 	if bufferSize <= 0 {
@@ -206,10 +206,10 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 		// Log marshaling error but don't crash
 		return
 	}
-	
+
 	// Create SSE formatted message
 	message := fmt.Sprintf("event: %s\ndata: %s\n\n", event.Type, string(data))
-	
+
 	// Send to global event channel (non-blocking)
 	select {
 	case s.eventsChan <- message:
@@ -217,7 +217,7 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 		// Channel full, drop message - this is expected behavior
 		// for graceful degradation under load
 	}
-	
+
 	// Also send to run-specific subscribers
 	if s.runEventHub != nil && event.RunID != "" {
 		s.runEventHub.broadcast(event)
@@ -292,7 +292,7 @@ func (s *Server) respondWithError(w http.ResponseWriter, statusCode int, message
 func (s *Server) updateRunStatus(run *Run, status string, worktreeDir string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	run.Status = status
 	run.Updated = time.Now()
 	if worktreeDir != "" {
@@ -303,7 +303,7 @@ func (s *Server) updateRunStatus(run *Run, status string, worktreeDir string) {
 // UpdateRunStatus updates a run's status (exported for testing)
 func (s *Server) UpdateRunStatus(run *Run, status string, worktreeDir string) {
 	s.updateRunStatus(run, status, worktreeDir)
-	
+
 	// Ensure run is in the map
 	s.mu.Lock()
 	if _, exists := s.runs[run.ID]; !exists {

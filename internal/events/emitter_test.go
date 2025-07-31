@@ -188,4 +188,3 @@ func TestMockEmitterFindCallsByMethod(t *testing.T) {
 		t.Errorf("Expected 1 RunError call, got %d", len(errorCalls))
 	}
 }
-

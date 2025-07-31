@@ -23,20 +23,20 @@ import (
 func startTestServer(t *testing.T, mockEngine *MockWorkflowEngine) (string, func()) {
 	srv := server.NewServer(0) // Use port 0 for auto port assignment
 	srv.SetWorkflowEngine(mockEngine)
-	
+
 	// Start server in background
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	errCh := make(chan error, 1)
 	go func() {
 		if err := srv.Start(ctx); err != nil && err != context.Canceled {
 			errCh <- err
 		}
 	}()
-	
+
 	// Wait for server to start
 	time.Sleep(200 * time.Millisecond)
-	
+
 	// Check for startup errors
 	select {
 	case err := <-errCh:
@@ -44,20 +44,20 @@ func startTestServer(t *testing.T, mockEngine *MockWorkflowEngine) (string, func
 	default:
 		// Server started successfully
 	}
-	
+
 	// Get server address
 	addr := srv.Address()
 	if addr == "" {
 		t.Fatal("Server address is empty")
 	}
-	
+
 	serverURL := fmt.Sprintf("http://%s", addr)
-	
+
 	cleanup := func() {
 		cancel()
 		time.Sleep(100 * time.Millisecond) // Give server time to shut down
 	}
-	
+
 	return serverURL, cleanup
 }
 
@@ -563,7 +563,7 @@ func TestRESTAPIServerStability(t *testing.T) {
 // mechanism is not fully integrated with the workflow engine.
 func TestRESTAPIPlanApprovalFlow(t *testing.T) {
 	t.Skip("Skipping plan tests - server plan storage not fully integrated")
-	
+
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
@@ -591,7 +591,7 @@ func TestRESTAPIPlanApprovalFlow(t *testing.T) {
 	}
 	// Store the plan in both the mock engine and the server
 	mockEngine.CreatePlan(plan)
-	
+
 	// Note: In the actual implementation, plans would be created by the workflow
 	// and stored via a different mechanism. For testing, we directly store it.
 
@@ -738,8 +738,8 @@ func (m *MockWorkflowEngine) GetWorkflowState(ctx context.Context, runID string)
 	if run, exists := m.runs[runID]; exists {
 		return &core.State{
 			CurrentStepDescription: "Mock workflow step",
-			NextStepPrompt:        "/continue",
-			Status:                run.Status,
+			NextStepPrompt:         "/continue",
+			Status:                 run.Status,
 		}, nil
 	}
 	return nil, fmt.Errorf("run not found: %s", runID)

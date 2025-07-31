@@ -61,6 +61,15 @@ alpine --continue
 # Generate plan from GitHub issue
 alpine plan gh-issue https://github.com/owner/repo/issues/123
 
+# Generate plans in parallel using isolated worktrees
+alpine plan --worktree gh-issue https://github.com/owner/repo/issues/123 &
+alpine plan --worktree gh-issue https://github.com/owner/repo/issues/124 &
+alpine plan --worktree gh-issue https://github.com/owner/repo/issues/125 &
+wait
+
+# Generate plan in worktree and keep it for inspection
+alpine plan --worktree --cleanup=false "Complex feature implementation"
+
 # Run HTTP server with Server-Sent Events (SSE)
 alpine --serve                    # Start server on default port 3001
 alpine --serve --port 8080        # Start server on custom port

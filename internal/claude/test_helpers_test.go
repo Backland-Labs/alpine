@@ -2,10 +2,10 @@ package claude
 
 // mockStreamer is a test double for the Streamer interface
 type mockStreamer struct {
-	startCalls    []streamCall
-	contentCalls  []streamCall
-	endCalls      []streamCall
-	streamErr     error // Can be set to simulate streaming failures
+	startCalls   []streamCall
+	contentCalls []streamCall
+	endCalls     []streamCall
+	streamErr    error // Can be set to simulate streaming failures
 }
 
 type streamCall struct {

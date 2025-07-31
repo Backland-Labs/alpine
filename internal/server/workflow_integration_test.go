@@ -32,11 +32,11 @@ func (s *ServerWithWorkflow) BroadcastEvent(event WorkflowEvent) {
 
 // MockWorkflowEngine is a mock implementation for testing
 type MockWorkflowEngine struct {
-	StartWorkflowFunc      func(ctx context.Context, issueURL string, runID string) (string, error)
-	CancelWorkflowFunc     func(ctx context.Context, runID string) error
-	GetWorkflowStateFunc   func(ctx context.Context, runID string) (*core.State, error)
-	ApprovePlanFunc        func(ctx context.Context, runID string) error
-	SubscribeToEventsFunc  func(ctx context.Context, runID string) (<-chan WorkflowEvent, error)
+	StartWorkflowFunc     func(ctx context.Context, issueURL string, runID string) (string, error)
+	CancelWorkflowFunc    func(ctx context.Context, runID string) error
+	GetWorkflowStateFunc  func(ctx context.Context, runID string) (*core.State, error)
+	ApprovePlanFunc       func(ctx context.Context, runID string) error
+	SubscribeToEventsFunc func(ctx context.Context, runID string) (<-chan WorkflowEvent, error)
 }
 
 func (m *MockWorkflowEngine) StartWorkflow(ctx context.Context, issueURL string, runID string) (string, error) {
@@ -301,7 +301,7 @@ func TestWorkflowEventBroadcasting(t *testing.T) {
 	t.Run("events broadcast to run-specific SSE endpoint", func(t *testing.T) {
 		// Create event channel for mock
 		eventChan := make(chan WorkflowEvent, 10)
-		
+
 		mockEngine := &MockWorkflowEngine{
 			SubscribeToEventsFunc: func(ctx context.Context, runID string) (<-chan WorkflowEvent, error) {
 				if runID != "run_123" {
@@ -633,9 +633,9 @@ func TestConcurrentWorkflowOperations(t *testing.T) {
 				body, _ := json.Marshal(payload)
 				req := httptest.NewRequest(http.MethodPost, "/agents/run", bytes.NewReader(body))
 				w := httptest.NewRecorder()
-				
+
 				server.agentsRunHandler(w, req)
-				
+
 				if w.Code != http.StatusCreated {
 					t.Errorf("request %d: expected status 201, got %d", index, w.Code)
 				}

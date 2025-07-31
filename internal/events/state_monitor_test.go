@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Backland-Labs/alpine/internal/core"
 	"fmt"
+	"github.com/Backland-Labs/alpine/internal/core"
 )
 
 func TestStateMonitor_DetectsFileChanges(t *testing.T) {
@@ -21,8 +21,8 @@ func TestStateMonitor_DetectsFileChanges(t *testing.T) {
 	// Create initial state file
 	initialState := core.State{
 		CurrentStepDescription: "Initial step",
-		NextStepPrompt:        "/continue",
-		Status:                "running",
+		NextStepPrompt:         "/continue",
+		Status:                 "running",
 	}
 	writeStateFile(t, stateFile, initialState)
 
@@ -45,8 +45,8 @@ func TestStateMonitor_DetectsFileChanges(t *testing.T) {
 	// Update the state file
 	updatedState := core.State{
 		CurrentStepDescription: "Updated step",
-		NextStepPrompt:        "/verify",
-		Status:                "completed",
+		NextStepPrompt:         "/verify",
+		Status:                 "completed",
 	}
 	writeStateFile(t, stateFile, updatedState)
 
@@ -88,8 +88,8 @@ func TestStateMonitor_EmitsCorrectEventFormat(t *testing.T) {
 	// Create state file
 	testState := core.State{
 		CurrentStepDescription: "Test step",
-		NextStepPrompt:        "/test",
-		Status:                "running",
+		NextStepPrompt:         "/test",
+		Status:                 "running",
 	}
 	writeStateFile(t, stateFile, testState)
 
@@ -161,8 +161,8 @@ func TestStateMonitor_HandlesMissingFile(t *testing.T) {
 	// Create the file
 	newState := core.State{
 		CurrentStepDescription: "Created",
-		NextStepPrompt:        "/new",
-		Status:                "running",
+		NextStepPrompt:         "/new",
+		Status:                 "running",
 	}
 	writeStateFile(t, stateFile, newState)
 
@@ -181,11 +181,11 @@ func TestStateMonitor_StopsOnContextCancel(t *testing.T) {
 	// and doesn't emit events after stopping
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "agent_state.json")
-	
+
 	writeStateFile(t, stateFile, core.State{
 		CurrentStepDescription: "Initial",
-		NextStepPrompt:        "/start",
-		Status:                "running",
+		NextStepPrompt:         "/start",
+		Status:                 "running",
 	})
 
 	mockEmitter := NewMockEmitter()
@@ -208,8 +208,8 @@ func TestStateMonitor_StopsOnContextCancel(t *testing.T) {
 	// Update file after stopping
 	writeStateFile(t, stateFile, core.State{
 		CurrentStepDescription: "Should not detect",
-		NextStepPrompt:        "/ignored",
-		Status:                "completed",
+		NextStepPrompt:         "/ignored",
+		Status:                 "completed",
 	})
 
 	time.Sleep(200 * time.Millisecond)
@@ -243,8 +243,8 @@ func TestStateMonitor_HandlesRapidChanges(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		writeStateFile(t, stateFile, core.State{
 			CurrentStepDescription: fmt.Sprintf("Step %d", i),
-			NextStepPrompt:        "/continue",
-			Status:                "running",
+			NextStepPrompt:         "/continue",
+			Status:                 "running",
 		})
 		time.Sleep(50 * time.Millisecond)
 	}

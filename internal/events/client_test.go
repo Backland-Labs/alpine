@@ -250,4 +250,3 @@ func TestClient_PostEventAsync(t *testing.T) {
 		}
 	})
 }
-

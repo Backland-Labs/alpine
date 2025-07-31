@@ -35,7 +35,7 @@ func newRunSpecificEventHubWithConfig(bufferSize int, maxClientsPerRun int) *run
 	if maxClientsPerRun <= 0 {
 		maxClientsPerRun = 100
 	}
-	
+
 	return &runSpecificEventHub{
 		subscribers:      make(map[string][]chan WorkflowEvent),
 		bufferSize:       bufferSize,
@@ -47,12 +47,12 @@ func newRunSpecificEventHubWithConfig(bufferSize int, maxClientsPerRun int) *run
 func (hub *runSpecificEventHub) subscribe(runID string) (chan WorkflowEvent, error) {
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
-	
+
 	// Check client limit
 	if len(hub.subscribers[runID]) >= hub.maxClientsPerRun {
 		return nil, fmt.Errorf("maximum %d clients reached for run %s", hub.maxClientsPerRun, runID)
 	}
-	
+
 	ch := make(chan WorkflowEvent, hub.bufferSize)
 	hub.subscribers[runID] = append(hub.subscribers[runID], ch)
 	return ch, nil
@@ -62,7 +62,7 @@ func (hub *runSpecificEventHub) subscribe(runID string) (chan WorkflowEvent, err
 func (hub *runSpecificEventHub) unsubscribe(runID string, ch chan WorkflowEvent) {
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
-	
+
 	subs := hub.subscribers[runID]
 	for i, sub := range subs {
 		if sub == ch {
@@ -72,7 +72,7 @@ func (hub *runSpecificEventHub) unsubscribe(runID string, ch chan WorkflowEvent)
 			break
 		}
 	}
-	
+
 	// Clean up empty run entries
 	if len(hub.subscribers[runID]) == 0 {
 		delete(hub.subscribers, runID)
@@ -83,7 +83,7 @@ func (hub *runSpecificEventHub) unsubscribe(runID string, ch chan WorkflowEvent)
 func (hub *runSpecificEventHub) broadcast(event WorkflowEvent) {
 	hub.mu.RLock()
 	defer hub.mu.RUnlock()
-	
+
 	// Get subscribers for this run ID
 	subs := hub.subscribers[event.RunID]
 	for _, ch := range subs {
@@ -101,30 +101,30 @@ func (s *Server) enhancedRunEventsHandler(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	runID := r.PathValue("id")
-	
+
 	s.mu.Lock()
 	_, exists := s.runs[runID]
 	s.mu.Unlock()
-	
+
 	if !exists {
 		http.Error(w, "Run not found", http.StatusNotFound)
 		return
 	}
-	
+
 	// Set SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	
+
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Subscribe to run-specific events from hub
 	eventChan, err := hub.subscribe(runID)
 	if err != nil {
@@ -133,11 +133,11 @@ func (s *Server) enhancedRunEventsHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	defer hub.unsubscribe(runID, eventChan)
-	
+
 	// Send initial connection event after successful subscription
 	fmt.Fprintf(w, "data: {\"type\":\"connected\",\"runId\":\"%s\"}\n\n", runID)
 	flusher.Flush()
-	
+
 	// Also subscribe to workflow engine events if available
 	var workflowEvents <-chan WorkflowEvent
 	if s.workflowEngine != nil {
@@ -146,7 +146,7 @@ func (s *Server) enhancedRunEventsHandler(w http.ResponseWriter, r *http.Request
 			workflowEvents = events
 		}
 	}
-	
+
 	// Create keepalive ticker for connection health
 	keepaliveTicker := time.NewTicker(30 * time.Second)
 	defer keepaliveTicker.Stop()
@@ -162,7 +162,7 @@ func (s *Server) enhancedRunEventsHandler(w http.ResponseWriter, r *http.Request
 				return
 			}
 			flusher.Flush()
-			
+
 		case event, ok := <-workflowEvents:
 			if !ok {
 				workflowEvents = nil // Channel closed
@@ -175,7 +175,7 @@ func (s *Server) enhancedRunEventsHandler(w http.ResponseWriter, r *http.Request
 				return
 			}
 			flusher.Flush()
-			
+
 		case <-keepaliveTicker.C:
 			// Send keepalive comment to maintain connection
 			if _, err := fmt.Fprintf(w, ":keepalive\n\n"); err != nil {
@@ -183,7 +183,7 @@ func (s *Server) enhancedRunEventsHandler(w http.ResponseWriter, r *http.Request
 				return
 			}
 			flusher.Flush()
-			
+
 		case <-r.Context().Done():
 			return // Client disconnected
 		}

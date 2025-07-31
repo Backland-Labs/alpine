@@ -51,9 +51,9 @@ type Executor struct {
 	commandRunner CommandRunner
 	config        *config.Config
 	printer       *output.Printer
-	envVars       map[string]string   // Additional environment variables to pass to Claude
-	streamer      events.Streamer    // Optional streamer for real-time output
-	runID         string              // Run ID for stream correlation
+	envVars       map[string]string // Additional environment variables to pass to Claude
+	streamer      events.Streamer   // Optional streamer for real-time output
+	runID         string            // Run ID for stream correlation
 }
 
 // CommandRunner interface for testing
@@ -94,7 +94,7 @@ func (e *Executor) SetRunID(runID string) {
 // Execute runs Claude with the given configuration
 func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, error) {
 	logger.Debug("Starting Claude execution")
-	
+
 	// Merge executor's environment variables into config
 	if e.envVars != nil && len(e.envVars) > 0 {
 		if config.EnvironmentVariables == nil {
@@ -297,20 +297,20 @@ func (e *Executor) executeWithStderrCapture(ctx context.Context, cmd *exec.Cmd) 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		
+
 		// Create writers based on streaming configuration
 		var writer io.Writer = &stdoutBuf
-		
+
 		// If streaming is enabled, use MultiWriter to stream and capture
 		if e.streamer != nil && e.runID != "" && messageID != "" {
 			streamWriter := NewStreamWriter(e.streamer, e.runID, messageID)
 			multiWriter := newMultiWriterWithFlush(&stdoutBuf, streamWriter)
 			writer = multiWriter
-			
+
 			// Use TeeReader to read and write simultaneously
 			reader := io.TeeReader(stdoutPipe, writer)
 			io.Copy(io.Discard, reader)
-			
+
 			// Flush any remaining buffered content
 			if err := multiWriter.Flush(); err != nil {
 				logger.WithField("error", err).Debug("Error flushing stream writer")
@@ -458,7 +458,7 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 
 	// Set environment variables
 	cmd.Env = os.Environ()
-	
+
 	// Add any additional environment variables from config
 	if config.EnvironmentVariables != nil {
 		for key, value := range config.EnvironmentVariables {

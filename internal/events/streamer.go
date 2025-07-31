@@ -7,10 +7,10 @@ package events
 type Streamer interface {
 	// StreamStart begins a new streaming session
 	StreamStart(runID, messageID string) error
-	
+
 	// StreamContent sends a chunk of content during streaming
 	StreamContent(runID, messageID, content string) error
-	
+
 	// StreamEnd completes the streaming session
 	StreamEnd(runID, messageID string) error
 }

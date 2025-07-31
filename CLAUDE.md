@@ -81,6 +81,14 @@ golangci-lint run
 # Generate plan from GitHub issue using Claude Code
 ./alpine plan --cc gh-issue https://github.com/owner/repo/issues/123
 
+# Generate plans in parallel using isolated worktrees
+./alpine plan --worktree gh-issue https://github.com/owner/repo/issues/123 &
+./alpine plan --worktree gh-issue https://github.com/owner/repo/issues/124 &
+wait
+
+# Generate plan in worktree and keep it for inspection
+./alpine plan --worktree --cleanup=false "Complex feature implementation"
+
 # Run with HTTP server for real-time updates
 ./alpine --serve "Implement new feature"
 

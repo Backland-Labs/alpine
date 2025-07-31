@@ -16,24 +16,24 @@ type TestServer struct {
 // NewTestServer creates a server for testing with automatic cleanup
 func NewTestServer(t *testing.T) *TestServer {
 	srv := NewServer(0) // Use random port
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	
+
 	// Start server in background
 	go func() {
 		_ = srv.Start(ctx)
 	}()
-	
+
 	// Wait for server to start
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Get actual address
 	addr := srv.Address()
 	if addr == "" {
 		t.Fatal("Server failed to start")
 	}
-	
+
 	return &TestServer{
 		Server:  srv,
 		BaseURL: "http://" + addr,
@@ -43,24 +43,24 @@ func NewTestServer(t *testing.T) *TestServer {
 // NewTestServerWithConfig creates a configured server for testing
 func NewTestServerWithConfig(t *testing.T, bufferSize, maxClients int) *TestServer {
 	srv := NewServerWithConfig(0, bufferSize, maxClients)
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	
+
 	// Start server in background
 	go func() {
 		_ = srv.Start(ctx)
 	}()
-	
+
 	// Wait for server to start
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Get actual address
 	addr := srv.Address()
 	if addr == "" {
 		t.Fatal("Server failed to start")
 	}
-	
+
 	return &TestServer{
 		Server:  srv,
 		BaseURL: "http://" + addr,

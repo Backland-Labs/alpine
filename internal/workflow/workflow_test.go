@@ -773,7 +773,7 @@ func TestEngine_EventEmitter_RunFinished(t *testing.T) {
 	// Verify RunFinished was called
 	calls := mockEmitter.FindCallsByMethod("RunFinished")
 	assert.Len(t, calls, 1, "RunFinished should be called once")
-	
+
 	// Verify the same RunID was used for both start and finish
 	startCalls := mockEmitter.FindCallsByMethod("RunStarted")
 	assert.Equal(t, startCalls[0].RunID, calls[0].RunID, "RunID should be consistent")

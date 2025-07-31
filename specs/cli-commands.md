@@ -35,6 +35,14 @@ alpine plan "Implement caching layer"
 # Generate plan using Claude Code
 alpine plan --cc "Implement caching layer"
 
+# Generate plans in parallel using worktrees
+alpine plan --worktree gh-issue https://github.com/owner/repo/issues/123 &
+alpine plan --worktree gh-issue https://github.com/owner/repo/issues/124 &
+wait
+
+# Generate plan in worktree and keep it for inspection
+alpine plan --worktree --cleanup=false "Complex feature implementation"
+
 # Show help
 alpine --help
 
@@ -53,11 +61,13 @@ alpine --version
 
 ### alpine plan command
 - `--cc` - Use Claude Code instead of Gemini for plan generation
+- `--worktree` - Generate the plan in an isolated git worktree (default: false)
+- `--cleanup` - Automatically clean up (remove) the worktree after plan generation (default: true)
 - `--help` - Show help message
 
 ### alpine plan gh-issue subcommand
 - Accepts a GitHub issue URL as the sole argument
-- Inherits `--cc` flag from parent `plan` command
+- Inherits `--cc`, `--worktree`, and `--cleanup` flags from parent `plan` command
 - `--help` - Show help message
 
 ## Behavior
@@ -159,6 +169,15 @@ See the full REST API documentation in the [server specification](server.md#rest
    - Full codebase context via `--add-dir .`
    - 5-minute timeout
    - Planning-specific system prompt
+7. With `--worktree` flag:
+   - Creates an isolated git worktree for plan generation
+   - Worktree named with sanitized task description
+   - Changes to worktree directory before generating plan
+   - plan.md is created inside the worktree, not the main repository
+   - Returns to original directory after completion
+   - With `--cleanup=true` (default), removes worktree after generation
+   - With `--cleanup=false`, preserves worktree for inspection
+   - Enables parallel plan generation without file conflicts
 
 ### alpine plan gh-issue subcommand
 1. Accepts a GitHub issue URL as the sole argument

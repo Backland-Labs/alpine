@@ -96,7 +96,7 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 	issueURL := "https://github.com/test/repo/issues/123"
 	runPayload := map[string]string{
 		"issue_url": issueURL,
-		"agent_id": "alpine-agent",
+		"agent_id":  "alpine-agent",
 	}
 	payloadBytes, _ := json.Marshal(runPayload)
 
@@ -140,7 +140,7 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 	// Collect and validate events
 	events := make([]server.WorkflowEvent, 0)
 	scanner := bufio.NewScanner(sseResp.Body)
-	
+
 	// Set a timeout for event collection
 	eventTimeout := time.After(10 * time.Second)
 	eventComplete := make(chan bool)
@@ -157,7 +157,7 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 				eventType = strings.TrimPrefix(line, "event: ")
 			} else if strings.HasPrefix(line, "data: ") {
 				data := strings.TrimPrefix(line, "data: ")
-				
+
 				// Parse JSON data
 				var event server.WorkflowEvent
 				if err := json.Unmarshal([]byte(data), &event); err != nil {
@@ -174,14 +174,14 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 			} else if line == "" && currentEvent != nil {
 				// Empty line indicates end of event
 				events = append(events, *currentEvent)
-				
+
 				// Check if we've received the final event
-				if currentEvent.Type == "run_finished" || 
-				   currentEvent.Type == "run_error" {
+				if currentEvent.Type == "run_finished" ||
+					currentEvent.Type == "run_error" {
 					eventComplete <- true
 					return
 				}
-				
+
 				currentEvent = nil
 				eventType = ""
 			}
@@ -216,8 +216,8 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 
 		// Last event must be run_finished or run_error
 		lastEvent := events[len(events)-1]
-		if lastEvent.Type != "run_finished" && 
-		   lastEvent.Type != "run_error" {
+		if lastEvent.Type != "run_finished" &&
+			lastEvent.Type != "run_error" {
 			t.Errorf("Last event must be 'run_finished' or 'run_error', got '%s'", lastEvent.Type)
 		}
 
@@ -244,7 +244,7 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 				}
 				textStartFound = true
 				messageID = event.MessageID
-				
+
 				if messageID == "" {
 					t.Error("text_message_start missing messageId")
 				}
@@ -306,7 +306,7 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 			}
 
 			jsonStr := string(eventJSON)
-			
+
 			// Verify camelCase fields
 			if strings.Contains(jsonStr, "\"run_id\"") {
 				t.Error("Found 'run_id' instead of 'runId' in JSON")
@@ -314,7 +314,7 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 			if strings.Contains(jsonStr, "\"message_id\"") {
 				t.Error("Found 'message_id' instead of 'messageId' in JSON")
 			}
-			
+
 			// Verify timestamp format (ISO 8601)
 			if !event.Timestamp.IsZero() {
 				timestampStr := event.Timestamp.Format(time.RFC3339)
@@ -332,7 +332,7 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 			firstTime := events[0].Timestamp
 			lastTime := events[len(events)-1].Timestamp
 			duration := lastTime.Sub(firstTime)
-			
+
 			if duration < 50*time.Millisecond {
 				t.Error("Events appear to be batched (total duration too short)")
 			}
@@ -341,7 +341,7 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 
 	t.Logf("Collected %d events total", len(events))
 	for i, event := range events {
-		t.Logf("Event %d: type=%s, runId=%s, messageId=%s", 
+		t.Logf("Event %d: type=%s, runId=%s, messageId=%s",
 			i, event.Type, event.RunID, event.MessageID)
 	}
 }
@@ -386,7 +386,7 @@ func TestStreamingWithMultipleClients(t *testing.T) {
 	addr := srv.Address()
 	runPayload := map[string]string{
 		"issue_url": "https://github.com/test/repo/issues/456",
-		"agent_id": "alpine-agent",
+		"agent_id":  "alpine-agent",
 	}
 	payloadBytes, _ := json.Marshal(runPayload)
 
@@ -422,7 +422,7 @@ func TestStreamingWithMultipleClients(t *testing.T) {
 
 			scanner := bufio.NewScanner(resp.Body)
 			var events []server.WorkflowEvent
-			
+
 			for scanner.Scan() {
 				line := scanner.Text()
 				if strings.HasPrefix(line, "data: ") {
@@ -430,10 +430,10 @@ func TestStreamingWithMultipleClients(t *testing.T) {
 					var event server.WorkflowEvent
 					if json.Unmarshal([]byte(data), &event) == nil {
 						events = append(events, event)
-						
+
 						// Stop on completion
 						if event.Type == "run_finished" ||
-						   event.Type == "run_error" {
+							event.Type == "run_error" {
 							break
 						}
 					}
@@ -467,7 +467,7 @@ func TestStreamingWithMultipleClients(t *testing.T) {
 		firstClientEventCount := len(clientEvents[0])
 		for i := 1; i < numClients; i++ {
 			if len(clientEvents[i]) != firstClientEventCount {
-				t.Errorf("Client %d received %d events, but client 0 received %d", 
+				t.Errorf("Client %d received %d events, but client 0 received %d",
 					i, len(clientEvents[i]), firstClientEventCount)
 			}
 		}
@@ -504,7 +504,7 @@ func TestStreamingErrorHandling(t *testing.T) {
 	addr := srv.Address()
 	runPayload := map[string]string{
 		"issue_url": "https://github.com/test/repo/issues/789",
-		"agent_id": "alpine-agent",
+		"agent_id":  "alpine-agent",
 	}
 	payloadBytes, _ := json.Marshal(runPayload)
 

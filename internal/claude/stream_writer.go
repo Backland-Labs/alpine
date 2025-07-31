@@ -31,10 +31,10 @@ func NewStreamWriter(streamer events.Streamer, runID, messageID string) *StreamW
 // lines to the streamer. Partial lines are held in the buffer until a newline is received.
 func (sw *StreamWriter) Write(p []byte) (n int, err error) {
 	n = len(p)
-	
+
 	// Add to buffer
 	sw.buffer.Write(p)
-	
+
 	// Process complete lines
 	for {
 		line, err := sw.buffer.ReadBytes('\n')
@@ -48,7 +48,7 @@ func (sw *StreamWriter) Write(p []byte) (n int, err error) {
 			}
 			return n, err
 		}
-		
+
 		// Stream the complete line
 		if streamErr := sw.streamer.StreamContent(sw.runID, sw.messageID, string(line)); streamErr != nil {
 			// Log streaming error but don't fail the write
@@ -59,7 +59,7 @@ func (sw *StreamWriter) Write(p []byte) (n int, err error) {
 			}).Debug("Failed to stream content")
 		}
 	}
-	
+
 	return n, nil
 }
 

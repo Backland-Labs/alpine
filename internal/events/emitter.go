@@ -123,7 +123,7 @@ func (m *MockEmitter) GetRawEvents() []map[string]interface{} {
 				"runId": call.RunID,
 			},
 		}
-		
+
 		// Add method-specific data
 		switch call.Method {
 		case "RunStarted", "RunFinished":
@@ -136,7 +136,7 @@ func (m *MockEmitter) GetRawEvents() []map[string]interface{} {
 		case "StateSnapshot":
 			event["data"].(map[string]interface{})["snapshot"] = call.Snapshot
 		}
-		
+
 		events = append(events, event)
 	}
 	return events
@@ -169,4 +169,3 @@ func (n *NoOpEmitter) RunError(runID string, task string, err error) {
 func (n *NoOpEmitter) StateSnapshot(runID string, snapshot interface{}) {
 	// No operation
 }
-

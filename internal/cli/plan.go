@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Backland-Labs/alpine/internal/claude"
+	"github.com/Backland-Labs/alpine/internal/gitx"
 	"github.com/Backland-Labs/alpine/internal/output"
 	"github.com/Backland-Labs/alpine/internal/prompts"
 	"github.com/spf13/cobra"
@@ -29,6 +30,8 @@ func NewPlanCommand() *cobra.Command {
 func newPlanCmd() *planCmd {
 	pc := &planCmd{}
 	var ccFlag bool
+	var worktreeFlag bool
+	var cleanupFlag bool
 
 	pc.cmd = &cobra.Command{
 		Use:   "plan <task-description>",
@@ -51,6 +54,11 @@ the plan using Claude Code instead.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			task := args[0]
 
+			// Check if worktree flag is set
+			if worktreeFlag {
+				return runPlanInWorktree(task, ccFlag, cleanupFlag)
+			}
+
 			// Route based on --cc flag
 			if ccFlag {
 				return generatePlanWithClaude(task)
@@ -63,6 +71,10 @@ the plan using Claude Code instead.`,
 
 	// Add the --cc flag
 	pc.cmd.Flags().BoolVar(&ccFlag, "cc", false, "Use Claude Code instead of Gemini for plan generation")
+
+	// Add the --worktree and --cleanup flags
+	pc.cmd.Flags().BoolVar(&worktreeFlag, "worktree", false, "Generate the plan in an isolated git worktree")
+	pc.cmd.Flags().BoolVar(&cleanupFlag, "cleanup", true, "Automatically clean up (remove) the worktree after plan generation")
 
 	// Add gh-issue subcommand
 	pc.cmd.AddCommand(newGhIssueCmd())
@@ -260,6 +272,62 @@ func fetchGitHubIssue(url string) (title, body string, err error) {
 	return issue.Title, issue.Body, nil
 }
 
+// runPlanInWorktree executes plan generation in an isolated git worktree
+func runPlanInWorktree(task string, useClaude bool, cleanup bool) error {
+	// Create printer for consistent output
+	printer := output.NewPrinter()
+
+	// Get current working directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// Create worktree manager
+	ctx := context.Background()
+	wtMgr := gitx.NewCLIWorktreeManager(".", "main")
+
+	// Create worktree with sanitized task name
+	printer.Info("Creating isolated worktree for plan generation...")
+	wt, err := wtMgr.Create(ctx, task)
+	if err != nil {
+		return fmt.Errorf("failed to create worktree: %w", err)
+	}
+
+	// Ensure we return to original directory and handle cleanup
+	defer func() {
+		// Always return to original directory
+		if err := os.Chdir(originalDir); err != nil {
+			printer.Warning("Failed to return to original directory: %v", err)
+		}
+
+		// Handle cleanup if requested
+		if cleanup {
+			printer.Info("Cleaning up worktree...")
+			if err := wtMgr.Cleanup(ctx, wt); err != nil {
+				printer.Warning("Failed to cleanup worktree: %v", err)
+			} else {
+				printer.Success("Worktree cleaned up: %s", wt.Path)
+			}
+		} else {
+			printer.Info("Worktree preserved at: %s", wt.Path)
+		}
+	}()
+
+	// Change to the worktree directory
+	if err := os.Chdir(wt.Path); err != nil {
+		return fmt.Errorf("failed to change to worktree directory: %w", err)
+	}
+
+	printer.Info("Generating plan in worktree: %s", wt.Path)
+
+	// Call the appropriate plan generation function
+	if useClaude {
+		return generatePlanWithClaude(task)
+	}
+	return generatePlan(task)
+}
+
 // validatePlanFile checks if plan.md exists and has content
 func validatePlanFile() error {
 	// Check if plan.md exists
@@ -314,8 +382,15 @@ Requirements:
 			// Format task description
 			task := fmt.Sprintf("Task: %s\n\n%s", title, body)
 
-			// Access parent command's --cc flag
+			// Access parent command's flags
 			ccFlag, _ := cmd.Parent().Flags().GetBool("cc")
+			worktreeFlag, _ := cmd.Parent().Flags().GetBool("worktree")
+			cleanupFlag, _ := cmd.Parent().Flags().GetBool("cleanup")
+
+			// Check if worktree flag is set
+			if worktreeFlag {
+				return runPlanInWorktree(task, ccFlag, cleanupFlag)
+			}
 
 			// Route to appropriate plan generation
 			if ccFlag {

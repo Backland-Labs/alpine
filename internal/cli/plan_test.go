@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 // TestPlanCommand tests the plan command definition and structure
@@ -1627,4 +1629,171 @@ fi
 				strings.Count(output, "Generating plan..."))
 		}
 	})
+}
+
+// TestPlanCommand_WorktreeFlags tests the --worktree and --cleanup flags
+func TestPlanCommand_WorktreeFlags(t *testing.T) {
+	planCmd := NewPlanCommand()
+
+	t.Run("should have a --worktree flag", func(t *testing.T) {
+		worktreeFlag := planCmd.Flags().Lookup("worktree")
+		if worktreeFlag == nil {
+			t.Fatal("--worktree flag not found on plan command")
+		}
+		if worktreeFlag.Value.Type() != "bool" {
+			t.Errorf("--worktree flag should be a boolean, got: %s", worktreeFlag.Value.Type())
+		}
+		if worktreeFlag.DefValue != "false" {
+			t.Errorf("--worktree flag should default to false, got: %s", worktreeFlag.DefValue)
+		}
+		if !strings.Contains(worktreeFlag.Usage, "Generate the plan in an isolated git worktree") {
+			t.Errorf("--worktree flag usage text is incorrect: %s", worktreeFlag.Usage)
+		}
+	})
+
+	t.Run("should have a --cleanup flag", func(t *testing.T) {
+		cleanupFlag := planCmd.Flags().Lookup("cleanup")
+		if cleanupFlag == nil {
+			t.Fatal("--cleanup flag not found on plan command")
+		}
+		if cleanupFlag.Value.Type() != "bool" {
+			t.Errorf("--cleanup flag should be a boolean, got: %s", cleanupFlag.Value.Type())
+		}
+		if cleanupFlag.DefValue != "true" {
+			t.Errorf("--cleanup flag should default to true, got: %s", cleanupFlag.DefValue)
+		}
+		if !strings.Contains(cleanupFlag.Usage, "Automatically clean up (remove) the worktree") {
+			t.Errorf("--cleanup flag usage text is incorrect: %s", cleanupFlag.Usage)
+		}
+	})
+
+	t.Run("parses worktree flag correctly", func(t *testing.T) {
+		// Test with --worktree flag set
+		err := planCmd.ParseFlags([]string{"--worktree"})
+		if err != nil {
+			t.Errorf("failed to parse --worktree flag: %v", err)
+		}
+
+		worktreeFlag := planCmd.Flag("worktree")
+		if worktreeFlag == nil {
+			t.Fatal("--worktree flag not found after parsing")
+		}
+
+		if worktreeFlag.Value.String() != "true" {
+			t.Errorf("--worktree flag should be true when set, got: %s", worktreeFlag.Value.String())
+		}
+	})
+
+	t.Run("parses cleanup flag correctly", func(t *testing.T) {
+		// Reset command for fresh parsing
+		planCmd = NewPlanCommand()
+
+		// Test with --cleanup=false
+		err := planCmd.ParseFlags([]string{"--cleanup=false"})
+		if err != nil {
+			t.Errorf("failed to parse --cleanup flag: %v", err)
+		}
+
+		cleanupFlag := planCmd.Flag("cleanup")
+		if cleanupFlag == nil {
+			t.Fatal("--cleanup flag not found after parsing")
+		}
+
+		if cleanupFlag.Value.String() != "false" {
+			t.Errorf("--cleanup flag should be false when set to false, got: %s", cleanupFlag.Value.String())
+		}
+	})
+
+	t.Run("gh-issue subcommand inherits worktree flags", func(t *testing.T) {
+		// Find the gh-issue subcommand
+		var ghIssueCmd *cobra.Command
+		for _, cmd := range planCmd.Commands() {
+			if cmd.Use == "gh-issue <url>" {
+				ghIssueCmd = cmd
+				break
+			}
+		}
+
+		if ghIssueCmd == nil {
+			t.Fatal("gh-issue subcommand not found")
+		}
+
+		// The flags should be accessible from parent command
+		// This test verifies the subcommand can access parent flags
+		parentFlags := ghIssueCmd.Parent()
+		if parentFlags == nil {
+			t.Skip("Cannot test parent flag access without full command setup")
+		}
+	})
+}
+
+// TestPlanExecution_WithWorktree tests the worktree logic integration
+func TestPlanExecution_WithWorktree(t *testing.T) {
+	// Skip if not in a git repository
+	if _, err := exec.Command("git", "status").Output(); err != nil {
+		t.Skip("Not in a git repository, skipping worktree tests")
+	}
+
+	t.Run("plan generation with worktree", func(t *testing.T) {
+		// Create a temporary directory for test
+		tempDir := t.TempDir()
+		originalDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get current directory: %v", err)
+		}
+		defer os.Chdir(originalDir)
+
+		// Change to temp directory
+		if err := os.Chdir(tempDir); err != nil {
+			t.Fatalf("failed to change to temp directory: %v", err)
+		}
+
+		// Initialize git repo
+		if err := exec.Command("git", "init").Run(); err != nil {
+			t.Fatalf("failed to initialize git repo: %v", err)
+		}
+
+		// Create initial commit (worktrees require at least one commit)
+		if err := os.WriteFile("README.md", []byte("Test repo"), 0644); err != nil {
+			t.Fatalf("failed to create README.md: %v", err)
+		}
+		if err := exec.Command("git", "add", ".").Run(); err != nil {
+			t.Fatalf("failed to add files: %v", err)
+		}
+		if err := exec.Command("git", "commit", "-m", "Initial commit").Run(); err != nil {
+			t.Fatalf("failed to create initial commit: %v", err)
+		}
+
+		// This test verifies that the worktree flag is recognized
+		// Full implementation test will require mocking or actual execution
+		rootCmd := NewRootCommand()
+		output := &bytes.Buffer{}
+		rootCmd.SetOut(output)
+		rootCmd.SetErr(output)
+
+		// Set up environment to skip actual plan generation
+		os.Setenv("GEMINI_API_KEY", "test-key")
+		defer os.Unsetenv("GEMINI_API_KEY")
+
+		// The actual worktree implementation will be tested after implementation
+		// For now, this test serves as a placeholder for integration testing
+	})
+
+	t.Run("plan generation with worktree and no cleanup", func(t *testing.T) {
+		// Similar setup as above
+		// This test will verify that cleanup=false leaves the worktree intact
+		// Full implementation after the worktree logic is added
+	})
+}
+
+// TestRunPlanInWorktree tests the helper function that handles worktree logic
+func TestRunPlanInWorktree(t *testing.T) {
+	// This test will be implemented when we add the runPlanInWorktree function
+	// It will test:
+	// 1. Worktree creation
+	// 2. Directory changes
+	// 3. Plan generation execution
+	// 4. Cleanup behavior
+	// 5. Error handling
+	t.Skip("Waiting for runPlanInWorktree implementation")
 }

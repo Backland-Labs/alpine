@@ -83,11 +83,11 @@ func TestWorkflowStreamingIntegration(t *testing.T) {
 	}
 	mockStreamer := &MockStreamer{}
 	mockWtMgr := &mock.WorktreeManager{}
-	
+
 	// Create temp dir for state file
 	tempDir := t.TempDir()
 	stateFile := filepath.Join(tempDir, "agent_state", "agent_state.json")
-	
+
 	cfg := &config.Config{
 		StateFile: stateFile,
 		Git:       config.GitConfig{WorktreeEnabled: false},
@@ -107,7 +107,7 @@ func TestWorkflowStreamingIntegration(t *testing.T) {
 	if !executed {
 		t.Fatal("Expected executor to be called")
 	}
-	
+
 	// Assert - executor should have streamer and runID set
 	if mockExecutor.Streamer != mockStreamer {
 		t.Errorf("Expected executor to have streamer set, got %v", mockExecutor.Streamer)
@@ -212,7 +212,7 @@ func TestEngineConstructorWithoutStreamer(t *testing.T) {
 func TestStreamerPropagationDuringExecution(t *testing.T) {
 	// This test verifies that the streamer is properly passed to the executor
 	// during the workflow execution loop, not just at initialization
-	
+
 	// Arrange
 	mockExecutor := &MockExecutorWithStreamer{}
 	mockStreamer := &MockStreamer{}
@@ -226,7 +226,7 @@ func TestStreamerPropagationDuringExecution(t *testing.T) {
 
 	// The actual propagation logic will be tested once implementation is done
 	// For now, this test documents the expected behavior
-	
+
 	// Act & Assert will be completed during GREEN phase
 	_ = engine // Silence unused variable warning
 }
@@ -235,7 +235,7 @@ func TestStreamerPropagationDuringExecution(t *testing.T) {
 func TestMultipleClaudeExecutions(t *testing.T) {
 	// This test ensures that when Claude is called multiple times in a workflow,
 	// each execution maintains proper streaming with unique message IDs
-	
+
 	// Test implementation will be completed during GREEN phase
 	// This placeholder documents the expected behavior
 }
