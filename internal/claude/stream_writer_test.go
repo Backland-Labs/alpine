@@ -69,9 +69,9 @@ func TestStreamWriterFunctionality(t *testing.T) {
 func TestMultiWriterWithFlush(t *testing.T) {
 	var buf1 strings.Builder
 	sw := &mockFlushWriter{}
-	
+
 	mw := newMultiWriterWithFlush(&buf1, sw)
-	
+
 	// Write some data
 	data := []byte("test data")
 	n, err := mw.Write(data)
@@ -81,7 +81,7 @@ func TestMultiWriterWithFlush(t *testing.T) {
 	if n != len(data) {
 		t.Errorf("Expected to write %d bytes, wrote %d", len(data), n)
 	}
-	
+
 	// Check both writers received the data
 	if buf1.String() != "test data" {
 		t.Errorf("buf1: expected %q, got %q", "test data", buf1.String())
@@ -89,7 +89,7 @@ func TestMultiWriterWithFlush(t *testing.T) {
 	if sw.String() != "test data" {
 		t.Errorf("sw: expected %q, got %q", "test data", sw.String())
 	}
-	
+
 	// Test flush
 	sw.flushed = false
 	err = mw.Flush()
@@ -126,9 +126,9 @@ func TestStreamWriterErrorHandling(t *testing.T) {
 	failingStreamer := &mockStreamer{
 		streamErr: testErr,
 	}
-	
+
 	sw := NewStreamWriter(failingStreamer, "run-fail", "msg-fail")
-	
+
 	// Write should succeed even if streaming fails (errors are logged)
 	data := []byte("Test line\n")
 	n, err := sw.Write(data)
@@ -138,7 +138,7 @@ func TestStreamWriterErrorHandling(t *testing.T) {
 	if n != len(data) {
 		t.Errorf("Expected to write %d bytes, wrote %d", len(data), n)
 	}
-	
+
 	// Verify streaming was attempted
 	if len(failingStreamer.contentCalls) != 1 {
 		t.Errorf("Expected 1 content call, got %d", len(failingStreamer.contentCalls))

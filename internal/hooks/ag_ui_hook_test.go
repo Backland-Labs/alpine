@@ -17,7 +17,7 @@ import (
 // TestAgUIHookScriptParsesToolData tests that the hook script correctly parses tool data
 func TestAgUIHookScriptParsesToolData(t *testing.T) {
 	hookScript := filepath.Join("..", "..", "hooks", "alpine-ag-ui-emitter.rs")
-	
+
 	// Skip if script doesn't exist yet (RED phase)
 	if _, err := os.Stat(hookScript); os.IsNotExist(err) {
 		t.Skip("Hook script not yet implemented")
@@ -33,7 +33,7 @@ func TestAgUIHookScriptParsesToolData(t *testing.T) {
 		"tool_output": map[string]interface{}{
 			"success": true,
 		},
-		"event": "tool_use",
+		"event":     "tool_use",
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
 
@@ -53,7 +53,7 @@ func TestAgUIHookScriptParsesToolData(t *testing.T) {
 	cmd := exec.Command(hookScript)
 	cmd.Env = append(os.Environ(), env...)
 	cmd.Stdin = bytes.NewReader(toolJSON)
-	
+
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
@@ -71,7 +71,7 @@ func TestAgUIHookScriptParsesToolData(t *testing.T) {
 // TestAgUIHookScriptGeneratesValidEvents tests that the hook generates valid ag-ui events
 func TestAgUIHookScriptGeneratesValidEvents(t *testing.T) {
 	hookScript := filepath.Join("..", "..", "hooks", "alpine-ag-ui-emitter.rs")
-	
+
 	// Skip if script doesn't exist yet (RED phase)
 	if _, err := os.Stat(hookScript); os.IsNotExist(err) {
 		t.Skip("Hook script not yet implemented")
@@ -92,7 +92,7 @@ func TestAgUIHookScriptGeneratesValidEvents(t *testing.T) {
 		"tool_input": map[string]interface{}{
 			"command": "echo 'test'",
 		},
-		"event": "tool_use",
+		"event":     "tool_use",
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
 
@@ -144,7 +144,7 @@ func TestAgUIHookScriptGeneratesValidEvents(t *testing.T) {
 // TestAgUIHookScriptHandlesEndpointUnavailable tests graceful handling of endpoint failures
 func TestAgUIHookScriptHandlesEndpointUnavailable(t *testing.T) {
 	hookScript := filepath.Join("..", "..", "hooks", "alpine-ag-ui-emitter.rs")
-	
+
 	// Skip if script doesn't exist yet (RED phase)
 	if _, err := os.Stat(hookScript); os.IsNotExist(err) {
 		t.Skip("Hook script not yet implemented")
@@ -156,7 +156,7 @@ func TestAgUIHookScriptHandlesEndpointUnavailable(t *testing.T) {
 		"tool_input": map[string]interface{}{
 			"file_path": "/tmp/test.txt",
 		},
-		"event": "tool_use",
+		"event":     "tool_use",
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
 
@@ -188,7 +188,7 @@ func TestAgUIHookScriptHandlesEndpointUnavailable(t *testing.T) {
 // TestAgUIHookScriptGeneratesToolCallEndEvents tests that the hook generates ToolCallEnd events
 func TestAgUIHookScriptGeneratesToolCallEndEvents(t *testing.T) {
 	hookScript := filepath.Join("..", "..", "hooks", "alpine-ag-ui-emitter.rs")
-	
+
 	// Skip if script doesn't exist yet (RED phase)
 	if _, err := os.Stat(hookScript); os.IsNotExist(err) {
 		t.Skip("Hook script not yet implemented")
@@ -216,8 +216,8 @@ func TestAgUIHookScriptGeneratesToolCallEndEvents(t *testing.T) {
 			"success": true,
 			"message": "File written successfully",
 		},
-		"event": "tool_use",
-		"timestamp": time.Now().Format(time.RFC3339),
+		"event":        "tool_use",
+		"timestamp":    time.Now().Format(time.RFC3339),
 		"tool_call_id": "call-123", // Claude may provide this
 	}
 

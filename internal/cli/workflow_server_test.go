@@ -15,7 +15,7 @@ import (
 // This test ensures that when the --serve flag is provided, the HTTP server
 // starts in the background and is accessible on the specified port.
 func TestServeFlagStartsServer(t *testing.T) {
-	
+
 	// Create test dependencies with a quick-completing workflow
 	mockEngine := &mockWorkflowEngine{
 		err: nil, // Workflow completes immediately
@@ -28,7 +28,7 @@ func TestServeFlagStartsServer(t *testing.T) {
 
 	// Use a specific test port to avoid conflicts
 	testPort := 8765
-	
+
 	// Create a context with the serve flag set to true and test port
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, serveKey, true)
@@ -50,14 +50,14 @@ func TestServeFlagStartsServer(t *testing.T) {
 	// Try to connect to the server - this SHOULD work when implemented
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/events", testPort))
 	require.NoError(t, err, "Server should be accessible when --serve flag is used")
-	
+
 	// Verify it's an SSE endpoint
 	contentType := resp.Header.Get("Content-Type")
 	assert.Equal(t, "text/event-stream", contentType, "Should be an SSE endpoint")
-	
+
 	// Close the response before canceling context
 	_ = resp.Body.Close()
-	
+
 	// Cancel the context to stop the server
 	cancel()
 
@@ -78,7 +78,7 @@ func TestServeFlagStartsServer(t *testing.T) {
 func TestWorkflowRunsConcurrentlyWithServer(t *testing.T) {
 	// Create a custom mock that tracks execution
 	mockEngine := &mockWorkflowEngine{}
-	
+
 	// Create test dependencies with our mock workflow engine
 	deps := &Dependencies{
 		FileReader:     &mockFileReader{},

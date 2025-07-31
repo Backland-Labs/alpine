@@ -15,21 +15,21 @@ import (
 // TestHealthEndpoint tests the health check endpoint to ensure the server is operational
 func TestHealthEndpoint(t *testing.T) {
 	server := NewServer(0)
-	
+
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
-	
+
 	server.healthHandler(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
-	
+
 	var response map[string]string
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	
+
 	if response["status"] != "healthy" {
 		t.Errorf("expected status 'healthy', got %s", response["status"])
 	}
@@ -38,21 +38,21 @@ func TestHealthEndpoint(t *testing.T) {
 // TestAgentsListEndpoint tests retrieving the list of available agents
 func TestAgentsListEndpoint(t *testing.T) {
 	server := NewServer(0)
-	
+
 	req := httptest.NewRequest(http.MethodGet, "/agents/list", nil)
 	w := httptest.NewRecorder()
-	
+
 	server.agentsListHandler(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
-	
+
 	var agents []Agent
 	if err := json.NewDecoder(w.Body).Decode(&agents); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	
+
 	// Should have at least one agent in MVP
 	if len(agents) == 0 {
 		t.Error("expected at least one agent")
@@ -62,28 +62,28 @@ func TestAgentsListEndpoint(t *testing.T) {
 // TestAgentsRunEndpoint tests starting a workflow with a GitHub issue
 func TestAgentsRunEndpoint(t *testing.T) {
 	server := NewServer(0)
-	
+
 	payload := map[string]string{
 		"issue_url": "https://github.com/owner/repo/issues/123",
-		"agent_id": "alpine-agent",
+		"agent_id":  "alpine-agent",
 	}
-	
+
 	body, _ := json.Marshal(payload)
 	req := httptest.NewRequest(http.MethodPost, "/agents/run", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	
+
 	server.agentsRunHandler(w, req)
-	
+
 	if w.Code != http.StatusCreated {
 		t.Errorf("expected status 201, got %d", w.Code)
 	}
-	
+
 	var run Run
 	if err := json.NewDecoder(w.Body).Decode(&run); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	
+
 	if run.ID == "" {
 		t.Error("expected run ID to be set")
 	}
@@ -117,21 +117,21 @@ func TestRunsListEndpoint(t *testing.T) {
 			Updated: time.Now(),
 		},
 	}
-	
+
 	req := httptest.NewRequest(http.MethodGet, "/runs", nil)
 	w := httptest.NewRecorder()
-	
+
 	server.runsListHandler(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
-	
+
 	var runs []Run
 	if err := json.NewDecoder(w.Body).Decode(&runs); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	
+
 	if len(runs) != 2 {
 		t.Errorf("expected 2 runs, got %d", len(runs))
 	}
@@ -151,7 +151,7 @@ func TestRunDetailsEndpoint(t *testing.T) {
 	server.runs = map[string]*Run{
 		testRun.ID: testRun,
 	}
-	
+
 	tests := []struct {
 		name       string
 		runID      string
@@ -168,19 +168,19 @@ func TestRunDetailsEndpoint(t *testing.T) {
 			wantStatus: http.StatusNotFound,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/runs/"+tt.runID, nil)
 			req.SetPathValue("id", tt.runID)
 			w := httptest.NewRecorder()
-			
+
 			server.runDetailsHandler(w, req)
-			
+
 			if w.Code != tt.wantStatus {
 				t.Errorf("expected status %d, got %d", tt.wantStatus, w.Code)
 			}
-			
+
 			if tt.wantStatus == http.StatusOK {
 				var run Run
 				if err := json.NewDecoder(w.Body).Decode(&run); err != nil {
@@ -208,26 +208,26 @@ func TestRunCancelEndpoint(t *testing.T) {
 	server.runs = map[string]*Run{
 		testRun.ID: testRun,
 	}
-	
+
 	req := httptest.NewRequest(http.MethodPost, "/runs/test-run-456/cancel", nil)
 	req.SetPathValue("id", "test-run-456")
 	w := httptest.NewRecorder()
-	
+
 	server.runCancelHandler(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
-	
+
 	var response map[string]string
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	
+
 	if response["status"] != "cancelled" {
 		t.Errorf("expected status 'cancelled', got %s", response["status"])
 	}
-	
+
 	// Verify the run status was updated
 	if server.runs["test-run-456"].Status != "cancelled" {
 		t.Error("expected run status to be updated to 'cancelled'")
@@ -247,22 +247,22 @@ func TestPlanGetEndpoint(t *testing.T) {
 	server.plans = map[string]*Plan{
 		testPlan.RunID: testPlan,
 	}
-	
+
 	req := httptest.NewRequest(http.MethodGet, "/plans/test-run-789", nil)
 	req.SetPathValue("runId", "test-run-789")
 	w := httptest.NewRecorder()
-	
+
 	server.planGetHandler(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
-	
+
 	var plan Plan
 	if err := json.NewDecoder(w.Body).Decode(&plan); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	
+
 	if plan.RunID != testPlan.RunID {
 		t.Errorf("expected run ID %s, got %s", testPlan.RunID, plan.RunID)
 	}
@@ -284,26 +284,26 @@ func TestPlanApproveEndpoint(t *testing.T) {
 	server.plans = map[string]*Plan{
 		testPlan.RunID: testPlan,
 	}
-	
+
 	req := httptest.NewRequest(http.MethodPost, "/plans/test-run-approve/approve", nil)
 	req.SetPathValue("runId", "test-run-approve")
 	w := httptest.NewRecorder()
-	
+
 	server.planApproveHandler(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
-	
+
 	var response map[string]string
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	
+
 	if response["status"] != "approved" {
 		t.Errorf("expected status 'approved', got %s", response["status"])
 	}
-	
+
 	// Verify the plan status was updated
 	if server.plans["test-run-approve"].Status != "approved" {
 		t.Error("expected plan status to be updated to 'approved'")
@@ -323,28 +323,28 @@ func TestPlanFeedbackEndpoint(t *testing.T) {
 	server.plans = map[string]*Plan{
 		testPlan.RunID: testPlan,
 	}
-	
+
 	payload := map[string]string{
 		"feedback": "Please add more detail to step 2",
 	}
 	body, _ := json.Marshal(payload)
-	
+
 	req := httptest.NewRequest(http.MethodPost, "/plans/test-run-feedback/feedback", bytes.NewReader(body))
 	req.SetPathValue("runId", "test-run-feedback")
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	
+
 	server.planFeedbackHandler(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
-	
+
 	var response map[string]string
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	
+
 	if response["status"] != "feedback_received" {
 		t.Errorf("expected status 'feedback_received', got %s", response["status"])
 	}
@@ -364,23 +364,23 @@ func TestRunEventsSSE(t *testing.T) {
 	server.runs = map[string]*Run{
 		testRun.ID: testRun,
 	}
-	
+
 	// Create a request with a short timeout context
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	
+
 	req := httptest.NewRequest(http.MethodGet, "/runs/test-run-sse/events", nil)
 	req = req.WithContext(ctx)
 	req.SetPathValue("id", "test-run-sse")
 	w := httptest.NewRecorder()
-	
+
 	// Start handler in goroutine since it blocks
 	done := make(chan bool)
 	go func() {
 		server.runEventsHandler(w, req)
 		done <- true
 	}()
-	
+
 	// Wait for handler to complete
 	select {
 	case <-done:
@@ -388,12 +388,12 @@ func TestRunEventsSSE(t *testing.T) {
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("handler did not complete in time")
 	}
-	
+
 	// Check headers
 	if w.Header().Get("Content-Type") != "text/event-stream" {
 		t.Errorf("expected Content-Type 'text/event-stream', got %s", w.Header().Get("Content-Type"))
 	}
-	
+
 	// Should have received initial connection event
 	body := w.Body.String()
 	if !strings.Contains(body, "data:") {
@@ -404,25 +404,25 @@ func TestRunEventsSSE(t *testing.T) {
 // TestInvalidMethods tests that endpoints return 405 for wrong HTTP methods
 func TestInvalidMethods(t *testing.T) {
 	server := NewServer(0)
-	
+
 	tests := []struct {
-		method   string
-		path     string
-		handler  http.HandlerFunc
+		method  string
+		path    string
+		handler http.HandlerFunc
 	}{
 		{http.MethodPost, "/health", server.healthHandler},
 		{http.MethodPost, "/agents/list", server.agentsListHandler},
 		{http.MethodGet, "/agents/run", server.agentsRunHandler},
 		{http.MethodPost, "/runs", server.runsListHandler},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s %s", tt.method, tt.path), func(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.path, nil)
 			w := httptest.NewRecorder()
-			
+
 			tt.handler(w, req)
-			
+
 			if w.Code != http.StatusMethodNotAllowed {
 				t.Errorf("expected status 405, got %d", w.Code)
 			}
@@ -433,23 +433,23 @@ func TestInvalidMethods(t *testing.T) {
 // TestJSONErrorResponses tests that error responses are properly formatted JSON
 func TestJSONErrorResponses(t *testing.T) {
 	server := NewServer(0)
-	
+
 	// Test with invalid JSON payload
 	req := httptest.NewRequest(http.MethodPost, "/agents/run", strings.NewReader("invalid json"))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	
+
 	server.agentsRunHandler(w, req)
-	
+
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected status 400, got %d", w.Code)
 	}
-	
+
 	var response map[string]string
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode error response: %v", err)
 	}
-	
+
 	if response["error"] == "" {
 		t.Error("expected error message in response")
 	}

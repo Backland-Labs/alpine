@@ -25,43 +25,43 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
-		
+
 		// Initialize logger based on configuration (for production use)
 		logger.InitializeFromConfig(cfg)
 		logger.Infof("Starting Alpine in server-only mode")
-		
+
 		// Start HTTP server
 		httpServer, err := startServerIfRequested(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to start server: %w", err)
 		}
-		
+
 		// Create Alpine workflow engine for REST API
 		if httpServer != nil {
 			// Create Claude executor
 			claudeExecutor := claude.NewExecutor()
-			
+
 			// Create worktree manager
 			cwd, _ := os.Getwd()
 			var wtMgr gitx.WorktreeManager
 			if cwd != "" && cfg.Git.WorktreeEnabled {
 				wtMgr = gitx.NewCLIWorktreeManager(cwd, cfg.Git.BaseBranch)
 			}
-			
+
 			// Create AlpineWorkflowEngine for REST API operations
 			alpineEngine := server.NewAlpineWorkflowEngine(claudeExecutor, wtMgr, cfg)
 			alpineEngine.SetServer(httpServer)
 			httpServer.SetWorkflowEngine(alpineEngine)
-			
+
 			logger.Infof("Configured Alpine workflow engine for REST API")
 		}
-		
+
 		// Keep the server running until context is cancelled
 		<-ctx.Done()
 		logger.Infof("Server shut down")
 		return nil
 	}
-	
+
 	var taskDescription string
 
 	// Check for --continue flag first
@@ -123,7 +123,7 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 		if httpServer != nil {
 			streamer = server.NewServerStreamer(httpServer)
 		}
-		
+
 		engine, wtMgr := CreateWorkflowEngine(cfg, streamer)
 		deps.WorkflowEngine = engine
 		deps.WorktreeManager = wtMgr
@@ -132,10 +132,10 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 	// Run the workflow (generatePlan is opposite of noPlan)
 	generatePlan := !noPlan
 	workflowErr := deps.WorkflowEngine.Run(ctx, taskDescription, generatePlan)
-	
+
 	// Workflow has completed, no need to keep the server running
 	// The server will shut down when the context is cancelled
-	
+
 	return workflowErr
 }
 
@@ -157,7 +157,7 @@ func startServerIfRequested(ctx context.Context) (*server.Server, error) {
 
 	// Create and start the server
 	httpServer := server.NewServer(port)
-	
+
 	go func() {
 		logger.Infof("Starting HTTP server on port %d", port)
 		if err := httpServer.Start(ctx); err != nil {
@@ -168,18 +168,18 @@ func startServerIfRequested(ctx context.Context) (*server.Server, error) {
 		}
 		logger.Debugf("HTTP server stopped")
 	}()
-	
+
 	// Give the server a moment to start
 	// TODO: Implement a proper readiness check
 	const serverStartupDelay = 100 * time.Millisecond
 	time.Sleep(serverStartupDelay)
-	
+
 	// Verify the server started successfully
 	addr := httpServer.Address()
 	if addr == "" {
 		return nil, fmt.Errorf("server failed to start on port %d", port)
 	}
-	
+
 	logger.Infof("HTTP server listening on %s", addr)
 	return httpServer, nil
 }

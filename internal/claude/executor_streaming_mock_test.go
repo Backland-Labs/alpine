@@ -62,7 +62,7 @@ func TestExecutorStreamingWithMockExecution(t *testing.T) {
 				// Simulate streaming content
 				streamWriter := NewStreamWriter(tt.streamer, tt.runID, messageID)
 				reader := strings.NewReader(tt.simulateOutput)
-				
+
 				// Copy data through the stream writer
 				var buf bytes.Buffer
 				multiWriter := newMultiWriterWithFlush(&buf, streamWriter)
@@ -157,7 +157,7 @@ func TestExecutorStreamingErrorHandling(t *testing.T) {
 
 	// Create stream writer and test error handling
 	sw := NewStreamWriter(failingStreamer, "run-error", messageID)
-	
+
 	// Writing should succeed (errors are logged but not returned)
 	data := []byte("Test data\n")
 	n, err := sw.Write(data)

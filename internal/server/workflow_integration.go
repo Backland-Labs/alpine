@@ -21,13 +21,13 @@ import (
 const (
 	// defaultEventChannelSize is the buffer size for workflow event channels
 	defaultEventChannelSize = 100
-	
+
 	// worktreeNamePrefix is the prefix for worktree directory names
 	worktreeNamePrefix = "run-"
-	
+
 	// tempDirPrefix is the prefix for temporary workflow directories
 	tempDirPrefix = "alpine-run-"
-	
+
 	// stateFileRelativePath is the relative path for state files within workflow directories
 	stateFileRelativePath = "agent_state/agent_state.json"
 )
@@ -40,7 +40,7 @@ type AlpineWorkflowEngine struct {
 	wtMgr          gitx.WorktreeManager
 	cfg            *config.Config
 	server         *Server // Reference to server for streaming support
-	
+
 	// Track active workflows with thread-safe access
 	mu        sync.RWMutex
 	workflows map[string]*workflowInstance
@@ -49,13 +49,13 @@ type AlpineWorkflowEngine struct {
 // workflowInstance tracks a single workflow execution with its associated
 // resources and event stream.
 type workflowInstance struct {
-	engine      *workflow.Engine    // The workflow engine instance
-	ctx         context.Context      // Workflow-specific context for cancellation
-	cancel      context.CancelFunc   // Function to cancel the workflow
-	events      chan WorkflowEvent   // Channel for broadcasting workflow events
-	worktreeDir string               // Directory containing workflow files
-	stateFile   string               // Path to the workflow state file
-	createdAt   time.Time           // Timestamp when the workflow was created
+	engine      *workflow.Engine   // The workflow engine instance
+	ctx         context.Context    // Workflow-specific context for cancellation
+	cancel      context.CancelFunc // Function to cancel the workflow
+	events      chan WorkflowEvent // Channel for broadcasting workflow events
+	worktreeDir string             // Directory containing workflow files
+	stateFile   string             // Path to the workflow state file
+	createdAt   time.Time          // Timestamp when the workflow was created
 }
 
 // NewAlpineWorkflowEngine creates a new workflow engine integration.
@@ -81,45 +81,45 @@ func (e *AlpineWorkflowEngine) SetServer(server *Server) {
 // and starts execution in the background. Returns the workflow directory path.
 func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL string, runID string) (string, error) {
 	logger.Infof("Starting workflow %s for issue: %s", runID, issueURL)
-	
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	
+
 	// Check if workflow already exists
 	if _, exists := e.workflows[runID]; exists {
 		logger.Infof("Attempted to start duplicate workflow: %s", runID)
 		return "", fmt.Errorf("workflow %s already exists", runID)
 	}
-	
+
 	// Create workflow context
 	workflowCtx, cancel := context.WithCancel(ctx)
-	
+
 	// Create custom config for this workflow
 	workflowCfg := *e.cfg // Copy config
-	
+
 	// Create isolated directory for the workflow
 	worktreeDir, err := e.createWorkflowDirectory(workflowCtx, runID, cancel)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Update state file path to be in workflow directory
 	workflowCfg.StateFile = filepath.Join(worktreeDir, stateFileRelativePath)
 	workflowCfg.WorkDir = worktreeDir
-	
+
 	// Disable worktree creation in workflow.Engine since we already created one
 	workflowCfg.Git.WorktreeEnabled = false
-	
+
 	// Create workflow engine with server as streamer if available
 	var streamer events.Streamer
 	if e.server != nil {
 		streamer = NewServerStreamer(e.server)
 		logger.Debugf("Created server streamer for workflow %s", runID)
 	}
-	
+
 	engine := workflow.NewEngine(e.claudeExecutor, nil, &workflowCfg, streamer)
 	engine.SetStateFile(workflowCfg.StateFile)
-	
+
 	// Create workflow instance
 	instance := &workflowInstance{
 		engine:      engine,
@@ -130,12 +130,12 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 		stateFile:   workflowCfg.StateFile,
 		createdAt:   time.Now(),
 	}
-	
+
 	e.workflows[runID] = instance
-	
+
 	// Start workflow execution in background
 	go e.runWorkflowAsync(instance, issueURL, runID)
-	
+
 	logger.Infof("Workflow %s started successfully in directory: %s", runID, worktreeDir)
 	return worktreeDir, nil
 }
@@ -144,19 +144,19 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 // It triggers cancellation through the workflow's context and sends a cancellation event.
 func (e *AlpineWorkflowEngine) CancelWorkflow(ctx context.Context, runID string) error {
 	logger.Infof("Cancelling workflow: %s", runID)
-	
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	
+
 	instance, exists := e.workflows[runID]
 	if !exists {
 		logger.Infof("Attempted to cancel non-existent workflow: %s", runID)
 		return fmt.Errorf("workflow %s not found", runID)
 	}
-	
+
 	// Cancel the workflow context
 	instance.cancel()
-	
+
 	// Send cancellation event (non-blocking)
 	e.sendEventNonBlocking(instance, WorkflowEvent{
 		Type:      "workflow_cancelled",
@@ -164,7 +164,7 @@ func (e *AlpineWorkflowEngine) CancelWorkflow(ctx context.Context, runID string)
 		Timestamp: time.Now(),
 		Data:      map[string]interface{}{},
 	})
-	
+
 	logger.Infof("Workflow %s cancelled successfully", runID)
 	return nil
 }
@@ -174,20 +174,20 @@ func (e *AlpineWorkflowEngine) CancelWorkflow(ctx context.Context, runID string)
 func (e *AlpineWorkflowEngine) GetWorkflowState(ctx context.Context, runID string) (*core.State, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	
+
 	instance, exists := e.workflows[runID]
 	if !exists {
 		logger.Debugf("Workflow state requested for non-existent workflow: %s", runID)
 		return nil, fmt.Errorf("workflow %s not found", runID)
 	}
-	
+
 	// Load state from file
 	state, err := core.LoadState(instance.stateFile)
 	if err != nil {
 		logger.Errorf("Failed to load state for workflow %s: %v", runID, err)
 		return nil, fmt.Errorf("failed to load state: %w", err)
 	}
-	
+
 	return state, nil
 }
 
@@ -195,31 +195,31 @@ func (e *AlpineWorkflowEngine) GetWorkflowState(ctx context.Context, runID strin
 // It updates the workflow state to trigger the implementation phase.
 func (e *AlpineWorkflowEngine) ApprovePlan(ctx context.Context, runID string) error {
 	logger.Infof("Approving plan for workflow: %s", runID)
-	
+
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	
+
 	instance, exists := e.workflows[runID]
 	if !exists {
 		logger.Infof("Attempted to approve plan for non-existent workflow: %s", runID)
 		return fmt.Errorf("workflow %s not found", runID)
 	}
-	
+
 	// Update state to continue with implementation
 	state, err := core.LoadState(instance.stateFile)
 	if err != nil {
 		return fmt.Errorf("failed to load state: %w", err)
 	}
-	
+
 	// Update state to trigger implementation
 	state.CurrentStepDescription = "Plan approved, continuing implementation"
 	state.NextStepPrompt = "/run_implementation_loop"
 	state.Status = core.StatusRunning
-	
+
 	if err := state.Save(instance.stateFile); err != nil {
 		return fmt.Errorf("failed to save state: %w", err)
 	}
-	
+
 	// Send plan approved event (non-blocking)
 	e.sendEventNonBlocking(instance, WorkflowEvent{
 		Type:      "plan_approved",
@@ -227,7 +227,7 @@ func (e *AlpineWorkflowEngine) ApprovePlan(ctx context.Context, runID string) er
 		Timestamp: time.Now(),
 		Data:      map[string]interface{}{},
 	})
-	
+
 	logger.Infof("Plan approved for workflow %s", runID)
 	return nil
 }
@@ -237,23 +237,23 @@ func (e *AlpineWorkflowEngine) ApprovePlan(ctx context.Context, runID string) er
 // the current state as an initial event.
 func (e *AlpineWorkflowEngine) SubscribeToEvents(ctx context.Context, runID string) (<-chan WorkflowEvent, error) {
 	logger.Debugf("New event subscription for workflow: %s", runID)
-	
+
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	
+
 	instance, exists := e.workflows[runID]
 	if !exists {
 		logger.Infof("Event subscription requested for non-existent workflow: %s", runID)
 		return nil, fmt.Errorf("workflow %s not found", runID)
 	}
-	
+
 	// Create a new channel for this subscriber
 	subscriber := make(chan WorkflowEvent, defaultEventChannelSize)
-	
+
 	// Forward events from the workflow to the subscriber
 	go func() {
 		defer close(subscriber)
-		
+
 		for {
 			select {
 			case event, ok := <-instance.events:
@@ -270,7 +270,7 @@ func (e *AlpineWorkflowEngine) SubscribeToEvents(ctx context.Context, runID stri
 			}
 		}
 	}()
-	
+
 	// Send current state as an event
 	if state, err := e.GetWorkflowState(ctx, runID); err == nil {
 		select {
@@ -286,7 +286,7 @@ func (e *AlpineWorkflowEngine) SubscribeToEvents(ctx context.Context, runID stri
 		default:
 		}
 	}
-	
+
 	return subscriber, nil
 }
 
@@ -294,10 +294,10 @@ func (e *AlpineWorkflowEngine) SubscribeToEvents(ctx context.Context, runID stri
 // It cancels the workflow context and removes it from the active workflows map.
 func (e *AlpineWorkflowEngine) Cleanup(runID string) {
 	logger.Debugf("Cleaning up workflow: %s", runID)
-	
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	
+
 	if instance, exists := e.workflows[runID]; exists {
 		instance.cancel()
 		delete(e.workflows, runID)
@@ -322,7 +322,7 @@ func (e *AlpineWorkflowEngine) createWorkflowDirectory(ctx context.Context, runI
 		logger.Infof("Created worktree for workflow %s at: %s", runID, wt.Path)
 		return wt.Path, nil
 	}
-	
+
 	// Use temporary directory for state
 	tempDirName := fmt.Sprintf("%s%s-", tempDirPrefix, runID)
 	tempDir, err := os.MkdirTemp("", tempDirName)
@@ -338,23 +338,23 @@ func (e *AlpineWorkflowEngine) createWorkflowDirectory(ctx context.Context, runI
 // runWorkflowAsync executes the workflow in a goroutine and manages event broadcasting.
 func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issueURL string, runID string) {
 	defer close(instance.events)
-	
+
 	// Send start event (AG-UI compliant)
 	instance.events <- WorkflowEvent{
 		Type:      events.AGUIEventRunStarted,
 		RunID:     runID,
 		Timestamp: time.Now(),
 		Data: map[string]interface{}{
-			"task": fmt.Sprintf("Process GitHub issue: %s", issueURL),
+			"task":        fmt.Sprintf("Process GitHub issue: %s", issueURL),
 			"worktreeDir": instance.worktreeDir,
-			"planMode": true,
+			"planMode":    true,
 		},
 	}
-	
+
 	// Run the workflow
 	logger.Infof("Executing workflow %s", runID)
 	err := instance.engine.Run(instance.ctx, issueURL, true) // Generate plan by default
-	
+
 	// Send completion event (AG-UI compliant)
 	if err != nil {
 		logger.Errorf("Workflow %s failed: %v", runID, err)
@@ -368,20 +368,20 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 		}
 	} else {
 		logger.Infof("Workflow %s completed successfully", runID)
-		
+
 		// Load final state to get completion info
 		finalState, stateErr := core.LoadState(instance.stateFile)
 		result := map[string]interface{}{
 			"status": "completed",
 		}
-		
+
 		if stateErr == nil && finalState != nil {
 			// Add more result data if available
 			if finalState.Status == core.StatusCompleted {
 				result["status"] = "completed"
 			}
 		}
-		
+
 		instance.events <- WorkflowEvent{
 			Type:      events.AGUIEventRunFinished,
 			RunID:     runID,

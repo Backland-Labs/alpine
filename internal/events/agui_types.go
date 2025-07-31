@@ -5,10 +5,10 @@ package events
 // They ensure consistency across the application and compliance with AG-UI specifications.
 const (
 	// Lifecycle Events
-	AGUIEventRunStarted  = "run_started"   // First event when Alpine workflow begins
-	AGUIEventRunFinished = "run_finished"  // Successful workflow completion
-	AGUIEventRunError    = "run_error"     // Workflow failure
-	
+	AGUIEventRunStarted  = "run_started"  // First event when Alpine workflow begins
+	AGUIEventRunFinished = "run_finished" // Successful workflow completion
+	AGUIEventRunError    = "run_error"    // Workflow failure
+
 	// Text Streaming Events (Claude output)
 	AGUIEventTextMessageStart   = "text_message_start"   // Begin Claude stdout stream
 	AGUIEventTextMessageContent = "text_message_content" // Claude stdout chunks (delta=true)

@@ -45,10 +45,10 @@ func (e *Executor) SetupAgUIHooks(eventEndpoint, runID string) (cleanup func(), 
 	e.envVars["ALPINE_RUN_ID"] = runID
 
 	logger.WithFields(map[string]interface{}{
-		"hook_script":   hookScriptPath,
-		"settings_file": settingsPath,
+		"hook_script":    hookScriptPath,
+		"settings_file":  settingsPath,
 		"event_endpoint": eventEndpoint,
-		"run_id":        runID,
+		"run_id":         runID,
 	}).Debug("ag-ui hooks setup completed")
 
 	// Return cleanup function
@@ -56,7 +56,7 @@ func (e *Executor) SetupAgUIHooks(eventEndpoint, runID string) (cleanup func(), 
 		logger.Debug("Cleaning up ag-ui hooks")
 		_ = os.Remove(settingsPath)
 		// Don't remove .claude directory - may contain user's own settings
-		
+
 		// Clear environment variables
 		delete(e.envVars, "ALPINE_EVENTS_ENDPOINT")
 		delete(e.envVars, "ALPINE_RUN_ID")

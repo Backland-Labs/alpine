@@ -163,4 +163,3 @@ func (c *Client) StateSnapshot(runID string, snapshot interface{}) {
 		"snapshot": snapshot,
 	})
 }
-

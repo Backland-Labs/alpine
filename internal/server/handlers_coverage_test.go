@@ -51,7 +51,7 @@ func TestPlanFeedbackHandlerCoverage(t *testing.T) {
 		},
 		{
 			name:  "invalid JSON",
-			runID: "run-123", 
+			runID: "run-123",
 			setupFunc: func() {
 				server.plans["run-123"] = &Plan{
 					RunID:  "run-123",
@@ -434,14 +434,14 @@ func TestServerMethodsCoverage(t *testing.T) {
 	t.Run("respondWithError coverage", func(t *testing.T) {
 		server := NewServer(0)
 		w := httptest.NewRecorder()
-		
+
 		// Test with error message
 		server.respondWithError(w, http.StatusBadRequest, "test error")
-		
+
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("expected status 400, got %d", w.Code)
 		}
-		
+
 		var response map[string]string
 		json.NewDecoder(w.Body).Decode(&response)
 		if response["error"] != "test error" {
@@ -456,21 +456,21 @@ func TestWorkflowIntegrationCoverage(t *testing.T) {
 		tempDir := t.TempDir()
 		stateFile := filepath.Join(tempDir, "agent_state", "agent_state.json")
 		os.MkdirAll(filepath.Dir(stateFile), 0755)
-		
+
 		// Write invalid JSON
 		os.WriteFile(stateFile, []byte("invalid json"), 0644)
-		
+
 		engine := NewAlpineWorkflowEngine(
 			&MockClaudeExecutor{},
 			&MockWorktreeManager{},
 			&config.Config{},
 		)
-		
+
 		engine.workflows["run-123"] = &workflowInstance{
 			worktreeDir: tempDir,
 			events:      make(chan WorkflowEvent, 1),
 		}
-		
+
 		// GetWorkflowState returns empty state on error
 		state, err := engine.GetWorkflowState(context.Background(), "run-123")
 		if err != nil {
@@ -487,7 +487,7 @@ func TestWorkflowIntegrationCoverage(t *testing.T) {
 				return nil, errors.New("worktree creation failed")
 			},
 		}
-		
+
 		engine := NewAlpineWorkflowEngine(
 			&MockClaudeExecutor{},
 			mockWtMgr,
@@ -497,10 +497,10 @@ func TestWorkflowIntegrationCoverage(t *testing.T) {
 				},
 			},
 		)
-		
+
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		
+
 		_, err := engine.createWorkflowDirectory(ctx, "run-123", cancel)
 		if err == nil {
 			t.Error("expected error when worktree creation fails")
@@ -513,15 +513,15 @@ func TestWorkflowIntegrationCoverage(t *testing.T) {
 			&MockWorktreeManager{},
 			&config.Config{},
 		)
-		
+
 		// Create workflow with closed channel
 		closedChan := make(chan WorkflowEvent)
 		close(closedChan)
-		
+
 		engine.workflows["run-123"] = &workflowInstance{
 			events: closedChan,
 		}
-		
+
 		// This should handle the closed channel gracefully
 		_, err := engine.SubscribeToEvents(context.Background(), "run-123")
 		if err != nil {
