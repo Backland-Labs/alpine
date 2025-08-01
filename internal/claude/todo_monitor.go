@@ -26,7 +26,10 @@ func NewTodoMonitor(filePath string) *TodoMonitor {
 
 // Start begins monitoring the todo file for changes
 func (tm *TodoMonitor) Start(ctx context.Context) {
-	logger.WithField("file_path", tm.filePath).Debug("Starting TODO monitor")
+	logger.WithFields(map[string]interface{}{
+		"file_path": tm.filePath,
+		"poll_interval": "500ms",
+	}).Info("Starting TODO monitor")
 
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
@@ -34,7 +37,7 @@ func (tm *TodoMonitor) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Debug("TODO monitor stopped by context")
+			logger.WithField("reason", "context_done").Info("TODO monitor stopped")
 			close(tm.updates)
 			return
 		case <-ticker.C:
@@ -43,10 +46,13 @@ func (tm *TodoMonitor) Start(ctx context.Context) {
 					tm.lastTask = task
 					select {
 					case tm.updates <- task:
-						logger.WithField("task", task).Debug("TODO update sent")
+						logger.WithFields(map[string]interface{}{
+							"task": task,
+							"task_length": len(task),
+						}).Debug("TODO update sent")
 					default:
 						// Channel full, skip this update
-						logger.Debug("TODO update channel full, skipping")
+						logger.WithField("channel_size", 10).Warn("TODO update channel full, skipping")
 					}
 				}
 			}

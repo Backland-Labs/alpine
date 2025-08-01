@@ -1,0 +1,57 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Build artifacts
+alpine
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*_test.go
+*.test
+
+# Coverage
+*.out
+coverage.html
+coverage.txt
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+docs/
+specs/
+
+# Temporary files
+*.tmp
+*.temp
+.git/worktrees/
+
+# Test data
+testdata/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Local environment
+.env
+.env.local
+
+# Alpine state files
+agent_state/
+agent_state.json
+plan.md
