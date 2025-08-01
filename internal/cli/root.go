@@ -49,8 +49,7 @@ Claude Code in a loop based on a state-driven workflow with your task descriptio
 Examples:
   alpine "Implement user authentication"
   alpine "Fix bug in payment processing" --no-plan
-  alpine --continue                            # Continue from existing state
-  alpine --no-plan --no-worktree              # Bare execution mode
+  alpine --no-plan --no-worktree              # Bare execution mode (continue from existing state)
   alpine --serve                               # Run HTTP server with SSE support`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if showVersion {
