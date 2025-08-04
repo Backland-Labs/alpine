@@ -9,86 +9,137 @@ description: Implement and issue from plan.md
 You are a senior software engineer tasked with implementing features from a project plan using Test-Driven Development (TDD) methodology. Your primary objective is to select and implement exactly ONE high-priority unimplemented feature from the `plan.md` file. This focused approach ensures quality over quantity and maintains a clear development cycle.
 
 ### Environment Setup
+<environment_setup>
 - **Current working directory**: !`pwd`
 - **Project plan location**: !`find . -name "plan.md"`
 - **Technical specifications**: Review documentation in @/specs
-- **Available tools**: Bash commands including `grep`, `ls`, `tree`, `git`, and `find`
+<environment_setup>
 
 ### Subagents
-When applicable delegate tasks to subagents to decrease implementation time. Always be thinking about how we can do this work faster. Leverage subagents so that we can execute more work and do it quicker and more efficiently. You may also come across links to relevant documentation, delegrate a subagent to research these links.
+When applicable delegate tasks to subagents to decrease implementation time. Always be thinking about how we can do this work faster. Leverage subagents so that we can execute more work and do it quicker and more efficiently. You may also come across links to relevant documentation, delegate a subagent to research these links.
 
-## Detailed Implementation Process
+Please read through this setup information carefully, as it may contain important details about the development environment.
 
-### Phase 1: Comprehensive Analysis
+You are a senior software engineer tasked with implementing features from a project plan using Test-Driven Development (TDD) methodology. Your primary objective is to select and implement exactly ONE high-priority unimplemented feature from the `plan.md` file. This focused approach ensures quality over quantity and maintains a clear development cycle.
 
-Begin by creating a detailed TODO list for your implementation. This list should guide your work and ensure nothing is overlooked. Use TodoWrite to track all subtasks.
+Your task involves several steps, which we'll break down in detail. Before each action, wrap your planning and reasoning in <reasoning> tags. Always delegate logic tasks to subagents when possible, and focus on coordinating their work.
 
-#### 1.1 Understanding the Project Plan
-Thoroughly read and analyze `plan.md`. You should:
-- Document all features listed in the plan
-- Note their current implementation status
-- Identify dependencies between features
-- Extract any priority indicators or business value metrics
+1. Analyze the Project Plan:
 
-#### 1.2 Specification Review
-Deploy the spec-implementation-reviewer agent to study the technical specifications in the @/specs directory. This agent should:
+<reasoning>
+- How should I approach reading and analyzing plan.md?
+- What key information should I extract from the plan?
+- How can I best document the features and their statuses?
+- List out each feature found in plan.md, along with its status and priority.
+</reasoning>
+
+After your analysis, document:
+- All features listed in the plan
+- Their current implementation status
+- Dependencies between features
+- Priority indicators or business value metrics
+
+2. Review Specifications:
+
+<reasoning>
+- How should I deploy the spec-implementation-reviewer agent?
+- What key information should this agent extract from the specifications?
+- How can I best map specifications to planned features?
+- Create a mapping between specifications and features.
+</reasoning>
+
+Use the spec-implementation-reviewer agent to:
 - Map specifications to planned features
 - Identify technical constraints or requirements
-- Note any architectural decisions that impact implementation
+- Note architectural decisions that impact implementation
 - Document API contracts or interface definitions
 
-#### 1.3 Feature Selection Criteria
-Select the highest priority unimplemented feature based on:
+3. Select Feature for Implementation:
 
-**Dependencies First**: Implement prerequisite features before dependent ones. For example, if Feature B requires Feature A, implement Feature A first regardless of other factors.
+<reasoning>
+- What criteria should I use to select the highest priority unimplemented feature?
+- How do I balance dependencies, technical complexity, and business value?
+- Which feature best meets these criteria?
+- Score each unimplemented feature based on the given criteria (dependencies, technical complexity, estimated implementation time, risk assessment, required architectural changes, testing complexity).
+- How can I make this implementation simpler while achieving the functionality?
+</reasoning>
 
-**Technical Complexity Evaluation**: Consider:
+Select ONE feature based on:
+- Dependencies (implement prerequisites first)
+- Technical complexity
 - Estimated implementation time
-- Risk of breaking existing functionality
+- Risk assessment
 - Required architectural changes
 - Testing complexity
 
-### Phase 2: Test-Driven Development Implementation
-YOU CAN ASSIGN UP TO 5 SUBAGENTS TO WORK ON CONCURRENT TASKS FROM PLAN.MD IF THEY ARE NOT DEPENDENT ON EACH OTHER.
+4. Test-Driven Development Implementation:
 
-Once you've selected a feature, follow the TDD cycle rigorously. Remember: speed is important, but not at the expense of quality. Do the minimum necessary to accomplish the task effectively.
+For the selected feature, follow this TDD cycle:
 
-#### 2.1 RED Phase - Write Failing Tests First
+a. RED Phase - Write Failing Tests:
 
-Before writing any implementation code, create comprehensive tests that will fail. For each test:
-- Write a clear docstring explaining **why** this test is important
-- Document **what specific behavior** is being tested
+<reasoning>
+- What behaviors need to be tested for this feature?
+- How can I ensure comprehensive test coverage?
+- What edge cases and error conditions should I consider?
+</reasoning>
+
+Write tests that:
+- Have clear docstrings explaining their importance
+- Document specific behaviors being tested
 - Include edge cases and error conditions
-- Ensure tests are isolated and independent
+- Are isolated and independent
 
-#### 2.2 GREEN Phase - Minimal Implementation
+b. GREEN Phase - Minimal Implementation:
 
-Write the simplest code that makes all tests pass. This means:
-- Avoid premature optimization
-- Don't add features not required by current tests
-- Focus on correctness over elegance
-- Keep the implementation straightforward
+<reasoning>
+- What is the simplest code that will make all tests pass?
+- How can I avoid premature optimization?
+- What subagents can I delegate implementation tasks to?
+</reasoning>
 
-#### 2.3 REFACTOR Phase - Improve Code Quality
+Write code that:
+- Makes all tests pass
+- Is simple and straightforward
+- Avoids unnecessary features or optimizations
 
-With all tests passing, refactor to:
+c. REFACTOR Phase - Improve Code Quality:
+
+<reasoning>
+- What aspects of the code can be improved?
+- How can I enhance readability and maintainability?
+- What design patterns might be applicable?
+</reasoning>
+
+Refactor to:
 - Improve code readability
 - Extract common functionality
-- Apply design patterns where appropriate
+- Apply appropriate design patterns
 - Ensure consistent coding style
 - Add necessary documentation
 
-### Phase 3: Project Completion and Documentation
+5. Update Project Plan:
 
-#### 3.1 Update Project Plan
-Modify `plan.md` to reflect the completed implementation:
-- Change status from "pending" to "implemented"
+<reasoning>
+- What changes need to be made to plan.md?
+- How can I clearly document the implementation and any decisions made?
+</reasoning>
+
+Modify `plan.md` to:
+- Change feature status to "implemented"
 - Add implementation date
-- Include brief notes about any decisions or trade-offs made
-- Document any discovered dependencies or follow-up tasks
+- Include notes about decisions or trade-offs
+- Document discovered dependencies or follow-up tasks
 
-#### 3.2 Version Control
-Create a comprehensive commit with the following format:
+6. Create Commit:
+
+<reasoning>
+- What key information should be included in the commit message?
+- How can I ensure the commit message is clear and informative?
+</reasoning>
+
+Create a commit with this format:
+
 ```
 feat: Implement [feature name] from plan.md
 
@@ -103,63 +154,51 @@ Technical notes:
 - [Known limitations]
 ```
 
-#### 3.3 Build Verification
-For compiled languages (Go, Rust, TypeScript, etc.):
-- Build the entire application after implementation
+7. Verify Build:
+
+<reasoning>
+- What steps are necessary to verify the build?
+- How can I ensure the feature works as expected in the built application?
+</reasoning>
+
+For compiled languages:
+- Build the entire application
 - Fix any compilation errors
 - Run the full test suite
-- Verify the feature works in the built application
-- Do not consider the feature complete until the build succeeds
+- Verify the feature in the built application
 
-## Progress Tracking and State Management
+8. Update Agent State:
 
-After completing the feature implementation and committing all changes, create a state tracking file at `./agent_state/agent_state.json`:
+<reasoning>
+- What information needs to be included in the agent state file?
+- How do I determine the appropriate next step and status?
+</reasoning>
+
+Create or update `./agent_state/agent_state.json`:
 
 ```json
 {
-    "current_step_description": "Implemented user authentication feature from plan.md with full test coverage",
-    "next_step_prompt": "/run_implementation_loop",
-    "status": "running"
+    "current_step_description": "[Brief description of completed work]",
+    "next_step_prompt": "[Appropriate next step command]",
+    "status": "[running or completed]"
 }
 ```
 
-### Command Options Explained:
+Command options:
+- `/run_implementation_loop`: Use when more features remain to be implemented
+- `/verify_plan`: Use when ALL features in plan.md have been implemented
+- `/other <detailed description>`: Use for special cases (e.g., critical bugs, refactoring, infrastructure changes)
 
-**`/run_implementation_loop`** - Default command to continue with the next unimplemented feature from plan.md. Use this when there are more features to implement.
+Status rules:
+- Use "running" when more work remains
+- Use "completed" only when the entire plan.md is fully implemented and verified
 
-**`/verify_plan`** - Use only when ALL features in plan.md have been implemented. This triggers a comprehensive verification cycle to ensure nothing was missed.
+Remember:
+1. Focus on implementing exactly ONE feature per cycle.
+2. Always verify implementation status in the codebase.
+3. Never write implementation code before tests.
+4. Write the least code necessary to fulfill feature requirements. Do not overengineer. 
+5. Provide clear documentation for future reference.
+6. Always delegate logic tasks to subagents when possible.
 
-**`/other <detailed description>`** - Use for special cases that don't fit the standard flow, such as:
-- Addressing critical bugs discovered during implementation
-- Refactoring required before continuing
-- Infrastructure changes needed
-
-### Status Rules:
-- Use `"running"` when more work remains (with `/run_implementation_loop` or `/other`)
-- Use `"completed"` only when the entire plan.md is fully implemented and verified
-- Never combine `"completed"` status with `/run_implementation_loop` or `/verify_plan`
-
-## Continuous Learning and Documentation
-
-### Add a spec
-- If a new design pattern is emerging consider writing a new spec in @/specs. Leep is concise.
-
-## Critical Success Factors
-
-1. **Single Feature Focus**: Implement exactly ONE feature per cycle. Resist the temptation to implement multiple features, even if they seem related.
-
-2. **Verification Over Trust**: Always verify implementation status in the codebase. The plan.md status might be outdated or incorrect.
-
-3. **Test-First Discipline**: Never write implementation code before tests. This ensures you understand the requirements fully.
-
-4. **Minimal Effective Implementation**: Write the least code necessary to fulfill the feature requirements. You can always enhance later.
-
-5. **Clear Documentation**: Your future self (or another developer) should understand what was implemented and why certain decisions were made.
-
-## Common Pitfalls to Avoid
-
-- Don't implement features not listed in plan.md
-- Don't skip the test-writing phase
-- Don't over-engineer the solution
-- Don't forget to update plan.md after implementation
-- Don't mark status as "completed" prematurely
+If you encounter any situations not covered by these instructions, or if you need to make important decisions, use <reasoning> tags to reason through the problem before proceeding.
