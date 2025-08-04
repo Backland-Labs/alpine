@@ -17,8 +17,16 @@ func InitializeFromConfig(cfg *config.Config) {
 		level = ErrorLevel
 	}
 
-	logger := New(level)
-	SetLogger(logger)
+	// Check if we should use Zap logger based on environment
+	if zapLogger, err := NewZapLoggerFromEnv(); err == nil {
+		// Successfully created Zap logger from environment
+		logger := &Logger{zap: zapLogger}
+		SetLogger(logger)
+	} else {
+		// Fall back to legacy logger with configured level
+		logger := New(level)
+		SetLogger(logger)
+	}
 }
 
 // Debug is a convenience function that logs to the global logger
@@ -39,6 +47,16 @@ func Info(msg string) {
 // Infof is a convenience function that logs to the global logger
 func Infof(format string, args ...interface{}) {
 	GetLogger().Infof(format, args...)
+}
+
+// Warn is a convenience function that logs to the global logger
+func Warn(msg string) {
+	GetLogger().Warn(msg)
+}
+
+// Warnf is a convenience function that logs to the global logger
+func Warnf(format string, args ...interface{}) {
+	GetLogger().Warnf(format, args...)
 }
 
 // Error is a convenience function that logs to the global logger

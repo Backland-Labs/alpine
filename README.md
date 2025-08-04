@@ -55,8 +55,8 @@ alpine "Implement user authentication with JWT tokens"
 # Skip planning, execute directly
 alpine "Fix the payment processing bug" --no-plan
 
-# Continue from existing state
-alpine --continue
+# Continue from existing state (bare execution mode)
+alpine --no-plan --no-worktree
 
 # Generate plan from GitHub issue
 alpine plan gh-issue https://github.com/owner/repo/issues/123

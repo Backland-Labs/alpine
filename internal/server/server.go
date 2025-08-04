@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/Backland-Labs/alpine/internal/logger"
 )
 
 // Constants for server configuration
@@ -52,9 +54,14 @@ type Server struct {
 // NewServer creates a new HTTP server instance configured to run on the specified port.
 // The server is initialized but not started - use Start() to begin listening.
 func NewServer(port int) *Server {
+	logger.WithFields(map[string]interface{}{
+		"port": port,
+		"event_buffer_size": defaultEventBufferSize,
+	}).Debug("Creating new server")
+
 	mux := http.NewServeMux()
 
-	return &Server{
+	server := &Server{
 		port: port,
 		httpServer: &http.Server{
 			Addr:    fmt.Sprintf("localhost:%d", port),
@@ -65,19 +72,29 @@ func NewServer(port int) *Server {
 		plans:       make(map[string]*Plan),
 		runEventHub: newRunSpecificEventHub(),
 	}
+
+	logger.Debugf("Server instance created with address: %s", server.httpServer.Addr)
+	return server
 }
 
 // NewServerWithConfig creates a new HTTP server instance with custom configuration
 func NewServerWithConfig(port int, streamBufferSize int, maxClientsPerRun int) *Server {
+	logger.WithFields(map[string]interface{}{
+		"port": port,
+		"stream_buffer_size": streamBufferSize,
+		"max_clients_per_run": maxClientsPerRun,
+	}).Debug("Creating new server with custom config")
+
 	mux := http.NewServeMux()
 
 	// Use provided buffer size or default
 	bufferSize := streamBufferSize
 	if bufferSize <= 0 {
 		bufferSize = defaultEventBufferSize
+		logger.Debugf("Using default buffer size: %d", bufferSize)
 	}
 
-	return &Server{
+	server := &Server{
 		port: port,
 		httpServer: &http.Server{
 			Addr:    fmt.Sprintf("localhost:%d", port),
@@ -88,19 +105,26 @@ func NewServerWithConfig(port int, streamBufferSize int, maxClientsPerRun int) *
 		plans:       make(map[string]*Plan),
 		runEventHub: newRunSpecificEventHubWithConfig(bufferSize, maxClientsPerRun),
 	}
+
+	logger.Debugf("Server instance created with custom config, address: %s", server.httpServer.Addr)
+	return server
 }
 
 // Start begins listening for HTTP requests on the configured port.
 // The server runs until the provided context is canceled.
 // Returns http.ErrServerClosed on graceful shutdown, or any other error if startup fails.
 func (s *Server) Start(ctx context.Context) error {
+	logger.WithField("port", s.port).Info("Starting HTTP server")
+
 	s.mu.Lock()
 	if s.running {
 		s.mu.Unlock()
+		logger.Warn("Attempted to start already running server")
 		return ErrServerRunning
 	}
 	s.running = true
 	s.mu.Unlock()
+	logger.Debug("Server state set to running")
 
 	// Check if context is already canceled
 	select {
@@ -108,6 +132,7 @@ func (s *Server) Start(ctx context.Context) error {
 		s.mu.Lock()
 		s.running = false
 		s.mu.Unlock()
+		logger.Info("Server start canceled due to context cancellation")
 		return ctx.Err()
 	default:
 	}
@@ -116,34 +141,51 @@ func (s *Server) Start(ctx context.Context) error {
 	addr := s.httpServer.Addr
 	if s.port == 0 {
 		addr = "localhost:0" // Let OS assign port
+		logger.Debug("Using dynamic port assignment")
 	}
 
+	logger.Debugf("Creating TCP listener on address: %s", addr)
 	var err error
 	s.listener, err = net.Listen("tcp", addr)
 	if err != nil {
 		s.mu.Lock()
 		s.running = false
 		s.mu.Unlock()
+		logger.WithFields(map[string]interface{}{
+			"error": err.Error(),
+			"address": addr,
+		}).Error("Failed to create listener")
 		return fmt.Errorf("failed to listen: %w", err)
 	}
+
+	actualAddr := s.listener.Addr().String()
+	logger.WithField("address", actualAddr).Info("Server listening")
 
 	// Create a new HTTP server for each start to avoid reuse issues
 	mux := http.NewServeMux()
 
-	// Register endpoint handlers
-	mux.HandleFunc("/events", s.sseHandler)
-	mux.HandleFunc("/health", s.healthHandler)
-	mux.HandleFunc("/agents/list", s.agentsListHandler)
-	mux.HandleFunc("/agents/run", s.agentsRunHandler)
-	mux.HandleFunc("/runs", s.runsListHandler)
-	mux.HandleFunc("/runs/{id}", s.runDetailsHandler)
-	mux.HandleFunc("/runs/{id}/events", func(w http.ResponseWriter, r *http.Request) {
+	// Apply logging middleware to all handlers
+	log := logger.GetLogger()
+	middleware := logger.HTTPMiddleware(log)
+
+	// Register endpoint handlers with logging
+	logger.Debug("Registering HTTP endpoints")
+
+	mux.Handle("/events", middleware(logger.SSEMiddleware(log)(http.HandlerFunc(s.sseHandler))))
+	mux.Handle("/health", middleware(http.HandlerFunc(s.healthHandler)))
+	mux.Handle("/agents/list", middleware(http.HandlerFunc(s.agentsListHandler)))
+	mux.Handle("/agents/run", middleware(http.HandlerFunc(s.agentsRunHandler)))
+	mux.Handle("/runs", middleware(http.HandlerFunc(s.runsListHandler)))
+	mux.Handle("/runs/{id}", middleware(http.HandlerFunc(s.runDetailsHandler)))
+	mux.Handle("/runs/{id}/events", middleware(logger.SSEMiddleware(log)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.enhancedRunEventsHandler(w, r, s.runEventHub)
-	})
-	mux.HandleFunc("/runs/{id}/cancel", s.runCancelHandler)
-	mux.HandleFunc("/plans/{runId}", s.planGetHandler)
-	mux.HandleFunc("/plans/{runId}/approve", s.planApproveHandler)
-	mux.HandleFunc("/plans/{runId}/feedback", s.planFeedbackHandler)
+	}))))
+	mux.Handle("/runs/{id}/cancel", middleware(http.HandlerFunc(s.runCancelHandler)))
+	mux.Handle("/plans/{runId}", middleware(http.HandlerFunc(s.planGetHandler)))
+	mux.Handle("/plans/{runId}/approve", middleware(http.HandlerFunc(s.planApproveHandler)))
+	mux.Handle("/plans/{runId}/feedback", middleware(http.HandlerFunc(s.planFeedbackHandler)))
+
+	logger.Debugf("Registered %d endpoints", 11)
 
 	s.httpServer = &http.Server{
 		Handler: mux,
@@ -152,10 +194,16 @@ func (s *Server) Start(ctx context.Context) error {
 	// Handle shutdown when context is canceled
 	go func() {
 		<-ctx.Done()
-		_ = s.httpServer.Shutdown(context.Background())
+		logger.Info("Server shutdown initiated")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
+			logger.WithField("error", err.Error()).Error("Error during server shutdown")
+		}
 	}()
 
 	// Start serving
+	logger.Info("Server starting to accept connections")
 	err = s.httpServer.Serve(s.listener)
 
 	s.mu.Lock()
@@ -165,7 +213,12 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// http.ErrServerClosed is expected when shutting down gracefully
 	if err == http.ErrServerClosed {
+		logger.Info("Server shut down gracefully")
 		return err
+	}
+
+	if err != nil {
+		logger.WithField("error", err.Error()).Error("Server error")
 	}
 	return err
 }
@@ -187,6 +240,7 @@ func (s *Server) SetWorkflowEngine(engine WorkflowEngine) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.workflowEngine = engine
+	logger.WithField("engine_nil", engine == nil).Debug("Workflow engine set")
 }
 
 // BroadcastEvent broadcasts a workflow event to all connected SSE clients
@@ -194,16 +248,28 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 	// Add panic recovery for robustness
 	defer func() {
 		if r := recover(); r != nil {
-			// Log the panic but don't crash the server
-			// In production, this would use proper logging
-			_ = r // Panic recovered, server continues
+			logger.WithFields(map[string]interface{}{
+				"panic": r,
+				"event_type": event.Type,
+				"run_id": event.RunID,
+			}).Error("Panic recovered in BroadcastEvent")
 		}
 	}()
+
+	logger.WithFields(map[string]interface{}{
+		"type": event.Type,
+		"run_id": event.RunID,
+		"source": event.Source,
+		"timestamp": event.Timestamp,
+	}).Debug("Broadcasting event")
 
 	// Convert event to JSON for SSE
 	data, err := json.Marshal(event)
 	if err != nil {
-		// Log marshaling error but don't crash
+		logger.WithFields(map[string]interface{}{
+			"error": err.Error(),
+			"event_type": event.Type,
+		}).Error("Failed to marshal event")
 		return
 	}
 
@@ -213,13 +279,24 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 	// Send to global event channel (non-blocking)
 	select {
 	case s.eventsChan <- message:
+		logger.WithFields(map[string]interface{}{
+			"event_type": event.Type,
+			"message_size": len(message),
+		}).Debug("Event sent to global channel")
 	default:
 		// Channel full, drop message - this is expected behavior
 		// for graceful degradation under load
+		logger.WithFields(map[string]interface{}{
+			"event_type": event.Type,
+			"run_id": event.RunID,
+			"channel_size": len(s.eventsChan),
+			"channel_cap": cap(s.eventsChan),
+		}).Warn("Event channel full, dropping message")
 	}
 
 	// Also send to run-specific subscribers
 	if s.runEventHub != nil && event.RunID != "" {
+		logger.WithField("run_id", event.RunID).Debug("Broadcasting to run-specific subscribers")
 		s.runEventHub.broadcast(event)
 	}
 }
@@ -228,6 +305,12 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 // It sends an initial "hello world" event upon connection and manages the
 // client lifecycle, including proper cleanup on disconnect.
 func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
+	clientID := r.RemoteAddr
+	logger.WithFields(map[string]interface{}{
+		"client_id": clientID,
+		"user_agent": r.UserAgent(),
+	}).Debug("SSE connection initiated")
+
 	// Set SSE specific headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -237,6 +320,7 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 	// Ensure buffering is disabled for real-time updates
 	flusher, ok := w.(http.Flusher)
 	if !ok {
+		logger.WithField("client_id", clientID).Error("Streaming unsupported for client")
 		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
@@ -244,30 +328,61 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 	// Send initial hello world event
 	_, _ = fmt.Fprintf(w, "data: hello world\n\n")
 	flusher.Flush()
+	logger.WithField("client_id", clientID).Debug("Initial SSE event sent")
 
 	// Create keepalive ticker for connection health
 	keepaliveTicker := time.NewTicker(30 * time.Second)
 	defer keepaliveTicker.Stop()
 
+	var eventCount int64
+	startTime := time.Now()
+
 	// Listen for events from the event channel
 	for {
 		select {
 		case event := <-s.eventsChan:
+			eventCount++
 			// Send event to client
 			if _, err := fmt.Fprint(w, event); err != nil {
 				// Client write failed, disconnect
+				logger.WithFields(map[string]interface{}{
+					"client_id": clientID,
+					"error": err.Error(),
+					"events_sent": eventCount,
+					"connection_duration": time.Since(startTime),
+				}).Debug("Client disconnected during write")
 				return
 			}
 			flusher.Flush()
+
+			if eventCount%100 == 0 {
+				logger.WithFields(map[string]interface{}{
+					"client_id": clientID,
+					"events_sent": eventCount,
+				}).Debug("SSE event milestone")
+			}
+
 		case <-keepaliveTicker.C:
 			// Send keepalive comment to maintain connection
 			if _, err := fmt.Fprintf(w, ":keepalive\n\n"); err != nil {
 				// Keepalive failed, client disconnected
+				logger.WithFields(map[string]interface{}{
+					"client_id": clientID,
+					"error": err.Error(),
+					"events_sent": eventCount,
+					"connection_duration": time.Since(startTime),
+				}).Debug("Client disconnected during keepalive")
 				return
 			}
 			flusher.Flush()
+
 		case <-r.Context().Done():
 			// Client disconnected
+			logger.WithFields(map[string]interface{}{
+				"client_id": clientID,
+				"events_sent": eventCount,
+				"connection_duration": time.Since(startTime),
+			}).Info("SSE client disconnected")
 			return
 		}
 	}
@@ -277,19 +392,30 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 
 // respondWithError sends a JSON error response with the specified status code
 func (s *Server) respondWithError(w http.ResponseWriter, statusCode int, message string) {
+	logger.WithFields(map[string]interface{}{
+		"status_code": statusCode,
+		"error_message": message,
+	}).Debug("Sending error response")
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	response := map[string]string{
 		"error": message,
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		// Log the error but don't attempt to write more to the response
+		logger.WithFields(map[string]interface{}{
+			"error": err.Error(),
+			"status_code": statusCode,
+			"error_message": message,
+		}).Error("Failed to encode error response")
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
 
 // updateRunStatus updates a run's status and worktree directory in a thread-safe manner
 func (s *Server) updateRunStatus(run *Run, status string, worktreeDir string) {
+	previousStatus := run.Status
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -298,6 +424,14 @@ func (s *Server) updateRunStatus(run *Run, status string, worktreeDir string) {
 	if worktreeDir != "" {
 		run.WorktreeDir = worktreeDir
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"run_id": run.ID,
+		"previous_status": previousStatus,
+		"new_status": status,
+		"worktree_dir": worktreeDir,
+		"updated": run.Updated,
+	}).Debug("Run status updated")
 }
 
 // UpdateRunStatus updates a run's status (exported for testing)
@@ -310,4 +444,15 @@ func (s *Server) UpdateRunStatus(run *Run, status string, worktreeDir string) {
 		s.runs[run.ID] = run
 	}
 	s.mu.Unlock()
+}
+
+// countRunsByStatus counts runs with a specific status
+func (s *Server) countRunsByStatus(status string) int {
+	count := 0
+	for _, run := range s.runs {
+		if run.Status == status {
+			count++
+		}
+	}
+	return count
 }

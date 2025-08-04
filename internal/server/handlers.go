@@ -17,7 +17,13 @@ const (
 
 // healthHandler responds to health check requests
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Debug("Health check requested")
+
 	if r.Method != http.MethodGet {
+		logger.WithFields(map[string]interface{}{
+			"method": r.Method,
+			"expected": http.MethodGet,
+		}).Debug("Invalid method for health check")
 		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
@@ -31,12 +37,20 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		logger.Errorf("Failed to encode health response: %v", err)
+	} else {
+		logger.WithField("response", response).Debug("Health check response sent")
 	}
 }
 
 // agentsListHandler returns the list of available agents (hardcoded for MVP)
 func (s *Server) agentsListHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Debug("Agents list requested")
+
 	if r.Method != http.MethodGet {
+		logger.WithFields(map[string]interface{}{
+			"method": r.Method,
+			"expected": http.MethodGet,
+		}).Debug("Invalid method for agents list")
 		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
@@ -50,15 +64,27 @@ func (s *Server) agentsListHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	logger.WithField("agent_count", len(agents)).Debug("Returning agents list")
 	w.Header().Set("Content-Type", contentTypeJSON)
 	if err := json.NewEncoder(w).Encode(agents); err != nil {
 		logger.Errorf("Failed to encode agents list: %v", err)
+	} else {
+		logger.Debug("Agents list sent successfully")
 	}
 }
 
 // agentsRunHandler starts a new workflow run from a GitHub issue
 func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
+	logger.WithFields(map[string]interface{}{
+		"method": r.Method,
+		"content_length": r.ContentLength,
+	}).Debug("Agent run requested")
+
 	if r.Method != http.MethodPost {
+		logger.WithFields(map[string]interface{}{
+			"method": r.Method,
+			"expected": http.MethodPost,
+		}).Debug("Invalid method for agent run")
 		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
@@ -68,25 +94,41 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 		AgentID  string `json:"agent_id"`
 	}
 
+	logger.Debug("Decoding agent run payload")
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		logger.Infof("Invalid JSON payload in agentsRunHandler: %v", err)
 		s.respondWithError(w, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
 
+	logger.WithFields(map[string]interface{}{
+		"issue_url": payload.IssueURL,
+		"agent_id": payload.AgentID,
+	}).Debug("Agent run payload decoded")
+
 	// Validate payload
+	logger.Debug("Validating agent run payload")
 	if payload.IssueURL == "" {
+		logger.Debug("Missing issue_url in payload")
 		s.respondWithError(w, http.StatusBadRequest, "issue_url is required")
 		return
 	}
 	if payload.AgentID == "" {
+		logger.Debug("Missing agent_id in payload")
 		s.respondWithError(w, http.StatusBadRequest, "agent_id is required")
 		return
 	}
 
 	// Create new run
+	runID := GenerateID("run")
+	logger.WithFields(map[string]interface{}{
+		"run_id": runID,
+		"agent_id": payload.AgentID,
+		"issue_url": payload.IssueURL,
+	}).Info("Creating new workflow run")
+
 	run := &Run{
-		ID:      GenerateID("run"),
+		ID:      runID,
 		AgentID: payload.AgentID,
 		Status:  "running",
 		Issue:   payload.IssueURL,
@@ -95,36 +137,72 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Store run
+	logger.WithField("run_id", run.ID).Debug("Storing run in memory")
 	s.mu.Lock()
 	s.runs[run.ID] = run
+	runCount := len(s.runs)
 	s.mu.Unlock()
+
+	logger.WithFields(map[string]interface{}{
+		"run_id": run.ID,
+		"total_runs": runCount,
+	}).Debug("Run stored")
 
 	// Start workflow if engine is available
 	if s.workflowEngine != nil {
+		logger.WithFields(map[string]interface{}{
+			"run_id": run.ID,
+			"issue_url": payload.IssueURL,
+		}).Debug("Starting workflow execution")
+
 		worktreeDir, err := s.workflowEngine.StartWorkflow(r.Context(), payload.IssueURL, run.ID)
 		if err != nil {
-			logger.Errorf("Failed to start workflow for run %s: %v", run.ID, err)
+			logger.WithFields(map[string]interface{}{
+				"run_id": run.ID,
+				"error": err.Error(),
+				"issue_url": payload.IssueURL,
+			}).Error("Failed to start workflow")
 			// Update run status to failed
 			s.updateRunStatus(run, "failed", "")
 		} else {
-			logger.Infof("Workflow started for run %s in directory: %s", run.ID, worktreeDir)
+			logger.WithFields(map[string]interface{}{
+				"run_id": run.ID,
+				"worktree_dir": worktreeDir,
+				"issue_url": payload.IssueURL,
+			}).Info("Workflow started successfully")
 			// Update run with worktree directory
 			s.updateRunStatus(run, run.Status, worktreeDir)
 		}
 	} else {
-		logger.Infof("Workflow engine not available, run %s created without execution", run.ID)
+		logger.WithFields(map[string]interface{}{
+			"run_id": run.ID,
+			"action": "run_created_without_execution",
+		}).Info("Workflow engine not available")
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"run_id": run.ID,
+		"status": run.Status,
+	}).Debug("Sending run response")
 
 	w.Header().Set("Content-Type", contentTypeJSON)
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(run); err != nil {
 		logger.Errorf("Failed to encode run response: %v", err)
+	} else {
+		logger.WithField("run_id", run.ID).Debug("Run response sent successfully")
 	}
 }
 
 // runsListHandler returns all runs from in-memory store
 func (s *Server) runsListHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Debug("Runs list requested")
+
 	if r.Method != http.MethodGet {
+		logger.WithFields(map[string]interface{}{
+			"method": r.Method,
+			"expected": http.MethodGet,
+		}).Debug("Invalid method for runs list")
 		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
@@ -134,23 +212,43 @@ func (s *Server) runsListHandler(w http.ResponseWriter, r *http.Request) {
 	for _, run := range s.runs {
 		runs = append(runs, *run)
 	}
+	runCount := len(runs)
 	s.mu.Unlock()
+
+	logger.WithFields(map[string]interface{}{
+		"run_count": runCount,
+		"active_runs": s.countRunsByStatus("running"),
+		"completed_runs": s.countRunsByStatus("completed"),
+		"failed_runs": s.countRunsByStatus("failed"),
+	}).Debug("Returning runs list")
 
 	w.Header().Set("Content-Type", contentTypeJSON)
 	if err := json.NewEncoder(w).Encode(runs); err != nil {
 		logger.Errorf("Failed to encode runs list: %v", err)
+	} else {
+		logger.WithField("count", runCount).Debug("Runs list sent successfully")
 	}
 }
 
 // runDetailsHandler returns details for a specific run
 func (s *Server) runDetailsHandler(w http.ResponseWriter, r *http.Request) {
+	runID := r.PathValue("id")
+	logger.WithFields(map[string]interface{}{
+		"run_id": runID,
+		"method": r.Method,
+	}).Debug("Run details requested")
+
 	if r.Method != http.MethodGet {
+		logger.WithFields(map[string]interface{}{
+			"method": r.Method,
+			"expected": http.MethodGet,
+		}).Debug("Invalid method for run details")
 		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
-	runID := r.PathValue("id")
 	if runID == "" {
+		logger.Debug("Missing run ID in request")
 		s.respondWithError(w, http.StatusBadRequest, "Run ID is required")
 		return
 	}
@@ -160,9 +258,20 @@ func (s *Server) runDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 
 	if !exists {
+		logger.WithFields(map[string]interface{}{
+			"run_id": runID,
+			"total_runs": len(s.runs),
+		}).Debug("Run not found")
 		s.respondWithError(w, http.StatusNotFound, "Run not found")
 		return
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"run_id": run.ID,
+		"status": run.Status,
+		"created": run.Created,
+		"updated": run.Updated,
+	}).Debug("Run found")
 
 	// Create response with run details
 	response := map[string]interface{}{
@@ -177,20 +286,42 @@ func (s *Server) runDetailsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Add workflow state if available
 	if s.workflowEngine != nil {
+		logger.WithField("run_id", runID).Debug("Fetching workflow state")
 		if state, err := s.workflowEngine.GetWorkflowState(r.Context(), runID); err == nil {
 			response["current_step"] = state.CurrentStepDescription
+			logger.WithFields(map[string]interface{}{
+				"run_id": runID,
+				"workflow_status": state.Status,
+				"current_step": state.CurrentStepDescription,
+			}).Debug("Workflow state retrieved")
+
 			// Update run status based on workflow state
-			if state.Status == "completed" {
+			if state.Status == "completed" && run.Status != "completed" {
+				logger.WithFields(map[string]interface{}{
+					"run_id": runID,
+					"previous_status": run.Status,
+				}).Info("Updating run status to completed")
 				s.mu.Lock()
 				run.Status = "completed"
 				run.Updated = time.Now()
 				s.mu.Unlock()
 			}
+		} else {
+			logger.WithFields(map[string]interface{}{
+				"run_id": runID,
+				"error": err.Error(),
+			}).Debug("Failed to get workflow state")
 		}
 	}
 
+	logger.WithField("run_id", runID).Debug("Sending run details response")
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.WithFields(map[string]interface{}{
+			"run_id": runID,
+			"error": err.Error(),
+		}).Error("Failed to encode run details")
+	}
 }
 
 // runEventsHandler provides SSE endpoint for run-specific events

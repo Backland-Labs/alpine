@@ -27,16 +27,25 @@ type Logger struct {
 	output io.Writer
 	fields map[string]interface{}
 	mu     sync.Mutex
+	zap    *ZapLogger // New Zap backend
 }
 
 var (
 	globalLogger *Logger
 	globalMu     sync.Mutex
+	useZap       bool
 )
 
 func init() {
-	// Initialize default global logger
-	globalLogger = New(InfoLevel)
+	// Try to initialize Zap logger from environment
+	if zapLogger, err := NewZapLoggerFromEnv(); err == nil {
+		globalLogger = &Logger{zap: zapLogger}
+		useZap = true
+	} else {
+		// Fall back to legacy logger
+		globalLogger = New(InfoLevel)
+		useZap = false
+	}
 }
 
 // New creates a new logger with the specified level
@@ -57,6 +66,10 @@ func (l *Logger) SetOutput(w io.Writer) {
 
 // WithField adds a single field to the logger context
 func (l *Logger) WithField(key string, value interface{}) *Logger {
+	if l.zap != nil {
+		return l.zap.WithField(key, value)
+	}
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -78,6 +91,10 @@ func (l *Logger) WithField(key string, value interface{}) *Logger {
 
 // WithFields adds multiple fields to the logger context
 func (l *Logger) WithFields(fields map[string]interface{}) *Logger {
+	if l.zap != nil {
+		return l.zap.WithFields(fields)
+	}
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -132,32 +149,74 @@ func (l *Logger) log(level Level, levelStr string, format string, args ...interf
 
 // Debug logs a debug message
 func (l *Logger) Debug(msg string) {
-	l.log(DebugLevel, "[DEBUG]", "%s", msg)
+	if l.zap != nil {
+		l.zap.Debug(msg)
+	} else {
+		l.log(DebugLevel, "[DEBUG]", "%s", msg)
+	}
 }
 
 // Debugf logs a formatted debug message
 func (l *Logger) Debugf(format string, args ...interface{}) {
-	l.log(DebugLevel, "[DEBUG]", format, args...)
+	if l.zap != nil {
+		l.zap.Debugf(format, args...)
+	} else {
+		l.log(DebugLevel, "[DEBUG]", format, args...)
+	}
 }
 
 // Info logs an info message
 func (l *Logger) Info(msg string) {
-	l.log(InfoLevel, "[INFO]", "%s", msg)
+	if l.zap != nil {
+		l.zap.Info(msg)
+	} else {
+		l.log(InfoLevel, "[INFO]", "%s", msg)
+	}
 }
 
 // Infof logs a formatted info message
 func (l *Logger) Infof(format string, args ...interface{}) {
-	l.log(InfoLevel, "[INFO]", format, args...)
+	if l.zap != nil {
+		l.zap.Infof(format, args...)
+	} else {
+		l.log(InfoLevel, "[INFO]", format, args...)
+	}
+}
+
+// Warn logs a warning message
+func (l *Logger) Warn(msg string) {
+	if l.zap != nil {
+		l.zap.Warn(msg)
+	} else {
+		l.log(InfoLevel, "[WARN]", "%s", msg)
+	}
+}
+
+// Warnf logs a formatted warning message
+func (l *Logger) Warnf(format string, args ...interface{}) {
+	if l.zap != nil {
+		l.zap.Warnf(format, args...)
+	} else {
+		l.log(InfoLevel, "[WARN]", format, args...)
+	}
 }
 
 // Error logs an error message
 func (l *Logger) Error(msg string) {
-	l.log(ErrorLevel, "[ERROR]", "%s", msg)
+	if l.zap != nil {
+		l.zap.Error(msg)
+	} else {
+		l.log(ErrorLevel, "[ERROR]", "%s", msg)
+	}
 }
 
 // Errorf logs a formatted error message
 func (l *Logger) Errorf(format string, args ...interface{}) {
-	l.log(ErrorLevel, "[ERROR]", format, args...)
+	if l.zap != nil {
+		l.zap.Errorf(format, args...)
+	} else {
+		l.log(ErrorLevel, "[ERROR]", format, args...)
+	}
 }
 
 // GetLogger returns the global logger instance

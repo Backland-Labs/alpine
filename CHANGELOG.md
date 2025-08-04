@@ -7,7 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes
+
+#### Removed --continue Flag
+- **BREAKING: Removed `--continue` flag** - This flag has been removed to simplify the CLI interface
+- **Migration path** - Use `alpine --no-plan --no-worktree` instead of `alpine --continue`
+- **Rationale** - The `--continue` flag was redundant as it was equivalent to combining `--no-plan` and `--no-worktree` flags
+- **Impact** - Scripts or workflows using `--continue` must be updated to use the new flag combination
+
 ### Added
+
+#### Enhanced Logging System with Uber Zap
+- **Dual-logger architecture** - Automatic upgrade from simple logger to Uber Zap when configured
+- **Structured logging** - Full support for contextual fields and JSON output in production
+- **Environment-driven configuration** - All logging configured via environment variables:
+  - `ALPINE_LOG_LEVEL` - Set logging level (debug, info, error)
+  - `ALPINE_LOG_FORMAT` - Output format (json for production, console for development)
+  - `ALPINE_LOG_CALLER` - Include file:line information
+  - `ALPINE_LOG_STACKTRACE` - Configure stack trace verbosity
+  - `ALPINE_LOG_SAMPLING` - Enable high-volume log sampling
+- **Maximum verbosity** - Debug mode provides comprehensive execution details
+- **Performance optimized** - Minimal overhead with buffering and sampling capabilities
+- **Backward compatible** - Falls back to simple logger when Zap is not configured
+- **HTTP request logging** - Added middleware for REST API request/response logging
+- **Specialized loggers** - Created dedicated loggers for workflows and server operations
+
+#### Parallel Plan Generation with Git Worktrees
+- **New `--worktree` flag** - Enable isolated plan generation using Git worktrees
+- **Prevents file conflicts** - Multiple `alpine plan` commands can run concurrently without overwriting `plan.md`
+- **Cleanup control** - `--cleanup` flag (default: true) to manage worktree lifecycle
+- **Task isolation** - Each plan generation gets its own isolated filesystem environment
+- **Example usage**:
+  ```bash
+  # Generate plans in parallel for multiple issues
+  alpine plan --worktree gh-issue https://github.com/owner/repo/issues/123 &
+  alpine plan --worktree gh-issue https://github.com/owner/repo/issues/124 &
+  wait
+  ```
+
+#### Real-time Output Streaming
+- **Live Claude Code output** - Stream execution output in real-time instead of buffering
+- **Event emitters** - Structured event emission for workflow lifecycle
+- **AG UI protocol integration** - Standardized event format for UI consumption
+- **Stream writers** - Efficient handling of large output streams
 
 #### REST API for Programmatic Workflow Management
 - **Comprehensive REST API** - 10 endpoints for complete workflow management via HTTP
@@ -137,7 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Integration tests** in `test/integration/bare_mode_test.go`
 
 ### Breaking Changes
-- None. All changes are backward compatible with existing workflows.
+- **Removed `--continue` flag** - Use `alpine --no-plan --no-worktree` instead. See breaking changes section above for migration details.
 
 ---
 
@@ -208,7 +250,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI**: Enhanced with worktree flags and dependency injection
 
 ### Breaking Changes
-- None. All changes are backward compatible with existing workflows.
+- **Removed `--continue` flag** - Use `alpine --no-plan --no-worktree` instead. See breaking changes section above for migration details.
 
 ---
 
