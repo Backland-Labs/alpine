@@ -64,7 +64,7 @@ func NewServer(port int) *Server {
 	server := &Server{
 		port: port,
 		httpServer: &http.Server{
-			Addr:    fmt.Sprintf("localhost:%d", port),
+			Addr:    fmt.Sprintf("0.0.0.0:%d", port),
 			Handler: mux,
 		},
 		eventsChan:  make(chan string, defaultEventBufferSize),
@@ -97,7 +97,7 @@ func NewServerWithConfig(port int, streamBufferSize int, maxClientsPerRun int) *
 	server := &Server{
 		port: port,
 		httpServer: &http.Server{
-			Addr:    fmt.Sprintf("localhost:%d", port),
+			Addr:    fmt.Sprintf("0.0.0.0:%d", port),
 			Handler: mux,
 		},
 		eventsChan:  make(chan string, bufferSize),
