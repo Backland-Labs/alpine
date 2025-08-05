@@ -171,15 +171,15 @@ func (s *Server) Start(ctx context.Context) error {
 	// Register endpoint handlers with logging
 	logger.Debug("Registering HTTP endpoints")
 
-	mux.Handle("/events", middleware(logger.SSEMiddleware(log)(http.HandlerFunc(s.sseHandler))))
+	mux.Handle("/events", logger.SSEMiddleware(log)(http.HandlerFunc(s.sseHandler)))
 	mux.Handle("/health", middleware(http.HandlerFunc(s.healthHandler)))
 	mux.Handle("/agents/list", middleware(http.HandlerFunc(s.agentsListHandler)))
 	mux.Handle("/agents/run", middleware(http.HandlerFunc(s.agentsRunHandler)))
 	mux.Handle("/runs", middleware(http.HandlerFunc(s.runsListHandler)))
 	mux.Handle("/runs/{id}", middleware(http.HandlerFunc(s.runDetailsHandler)))
-	mux.Handle("/runs/{id}/events", middleware(logger.SSEMiddleware(log)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/runs/{id}/events", logger.SSEMiddleware(log)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.enhancedRunEventsHandler(w, r, s.runEventHub)
-	}))))
+	})))
 	mux.Handle("/runs/{id}/cancel", middleware(http.HandlerFunc(s.runCancelHandler)))
 	mux.Handle("/plans/{runId}", middleware(http.HandlerFunc(s.planGetHandler)))
 	mux.Handle("/plans/{runId}/approve", middleware(http.HandlerFunc(s.planApproveHandler)))
