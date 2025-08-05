@@ -7,8 +7,8 @@ import (
 // TestParseGitHubIssueURL tests parsing valid GitHub issue URLs
 func TestParseGitHubIssueURL(t *testing.T) {
 	tests := []struct {
-		name     string
-		issueURL string
+		name      string
+		issueURL  string
 		wantOwner string
 		wantRepo  string
 		wantIssue int
@@ -123,20 +123,20 @@ func TestParseGitHubIssueURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			owner, repo, issueNum, err := parseGitHubIssueURL(tt.issueURL)
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseGitHubIssueURL() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			
+
 			if owner != tt.wantOwner {
 				t.Errorf("parseGitHubIssueURL() owner = %v, want %v", owner, tt.wantOwner)
 			}
-			
+
 			if repo != tt.wantRepo {
 				t.Errorf("parseGitHubIssueURL() repo = %v, want %v", repo, tt.wantRepo)
 			}
-			
+
 			if issueNum != tt.wantIssue {
 				t.Errorf("parseGitHubIssueURL() issueNum = %v, want %v", issueNum, tt.wantIssue)
 			}

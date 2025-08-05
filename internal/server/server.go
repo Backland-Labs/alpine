@@ -55,7 +55,7 @@ type Server struct {
 // The server is initialized but not started - use Start() to begin listening.
 func NewServer(port int) *Server {
 	logger.WithFields(map[string]interface{}{
-		"port": port,
+		"port":              port,
 		"event_buffer_size": defaultEventBufferSize,
 	}).Debug("Creating new server")
 
@@ -80,8 +80,8 @@ func NewServer(port int) *Server {
 // NewServerWithConfig creates a new HTTP server instance with custom configuration
 func NewServerWithConfig(port int, streamBufferSize int, maxClientsPerRun int) *Server {
 	logger.WithFields(map[string]interface{}{
-		"port": port,
-		"stream_buffer_size": streamBufferSize,
+		"port":                port,
+		"stream_buffer_size":  streamBufferSize,
 		"max_clients_per_run": maxClientsPerRun,
 	}).Debug("Creating new server with custom config")
 
@@ -152,7 +152,7 @@ func (s *Server) Start(ctx context.Context) error {
 		s.running = false
 		s.mu.Unlock()
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":   err.Error(),
 			"address": addr,
 		}).Error("Failed to create listener")
 		return fmt.Errorf("failed to listen: %w", err)
@@ -249,17 +249,17 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.WithFields(map[string]interface{}{
-				"panic": r,
+				"panic":      r,
 				"event_type": event.Type,
-				"run_id": event.RunID,
+				"run_id":     event.RunID,
 			}).Error("Panic recovered in BroadcastEvent")
 		}
 	}()
 
 	logger.WithFields(map[string]interface{}{
-		"type": event.Type,
-		"run_id": event.RunID,
-		"source": event.Source,
+		"type":      event.Type,
+		"run_id":    event.RunID,
+		"source":    event.Source,
 		"timestamp": event.Timestamp,
 	}).Debug("Broadcasting event")
 
@@ -267,7 +267,7 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 	data, err := json.Marshal(event)
 	if err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":      err.Error(),
 			"event_type": event.Type,
 		}).Error("Failed to marshal event")
 		return
@@ -280,17 +280,17 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 	select {
 	case s.eventsChan <- message:
 		logger.WithFields(map[string]interface{}{
-			"event_type": event.Type,
+			"event_type":   event.Type,
 			"message_size": len(message),
 		}).Debug("Event sent to global channel")
 	default:
 		// Channel full, drop message - this is expected behavior
 		// for graceful degradation under load
 		logger.WithFields(map[string]interface{}{
-			"event_type": event.Type,
-			"run_id": event.RunID,
+			"event_type":   event.Type,
+			"run_id":       event.RunID,
 			"channel_size": len(s.eventsChan),
-			"channel_cap": cap(s.eventsChan),
+			"channel_cap":  cap(s.eventsChan),
 		}).Warn("Event channel full, dropping message")
 	}
 
@@ -307,7 +307,7 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 	clientID := r.RemoteAddr
 	logger.WithFields(map[string]interface{}{
-		"client_id": clientID,
+		"client_id":  clientID,
 		"user_agent": r.UserAgent(),
 	}).Debug("SSE connection initiated")
 
@@ -346,9 +346,9 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 			if _, err := fmt.Fprint(w, event); err != nil {
 				// Client write failed, disconnect
 				logger.WithFields(map[string]interface{}{
-					"client_id": clientID,
-					"error": err.Error(),
-					"events_sent": eventCount,
+					"client_id":           clientID,
+					"error":               err.Error(),
+					"events_sent":         eventCount,
 					"connection_duration": time.Since(startTime),
 				}).Debug("Client disconnected during write")
 				return
@@ -357,7 +357,7 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 
 			if eventCount%100 == 0 {
 				logger.WithFields(map[string]interface{}{
-					"client_id": clientID,
+					"client_id":   clientID,
 					"events_sent": eventCount,
 				}).Debug("SSE event milestone")
 			}
@@ -367,9 +367,9 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 			if _, err := fmt.Fprintf(w, ":keepalive\n\n"); err != nil {
 				// Keepalive failed, client disconnected
 				logger.WithFields(map[string]interface{}{
-					"client_id": clientID,
-					"error": err.Error(),
-					"events_sent": eventCount,
+					"client_id":           clientID,
+					"error":               err.Error(),
+					"events_sent":         eventCount,
 					"connection_duration": time.Since(startTime),
 				}).Debug("Client disconnected during keepalive")
 				return
@@ -379,8 +379,8 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			// Client disconnected
 			logger.WithFields(map[string]interface{}{
-				"client_id": clientID,
-				"events_sent": eventCount,
+				"client_id":           clientID,
+				"events_sent":         eventCount,
 				"connection_duration": time.Since(startTime),
 			}).Info("SSE client disconnected")
 			return
@@ -393,7 +393,7 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 // respondWithError sends a JSON error response with the specified status code
 func (s *Server) respondWithError(w http.ResponseWriter, statusCode int, message string) {
 	logger.WithFields(map[string]interface{}{
-		"status_code": statusCode,
+		"status_code":   statusCode,
 		"error_message": message,
 	}).Debug("Sending error response")
 
@@ -404,8 +404,8 @@ func (s *Server) respondWithError(w http.ResponseWriter, statusCode int, message
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
-			"status_code": statusCode,
+			"error":         err.Error(),
+			"status_code":   statusCode,
 			"error_message": message,
 		}).Error("Failed to encode error response")
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -426,11 +426,11 @@ func (s *Server) updateRunStatus(run *Run, status string, worktreeDir string) {
 	}
 
 	logger.WithFields(map[string]interface{}{
-		"run_id": run.ID,
+		"run_id":          run.ID,
 		"previous_status": previousStatus,
-		"new_status": status,
-		"worktree_dir": worktreeDir,
-		"updated": run.Updated,
+		"new_status":      status,
+		"worktree_dir":    worktreeDir,
+		"updated":         run.Updated,
 	}).Debug("Run status updated")
 }
 

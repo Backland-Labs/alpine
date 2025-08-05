@@ -11,11 +11,11 @@ import (
 const (
 	// gitHubDomain is the expected domain for GitHub URLs
 	gitHubDomain = "github.com"
-	
+
 	// gitHubIssueURLPattern matches GitHub issue URLs in the format:
 	// https://github.com/owner/repo/issues/123
 	gitHubIssueURLPattern = `^https://github\.com/([^/]+)/([^/]+)/issues/(\d+)$`
-	
+
 	// gitCloneURLTemplate is the template for building git clone URLs
 	gitCloneURLTemplate = "https://github.com/%s/%s.git"
 )
@@ -23,7 +23,7 @@ const (
 var (
 	// ErrInvalidGitHubURL indicates the provided URL is not a valid GitHub issue URL
 	ErrInvalidGitHubURL = errors.New("invalid GitHub issue URL")
-	
+
 	// gitHubIssueRegex is a compiled regex for parsing GitHub issue URLs
 	gitHubIssueRegex = regexp.MustCompile(gitHubIssueURLPattern)
 )
@@ -43,8 +43,9 @@ var (
 //   - err: Any error encountered during parsing
 //
 // Example:
-//   owner, repo, issue, err := parseGitHubIssueURL("https://github.com/owner/repo/issues/123")
-//   // Returns: "owner", "repo", 123, nil
+//
+//	owner, repo, issue, err := parseGitHubIssueURL("https://github.com/owner/repo/issues/123")
+//	// Returns: "owner", "repo", 123, nil
 func parseGitHubIssueURL(issueURL string) (owner, repo string, issueNum int, err error) {
 	// Validate input
 	if strings.TrimSpace(issueURL) == "" {
@@ -56,12 +57,12 @@ func parseGitHubIssueURL(issueURL string) (owner, repo string, issueNum int, err
 	if len(matches) != 4 {
 		return "", "", 0, fmt.Errorf("URL does not match GitHub issue format 'https://github.com/owner/repo/issues/NUMBER': %w", ErrInvalidGitHubURL)
 	}
-	
+
 	// Extract components
 	owner = strings.TrimSpace(matches[1])
 	repo = strings.TrimSpace(matches[2])
 	issueNumberStr := strings.TrimSpace(matches[3])
-	
+
 	// Additional validation for empty components after regex match
 	if owner == "" {
 		return "", "", 0, fmt.Errorf("repository owner cannot be empty: %w", ErrInvalidGitHubURL)
@@ -69,18 +70,18 @@ func parseGitHubIssueURL(issueURL string) (owner, repo string, issueNum int, err
 	if repo == "" {
 		return "", "", 0, fmt.Errorf("repository name cannot be empty: %w", ErrInvalidGitHubURL)
 	}
-	
+
 	// Parse issue number
 	issueNumber, err := strconv.Atoi(issueNumberStr)
 	if err != nil {
 		return "", "", 0, fmt.Errorf("invalid issue number '%s': %w", issueNumberStr, err)
 	}
-	
+
 	// Validate issue number is positive
 	if issueNumber <= 0 {
 		return "", "", 0, fmt.Errorf("issue number must be positive, got %d: %w", issueNumber, ErrInvalidGitHubURL)
 	}
-	
+
 	return owner, repo, issueNumber, nil
 }
 
@@ -94,8 +95,9 @@ func parseGitHubIssueURL(issueURL string) (owner, repo string, issueNum int, err
 //   - The complete git clone URL in HTTPS format
 //
 // Example:
-//   url := buildGitCloneURL("owner", "repo")
-//   // Returns: "https://github.com/owner/repo.git"
+//
+//	url := buildGitCloneURL("owner", "repo")
+//	// Returns: "https://github.com/owner/repo.git"
 func buildGitCloneURL(owner, repo string) string {
 	return fmt.Sprintf(gitCloneURLTemplate, owner, repo)
 }
@@ -112,8 +114,9 @@ func buildGitCloneURL(owner, repo string) string {
 //   - true if the URL is a valid GitHub issue URL, false otherwise
 //
 // Example:
-//   valid := isGitHubIssueURL("https://github.com/owner/repo/issues/123")
-//   // Returns: true
+//
+//	valid := isGitHubIssueURL("https://github.com/owner/repo/issues/123")
+//	// Returns: true
 func isGitHubIssueURL(url string) bool {
 	_, _, _, err := parseGitHubIssueURL(url)
 	return err == nil

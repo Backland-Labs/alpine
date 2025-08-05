@@ -37,7 +37,7 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	if err := todoFile.Close(); err != nil {
 		_ = os.Remove(todoFilePath)
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":     err.Error(),
 			"todo_file": todoFilePath,
 		}).Error("Failed to close todo file")
 		return "", nil, fmt.Errorf("failed to close todo file: %w", err)
@@ -49,7 +49,7 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	if err := os.MkdirAll(claudeDir, 0755); err != nil {
 		_ = os.Remove(todoFilePath)
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":      err.Error(),
 			"claude_dir": claudeDir,
 		}).Error("Failed to create .claude directory")
 		return "", nil, fmt.Errorf("failed to create .claude directory: %w", err)
@@ -61,7 +61,7 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	if err := e.copyHookScript(hookScriptPath); err != nil {
 		_ = os.Remove(todoFilePath)
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":            err.Error(),
 			"hook_script_path": hookScriptPath,
 		}).Error("Failed to copy hook script")
 		return "", nil, fmt.Errorf("failed to copy hook script: %w", err)
@@ -86,13 +86,13 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	settingsPath := filepath.Join(claudeDir, "settings.local.json")
 	logger.WithFields(map[string]interface{}{
 		"settings_path": settingsPath,
-		"hook_script": absHookScriptPath,
+		"hook_script":   absHookScriptPath,
 	}).Debug("Generating Claude settings")
 	if err := e.generateClaudeSettings(settingsPath, absHookScriptPath); err != nil {
 		_ = os.Remove(todoFilePath)
 		_ = os.Remove(hookScriptPath)
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":         err.Error(),
 			"settings_path": settingsPath,
 		}).Error("Failed to generate Claude settings")
 		return "", nil, fmt.Errorf("failed to generate Claude settings: %w", err)
@@ -107,8 +107,8 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	// Return cleanup function
 	cleanup = func() {
 		logger.WithFields(map[string]interface{}{
-			"todo_file": todoFilePath,
-			"hook_script": hookScriptPath,
+			"todo_file":     todoFilePath,
+			"hook_script":   hookScriptPath,
 			"settings_file": settingsPath,
 		}).Debug("Cleaning up TodoWrite hook")
 		_ = os.Remove(todoFilePath)
@@ -183,8 +183,8 @@ func (e *Executor) generateClaudeSettings(settingsPath, hookScriptPath string) e
 
 	logger.WithFields(map[string]interface{}{
 		"settings_path": settingsPath,
-		"hook_script": hookScriptPath,
-		"hooks_count": 2,
+		"hook_script":   hookScriptPath,
+		"hooks_count":   2,
 	}).Info("Generated Claude settings file with TodoWrite hooks")
 	return nil
 }

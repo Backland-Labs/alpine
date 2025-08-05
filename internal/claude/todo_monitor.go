@@ -27,7 +27,7 @@ func NewTodoMonitor(filePath string) *TodoMonitor {
 // Start begins monitoring the todo file for changes
 func (tm *TodoMonitor) Start(ctx context.Context) {
 	logger.WithFields(map[string]interface{}{
-		"file_path": tm.filePath,
+		"file_path":     tm.filePath,
 		"poll_interval": "500ms",
 	}).Info("Starting TODO monitor")
 
@@ -47,7 +47,7 @@ func (tm *TodoMonitor) Start(ctx context.Context) {
 					select {
 					case tm.updates <- task:
 						logger.WithFields(map[string]interface{}{
-							"task": task,
+							"task":        task,
 							"task_length": len(task),
 						}).Debug("TODO update sent")
 					default:

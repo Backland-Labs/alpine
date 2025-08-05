@@ -94,13 +94,13 @@ func (e *Executor) SetRunID(runID string) {
 // Execute runs Claude with the given configuration
 func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, error) {
 	logger.WithFields(map[string]interface{}{
-		"prompt_length": len(config.Prompt),
-		"state_file": config.StateFile,
-		"mcp_servers": config.MCPServers,
-		"allowed_tools": config.AllowedTools,
+		"prompt_length":     len(config.Prompt),
+		"state_file":        config.StateFile,
+		"mcp_servers":       config.MCPServers,
+		"allowed_tools":     config.AllowedTools,
 		"has_system_prompt": config.SystemPrompt != "",
-		"timeout": config.Timeout,
-		"run_id": e.runID,
+		"timeout":           config.Timeout,
+		"run_id":            e.runID,
 	}).Info("Starting Claude execution")
 
 	// Merge executor's environment variables into config
@@ -112,7 +112,7 @@ func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, e
 		for key, value := range e.envVars {
 			config.EnvironmentVariables[key] = value
 			logger.WithFields(map[string]interface{}{
-				"key": key,
+				"key":          key,
 				"value_length": len(value),
 			}).Debug("Added environment variable")
 		}
@@ -129,9 +129,9 @@ func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, e
 	}
 
 	logger.WithFields(map[string]interface{}{
-		"state_file":    config.StateFile,
-		"mcp_servers":   len(config.MCPServers),
-		"allowed_tools": len(config.AllowedTools),
+		"state_file":     config.StateFile,
+		"mcp_servers":    len(config.MCPServers),
+		"allowed_tools":  len(config.AllowedTools),
 		"prompt_preview": truncateString(config.Prompt, 100),
 	}).Info("Claude configuration validated")
 
@@ -166,7 +166,7 @@ func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, e
 // executeWithTodoMonitoring runs Claude with real-time TODO monitoring
 func (e *Executor) executeWithTodoMonitoring(ctx context.Context, config ExecuteConfig) (string, error) {
 	logger.WithFields(map[string]interface{}{
-		"run_id": e.runID,
+		"run_id":     e.runID,
 		"state_file": config.StateFile,
 	}).Debug("Starting Claude execution with TODO monitoring")
 
@@ -174,7 +174,7 @@ func (e *Executor) executeWithTodoMonitoring(ctx context.Context, config Execute
 	todoFile, cleanup, err := e.setupTodoHook()
 	if err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":  err.Error(),
 			"run_id": e.runID,
 		}).Warn("Failed to setup TODO hook, falling back to normal execution")
 		return e.executeWithoutMonitoring(ctx, config)
@@ -246,10 +246,10 @@ func (e *Executor) executeClaudeCommand(ctx context.Context, config ExecuteConfi
 	baseCmd := e.buildCommandWithValidation(config)
 
 	logger.WithFields(map[string]interface{}{
-		"command": baseCmd.Path,
-		"args":    baseCmd.Args,
+		"command":     baseCmd.Path,
+		"args":        baseCmd.Args,
 		"working_dir": baseCmd.Dir,
-		"env_count": len(baseCmd.Env),
+		"env_count":   len(baseCmd.Env),
 	}).Debug("Preparing Claude command with TODO monitoring")
 
 	// Handle timeout
@@ -259,7 +259,7 @@ func (e *Executor) executeClaudeCommand(ctx context.Context, config ExecuteConfi
 		defer cancel()
 		logger.WithFields(map[string]interface{}{
 			"timeout": config.Timeout,
-			"run_id": e.runID,
+			"run_id":  e.runID,
 		}).Info("Setting Claude execution timeout")
 	}
 
@@ -282,8 +282,8 @@ func (e *Executor) executeClaudeCommand(ctx context.Context, config ExecuteConfi
 	// Fallback to combined output
 	startTime := time.Now()
 	logger.WithFields(map[string]interface{}{
-		"command": cmd.Path,
-		"args_count": len(cmd.Args),
+		"command":     cmd.Path,
+		"args_count":  len(cmd.Args),
 		"working_dir": cmd.Dir,
 	}).Info("Executing Claude command")
 	output, err := cmd.CombinedOutput()
@@ -291,18 +291,18 @@ func (e *Executor) executeClaudeCommand(ctx context.Context, config ExecuteConfi
 
 	if err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error":    err.Error(),
-			"duration": duration.String(),
-			"duration_ms": duration.Milliseconds(),
-			"output_length": len(output),
+			"error":          err.Error(),
+			"duration":       duration.String(),
+			"duration_ms":    duration.Milliseconds(),
+			"output_length":  len(output),
 			"output_preview": truncateString(string(output), 200),
 		}).Error("Claude execution failed")
 		return "", fmt.Errorf("claude execution failed: %w", err)
 	}
 
 	logger.WithFields(map[string]interface{}{
-		"duration": duration.String(),
-		"duration_ms": duration.Milliseconds(),
+		"duration":      duration.String(),
+		"duration_ms":   duration.Milliseconds(),
 		"output_length": len(output),
 	}).Info("Claude execution completed successfully")
 	return string(output), nil
@@ -342,10 +342,10 @@ func (e *Executor) executeWithStderrCapture(ctx context.Context, cmd *exec.Cmd) 
 
 	// Start the command
 	logger.WithFields(map[string]interface{}{
-		"command": cmd.Path,
+		"command":     cmd.Path,
 		"working_dir": cmd.Dir,
-		"streaming": e.streamer != nil,
-		"run_id": e.runID,
+		"streaming":   e.streamer != nil,
+		"run_id":      e.runID,
 	}).Info("Starting Claude command with stderr capture")
 	if err := cmd.Start(); err != nil {
 		logger.WithField("error", err.Error()).Error("Failed to start Claude command")
@@ -375,8 +375,8 @@ func (e *Executor) executeWithStderrCapture(ctx context.Context, cmd *exec.Cmd) 
 			n, err := io.Copy(io.Discard, reader)
 			logger.WithFields(map[string]interface{}{
 				"bytes_streamed": n,
-				"run_id": e.runID,
-				"message_id": messageID,
+				"run_id":         e.runID,
+				"message_id":     messageID,
 			}).Debug("Finished streaming stdout")
 			if err != nil {
 				logger.WithField("error", err.Error()).Error("Error during stdout streaming")
@@ -434,21 +434,21 @@ func (e *Executor) executeWithStderrCapture(ctx context.Context, cmd *exec.Cmd) 
 
 	if err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error":    err.Error(),
-			"duration": duration.String(),
-			"duration_ms": duration.Milliseconds(),
-			"output_length": len(output),
+			"error":          err.Error(),
+			"duration":       duration.String(),
+			"duration_ms":    duration.Milliseconds(),
+			"output_length":  len(output),
 			"output_preview": truncateString(output, 200),
-			"run_id": e.runID,
+			"run_id":         e.runID,
 		}).Error("Claude execution failed with stderr capture")
 		return "", fmt.Errorf("claude execution failed: %w", err)
 	}
 
 	logger.WithFields(map[string]interface{}{
-		"duration": duration.String(),
-		"duration_ms": duration.Milliseconds(),
+		"duration":      duration.String(),
+		"duration_ms":   duration.Milliseconds(),
 		"output_length": len(output),
-		"run_id": e.runID,
+		"run_id":        e.runID,
 	}).Info("Claude execution completed successfully with stderr capture")
 	return output, nil
 }
@@ -546,7 +546,7 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 	} else {
 		cmd.Dir = workDir
 		logger.WithFields(map[string]interface{}{
-			"workDir": workDir,
+			"workDir":        workDir,
 			"prompt_preview": truncateString(config.Prompt, 50),
 		}).Info("Set Claude working directory")
 	}
@@ -560,7 +560,7 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 		for key, value := range config.EnvironmentVariables {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
 			logger.WithFields(map[string]interface{}{
-				"key": key,
+				"key":          key,
 				"value_length": len(value),
 			}).Debug("Added environment variable to Claude command")
 		}
@@ -611,9 +611,9 @@ func (r *defaultCommandRunner) Run(ctx context.Context, config ExecuteConfig) (s
 	baseCmd := executor.buildCommandWithValidation(config)
 
 	logger.WithFields(map[string]interface{}{
-		"command": baseCmd.Path,
-		"args":    baseCmd.Args,
-		"working_dir": baseCmd.Dir,
+		"command":        baseCmd.Path,
+		"args":           baseCmd.Args,
+		"working_dir":    baseCmd.Dir,
 		"prompt_preview": truncateString(config.Prompt, 50),
 	}).Info("Preparing Claude command")
 
@@ -633,7 +633,7 @@ func (r *defaultCommandRunner) Run(ctx context.Context, config ExecuteConfig) (s
 	// Run the command
 	startTime := time.Now()
 	logger.WithFields(map[string]interface{}{
-		"command": cmd.Path,
+		"command":     cmd.Path,
 		"working_dir": cmd.Dir,
 	}).Info("Executing Claude command")
 	output, err := cmd.CombinedOutput()
@@ -641,19 +641,19 @@ func (r *defaultCommandRunner) Run(ctx context.Context, config ExecuteConfig) (s
 
 	if err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error":    err.Error(),
-			"duration": duration.String(),
-			"duration_ms": duration.Milliseconds(),
-			"output_length": len(output),
+			"error":          err.Error(),
+			"duration":       duration.String(),
+			"duration_ms":    duration.Milliseconds(),
+			"output_length":  len(output),
 			"output_preview": truncateString(string(output), 200),
 		}).Error("Claude execution failed")
 		return "", fmt.Errorf("claude execution failed: %w", err)
 	}
 
 	logger.WithFields(map[string]interface{}{
-		"duration": duration.String(),
-		"duration_ms": duration.Milliseconds(),
+		"duration":      duration.String(),
+		"duration_ms":   duration.Milliseconds(),
 		"output_length": len(output),
-		}).Info("Claude execution completed successfully")
+	}).Info("Claude execution completed successfully")
 	return string(output), nil
 }

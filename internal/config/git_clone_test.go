@@ -46,11 +46,11 @@ func TestGitCloneConfigDefaults(t *testing.T) {
 // TestGitCloneConfigEnvironmentVariables tests loading Git Clone configuration from environment
 func TestGitCloneConfigEnvironmentVariables(t *testing.T) {
 	tests := []struct {
-		name     string
-		envVars  map[string]string
-		want     GitCloneConfig
-		wantErr  bool
-		errMsg   string
+		name    string
+		envVars map[string]string
+		want    GitCloneConfig
+		wantErr bool
+		errMsg  string
 	}{
 		{
 			name: "all values set",
@@ -145,10 +145,10 @@ func TestGitCloneConfigEnvironmentVariables(t *testing.T) {
 				"ALPINE_GIT_CLONE_DEPTH":      "",
 			},
 			want: GitCloneConfig{
-				Enabled:   true,                // default
-				AuthToken: "",                  // default (empty)
-				Timeout:   300 * time.Second,   // default
-				Depth:     1,                   // default
+				Enabled:   true,              // default
+				AuthToken: "",                // default (empty)
+				Timeout:   300 * time.Second, // default
+				Depth:     1,                 // default
 			},
 		},
 		{
@@ -157,10 +157,10 @@ func TestGitCloneConfigEnvironmentVariables(t *testing.T) {
 				"ALPINE_GIT_CLONE_AUTH_TOKEN": "  token_with_spaces  ",
 			},
 			want: GitCloneConfig{
-				Enabled:   true,                // default
+				Enabled:   true,                    // default
 				AuthToken: "  token_with_spaces  ", // whitespace preserved
-				Timeout:   300 * time.Second,   // default
-				Depth:     1,                   // default
+				Timeout:   300 * time.Second,       // default
+				Depth:     1,                       // default
 			},
 		},
 	}
@@ -216,16 +216,16 @@ func TestGitCloneConfigEnvironmentVariables(t *testing.T) {
 // TestGitCloneConfigLargeTimeout tests handling of large timeout values
 func TestGitCloneConfigLargeTimeout(t *testing.T) {
 	tests := []struct {
-		name       string
-		timeout    string
+		name        string
+		timeout     string
 		wantSeconds int
-		wantErr    bool
+		wantErr     bool
 	}{
 		{
-			name:       "max int32 seconds",
-			timeout:    "2147483647", // max int32
+			name:        "max int32 seconds",
+			timeout:     "2147483647", // max int32
 			wantSeconds: 2147483647,
-			wantErr:    false,
+			wantErr:     false,
 		},
 		{
 			name:    "very large timeout (overflow)",
@@ -259,9 +259,9 @@ func TestGitCloneConfigLargeTimeout(t *testing.T) {
 
 // containsSubstring is a helper function to check if a message contains a substring
 func containsSubstring(message, substring string) bool {
-	return len(message) >= len(substring) && 
-		   message != substring && 
-		   (message[:len(substring)] == substring || 
+	return len(message) >= len(substring) &&
+		message != substring &&
+		(message[:len(substring)] == substring ||
 			message[len(message)-len(substring):] == substring ||
 			findSubstring(message, substring))
 }
