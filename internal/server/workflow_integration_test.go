@@ -12,7 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Backland-Labs/alpine/internal/config"
 	"github.com/Backland-Labs/alpine/internal/core"
+	"github.com/Backland-Labs/alpine/internal/gitx"
 )
 
 // Extend Server struct for testing workflow integration
@@ -662,3 +664,211 @@ func TestConcurrentWorkflowOperations(t *testing.T) {
 		}
 	})
 }
+
+// TestCreateWorkflowDirectoryWithGitHubClone tests GitHub URL detection and clone integration
+// in the createWorkflowDirectory method. This tests Task 4 implementation.
+func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
+	t.Run("creates worktree in cloned repository for GitHub issue URL", func(t *testing.T) {
+		// This test should FAIL initially (RED phase of TDD)
+		// because the GitHub URL detection and clone integration is not yet implemented
+		
+		// Create mock configuration with git clone enabled
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled: true,
+				Clone: config.GitCloneConfig{
+					Enabled:   true,
+					AuthToken: "",
+					Timeout:   time.Duration(30) * time.Second,
+					Depth:     1,
+				},
+			},
+		}
+
+		// Track whether clone logic was invoked
+		cloneLogicInvoked := false
+		
+		// Create mock worktree manager that can detect clone logic
+		mockWtMgr := &MockWorktreeManager{
+			CreateFunc: func(ctx context.Context, name string) (*gitx.Worktree, error) {
+				// Check if we are in a cloned repository context by checking if
+				// the worktree name has the "cloned-" prefix indicating clone logic was invoked
+				if strings.HasPrefix(name, "cloned-") {
+					cloneLogicInvoked = true
+				}
+				
+				return &gitx.Worktree{
+					Path:       "/path/to/cloned/repo/.git/worktrees/" + name,
+					Branch:     "alpine/" + name,
+					ParentRepo: "/path/to/cloned/repo",
+				}, nil
+			},
+		}
+
+		// Create workflow engine with mock components
+		engine := NewAlpineWorkflowEngine(nil, mockWtMgr, cfg)
+		
+		// Create context with GitHub issue URL (use a public repo that actually exists)
+		ctx := context.WithValue(context.Background(), "issue_url", "https://github.com/microsoft/vscode/issues/123")
+		cancel := func() {}
+		
+		// Call createWorkflowDirectory - this should detect GitHub URL and clone repository
+		worktreeDir, err := engine.createWorkflowDirectory(ctx, "test-run-123", cancel)
+		
+		// Verify that the method detects GitHub URL and attempts clone
+		if err != nil {
+			t.Errorf("expected no error, got: %v", err)
+		}
+		
+		// This test will FAIL because the GitHub URL detection is not implemented yet
+		if !cloneLogicInvoked {
+			t.Errorf("expected GitHub URL detection to trigger clone logic, but clone logic was not invoked")
+		}
+		
+		// Verify that worktree was created in cloned repository context
+		if !strings.Contains(worktreeDir, "cloned") {
+			t.Errorf("expected worktree directory to indicate cloned repository context, got: %s", worktreeDir)
+		}
+	})
+
+	t.Run("falls back to regular worktree when clone disabled", func(t *testing.T) {
+		// This test should PASS initially as it tests existing behavior
+		
+		// Create mock configuration with git clone disabled
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled: true,
+				Clone: config.GitCloneConfig{
+					Enabled: false, // Clone disabled
+				},
+			},
+		}
+
+		// Create mock worktree manager
+		mockWtMgr := &MockWorktreeManager{
+			CreateFunc: func(ctx context.Context, name string) (*gitx.Worktree, error) {
+				return &gitx.Worktree{
+					Path:       "/path/to/regular/worktree/" + name,
+					Branch:     "alpine/" + name,
+					ParentRepo: "/path/to/repo",
+				}, nil
+			},
+		}
+
+		// Create workflow engine
+		engine := NewAlpineWorkflowEngine(nil, mockWtMgr, cfg)
+		
+		// Create context with GitHub issue URL (should be ignored when clone disabled)
+		ctx := context.WithValue(context.Background(), "issue_url", "https://github.com/owner/repo/issues/123")
+		cancel := func() {}
+		
+		// Call createWorkflowDirectory
+		worktreeDir, err := engine.createWorkflowDirectory(ctx, "test-run-123", cancel)
+		
+		// Should use regular worktree creation (existing behavior)
+		if err != nil {
+			t.Errorf("expected no error, got: %v", err)
+		}
+		
+		// Should create regular worktree, not attempt clone
+		if !strings.Contains(worktreeDir, "regular") {
+			t.Errorf("expected regular worktree path, got: %s", worktreeDir)
+		}
+	})
+
+	t.Run("falls back to regular worktree when clone fails", func(t *testing.T) {
+		// This test should FAIL initially (RED phase)
+		// because clone failure handling is not yet implemented
+		
+		// Create mock configuration with git clone enabled
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled: true,
+				Clone: config.GitCloneConfig{
+					Enabled:   true,
+					AuthToken: "",
+					Timeout:   time.Duration(30) * time.Second,
+					Depth:     1,
+				},
+			},
+		}
+
+		// Create mock worktree manager
+		mockWtMgr := &MockWorktreeManager{
+			CreateFunc: func(ctx context.Context, name string) (*gitx.Worktree, error) {
+				return &gitx.Worktree{
+					Path:       "/path/to/fallback/worktree/" + name,
+					Branch:     "alpine/" + name,
+					ParentRepo: "/path/to/repo",
+				}, nil
+			},
+		}
+
+		// Create workflow engine
+		engine := NewAlpineWorkflowEngine(nil, mockWtMgr, cfg)
+		
+		// Create context with GitHub issue URL that will fail to clone
+		ctx := context.WithValue(context.Background(), "issue_url", "https://github.com/nonexistent/repo/issues/123")
+		cancel := func() {}
+		
+		// Call createWorkflowDirectory
+		worktreeDir, err := engine.createWorkflowDirectory(ctx, "test-run-123", cancel)
+		
+		// Should not return error (graceful fallback)
+		if err != nil {
+			t.Errorf("expected no error with fallback, got: %v", err)
+		}
+		
+		// Should fall back to regular worktree creation
+		// (This assertion will fail initially because fallback logic is not implemented)
+		if !strings.Contains(worktreeDir, "fallback") {
+			t.Errorf("expected fallback worktree path, got: %s", worktreeDir)
+		}
+	})
+
+	t.Run("handles non-GitHub URLs by using regular worktree", func(t *testing.T) {
+		// This test should PASS initially as it tests existing behavior
+		
+		// Create mock configuration
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled: true,
+				Clone: config.GitCloneConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		// Create mock worktree manager
+		mockWtMgr := &MockWorktreeManager{
+			CreateFunc: func(ctx context.Context, name string) (*gitx.Worktree, error) {
+				return &gitx.Worktree{
+					Path:       "/path/to/regular/worktree/" + name,
+					Branch:     "alpine/" + name,
+					ParentRepo: "/path/to/repo",
+				}, nil
+			},
+		}
+
+		// Create workflow engine
+		engine := NewAlpineWorkflowEngine(nil, mockWtMgr, cfg)
+		
+		// Create context with non-GitHub URL
+		ctx := context.WithValue(context.Background(), "issue_url", "https://example.com/some/task")
+		cancel := func() {}
+		
+		// Call createWorkflowDirectory
+		worktreeDir, err := engine.createWorkflowDirectory(ctx, "test-run-123", cancel)
+		
+		// Should use regular worktree creation
+		if err != nil {
+			t.Errorf("expected no error, got: %v", err)
+		}
+		
+		// Should create regular worktree, not attempt clone
+		if !strings.Contains(worktreeDir, "regular") {
+			t.Errorf("expected regular worktree path, got: %s", worktreeDir)
+		}
+	})
+}
+

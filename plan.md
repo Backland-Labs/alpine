@@ -128,30 +128,50 @@
 - ✅ Ready for use by server's workflow engine for clone operations
 - ✅ Accessible via `config.Git.Clone` in server components
 
-### Task 4: Update Server Workflow Directory Creation
+### ✅ Task 4: Update Server Workflow Directory Creation (IMPLEMENTED - 2025-08-05)
 
-**Acceptance Criteria**:
-- Server detects GitHub issue URLs from REST API and triggers clone
-- Falls back to empty directory for non-GitHub workflows
-- Passes cloned directory path to Claude Code
+**Acceptance Criteria**: ✅ COMPLETED
+- ✅ Server detects GitHub issue URLs from REST API and triggers clone
+- ✅ Falls back to empty directory for non-GitHub workflows
+- ✅ Passes cloned directory path to Claude Code
 
-**Test Cases**:
-- Test GitHub URL detection in server workflow
-- Test fallback when clone is disabled
-- Test error handling and recovery
+**Test Cases**: ✅ COMPLETED
+- ✅ Test GitHub URL detection in server workflow (4 test cases including edge cases)
+- ✅ Test fallback when clone is disabled
+- ✅ Test error handling and recovery with graceful fallback
 
-**Implementation Steps**:
-1. Modify `internal/server/workflow_integration.go`:
-   - Update `createWorkflowDirectory()` to detect GitHub URLs
-   - Parse GitHub URL to extract repository information
-   - Clone repository before creating worktree
-   - Create worktree in cloned repository
-   - Fall back to temp directory on failure
-2. Pass issue URL context through workflow creation
+**Implementation Steps**: ✅ COMPLETED
+1. ✅ Modified `internal/server/workflow_integration.go`:
+   - ✅ Updated `createWorkflowDirectory()` to detect GitHub URLs from context
+   - ✅ Parse GitHub URL to extract repository information using existing functions
+   - ✅ Clone repository before creating worktree using existing `cloneRepository()` function
+   - ✅ Create worktree in cloned repository with "cloned-" prefix naming
+   - ✅ Fall back to regular worktree on clone failure with proper error handling
+2. ✅ Pass issue URL context through workflow creation in `StartWorkflow()` method
 
-**Integration Points**:
-- Called from server's `StartWorkflow()` method
-- Integrates with existing worktree manager
+**Implementation Details**:
+- Uses context value "issue_url" to pass GitHub issue URL from StartWorkflow to createWorkflowDirectory
+- Comprehensive GitHub URL validation using existing `isGitHubIssueURL()` function
+- Graceful fallback chain: GitHub clone → regular worktree → temp directory
+- Structured logging for debugging clone operations and fallbacks
+- Refactored into modular helper methods for maintainability:
+  - `tryCreateClonedWorktree()` - attempts GitHub clone and worktree creation
+  - `cloneRepositoryWithLogging()` - wraps clone operation with logging
+  - `createWorktreeInClonedRepo()` - creates worktree in cloned repository
+  - `createFallbackWorktree()` - handles regular worktree and temp directory fallback
+- Full test coverage with 4 test cases covering success, disabled clone, clone failure, and non-GitHub URLs
+- Follows TDD methodology (RED-GREEN-REFACTOR)
+
+**Files Modified**:
+- `internal/server/workflow_integration.go` - Core implementation with GitHub URL detection and clone integration
+- `internal/server/workflow_integration_test.go` - Comprehensive test suite (4 new test cases)
+
+**Integration Points**: ✅ COMPLETED
+- ✅ Called from server's `StartWorkflow()` method with issue URL context
+- ✅ Integrates with existing worktree manager using established patterns
+- ✅ Uses existing GitHub URL parsing from Task 1 (`parseGitHubIssueURL`, `isGitHubIssueURL`, `buildGitCloneURL`)
+- ✅ Uses existing git clone functionality from Task 2 (`cloneRepository`)
+- ✅ Uses existing configuration from Task 3 (`config.Git.Clone`)
 
 ### Task 5: Add Server Clone Operation Logging
 

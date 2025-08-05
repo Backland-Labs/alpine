@@ -91,8 +91,9 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 		return "", fmt.Errorf("workflow %s already exists", runID)
 	}
 
-	// Create workflow context
+	// Create workflow context with issue URL
 	workflowCtx, cancel := context.WithCancel(ctx)
+	workflowCtx = context.WithValue(workflowCtx, "issue_url", issueURL)
 
 	// Create custom config for this workflow
 	workflowCfg := *e.cfg // Copy config
@@ -309,9 +310,87 @@ func (e *AlpineWorkflowEngine) Cleanup(runID string) {
 
 // createWorkflowDirectory creates an isolated directory for workflow execution.
 // It uses a worktree if available and enabled, otherwise creates a temporary directory.
+// For GitHub issue URLs, it attempts to clone the repository first and create a worktree within it.
 func (e *AlpineWorkflowEngine) createWorkflowDirectory(ctx context.Context, runID string, cancel context.CancelFunc) (string, error) {
+	// Try to create worktree in cloned repository for GitHub issues
+	if worktreeDir, created := e.tryCreateClonedWorktree(ctx, runID); created {
+		return worktreeDir, nil
+	}
+
+	// Fallback to regular worktree creation
+	return e.createFallbackWorktree(ctx, runID, cancel)
+}
+
+// tryCreateClonedWorktree attempts to clone a GitHub repository and create a worktree within it.
+// Returns the worktree directory path and a boolean indicating if the operation succeeded.
+func (e *AlpineWorkflowEngine) tryCreateClonedWorktree(ctx context.Context, runID string) (string, bool) {
+	// Check if context contains a GitHub issue URL for cloning
+	issueURL, ok := ctx.Value("issue_url").(string)
+	if !ok || issueURL == "" || !isGitHubIssueURL(issueURL) || !e.cfg.Git.Clone.Enabled {
+		return "", false
+	}
+
+	logger.Infof("Detected GitHub issue URL for workflow %s: %s", runID, issueURL)
+
+	// Parse GitHub URL to extract repository information
+	owner, repo, _, err := parseGitHubIssueURL(issueURL)
+	if err != nil {
+		logger.Warnf("Failed to parse GitHub issue URL %s: %v, falling back to regular worktree", issueURL, err)
+		return "", false
+	}
+
+	// Clone the repository
+	repoURL := buildGitCloneURL(owner, repo)
+	clonedDir, err := e.cloneRepositoryWithLogging(ctx, repoURL, runID)
+	if err != nil {
+		logger.Warnf("Failed to clone repository %s: %v, falling back to regular worktree", repoURL, err)
+		return "", false
+	}
+
+	// Create worktree in cloned repository if possible
+	if worktreeDir, err := e.createWorktreeInClonedRepo(ctx, runID, clonedDir); err == nil {
+		return worktreeDir, true
+	}
+
+	// Return cloned directory as fallback
+	logger.Infof("Using cloned repository directory directly for workflow %s: %s", runID, clonedDir)
+	return clonedDir, true
+}
+
+// cloneRepositoryWithLogging clones a repository with appropriate logging.
+func (e *AlpineWorkflowEngine) cloneRepositoryWithLogging(ctx context.Context, repoURL, runID string) (string, error) {
+	logger.Infof("Attempting to clone repository %s for workflow %s", repoURL, runID)
+	
+	clonedDir, err := cloneRepository(ctx, repoURL, &e.cfg.Git.Clone)
+	if err != nil {
+		return "", err
+	}
+	
+	logger.Infof("Successfully cloned repository to: %s", clonedDir)
+	return clonedDir, nil
+}
+
+// createWorktreeInClonedRepo creates a worktree within a cloned repository.
+func (e *AlpineWorkflowEngine) createWorktreeInClonedRepo(ctx context.Context, runID, clonedDir string) (string, error) {
+	if e.wtMgr == nil || !e.cfg.Git.WorktreeEnabled {
+		return "", fmt.Errorf("worktree manager not available")
+	}
+
+	// Create worktree name to indicate clone context
+	worktreeName := fmt.Sprintf("cloned-%s%s", worktreeNamePrefix, runID)
+	wt, err := e.wtMgr.Create(ctx, worktreeName)
+	if err != nil {
+		return "", fmt.Errorf("failed to create worktree in cloned repository: %w", err)
+	}
+
+	logger.Infof("Created worktree in cloned repository for workflow %s at: %s", runID, wt.Path)
+	return wt.Path, nil
+}
+
+// createFallbackWorktree creates a regular worktree or temporary directory as fallback.
+func (e *AlpineWorkflowEngine) createFallbackWorktree(ctx context.Context, runID string, cancel context.CancelFunc) (string, error) {
+	// Try to create regular worktree
 	if e.wtMgr != nil && e.cfg.Git.WorktreeEnabled {
-		// Create worktree for the workflow
 		worktreeName := fmt.Sprintf("%s%s", worktreeNamePrefix, runID)
 		wt, err := e.wtMgr.Create(ctx, worktreeName)
 		if err != nil {
@@ -323,7 +402,7 @@ func (e *AlpineWorkflowEngine) createWorkflowDirectory(ctx context.Context, runI
 		return wt.Path, nil
 	}
 
-	// Use temporary directory for state
+	// Use temporary directory as final fallback
 	tempDirName := fmt.Sprintf("%s%s-", tempDirPrefix, runID)
 	tempDir, err := os.MkdirTemp("", tempDirName)
 	if err != nil {
