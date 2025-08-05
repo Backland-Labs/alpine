@@ -36,6 +36,13 @@ func (w *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return nil, nil, errors.New("responseWriter doesn't support hijacking")
 }
 
+// Flush implements the http.Flusher interface
+func (w *responseWriter) Flush() {
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
 // HTTPMiddleware creates a logging middleware for HTTP requests
 func HTTPMiddleware(logger *Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
