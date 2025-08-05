@@ -252,23 +252,23 @@ func TestCloneRepositoryIntegration(t *testing.T) {
 	defer cancel()
 
 	config := createTestConfig()
-	
+
 	// Use a small, reliable public repository for testing
 	repoURL := "https://github.com/octocat/Hello-World.git"
-	
+
 	clonedDir, err := cloneRepository(ctx, repoURL, config)
 	require.NoError(t, err, "Clone operation should succeed")
 	require.NotEmpty(t, clonedDir, "Should return non-empty directory path")
-	
+
 	// Cleanup
 	defer os.RemoveAll(clonedDir)
-	
+
 	// Verify it's a proper git repository
 	gitDir := filepath.Join(clonedDir, ".git")
 	stat, err := os.Stat(gitDir)
 	require.NoError(t, err, ".git directory should exist")
 	require.True(t, stat.IsDir(), ".git should be a directory")
-	
+
 	// Verify some expected files exist (this is a known repository)
 	readmeFile := filepath.Join(clonedDir, "README")
 	_, err = os.Stat(readmeFile)

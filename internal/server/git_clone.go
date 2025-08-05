@@ -18,10 +18,10 @@ import (
 var (
 	// ErrCloneTimeout indicates the git clone operation timed out
 	ErrCloneTimeout = errors.New("git clone operation timed out")
-	
+
 	// ErrRepoNotFound indicates the repository was not found
 	ErrRepoNotFound = errors.New("repository not found")
-	
+
 	// ErrCloneDisabled indicates git clone is disabled in configuration
 	ErrCloneDisabled = errors.New("git clone is disabled")
 )
@@ -48,7 +48,7 @@ var (
 //  7. Logs all operations for debugging and monitoring
 func cloneRepository(ctx context.Context, repoURL string, config *config.GitCloneConfig) (string, error) {
 	sanitizedURL := sanitizeURLForLogging(repoURL)
-	
+
 	log := logger.WithFields(map[string]interface{}{
 		"repository_url": sanitizedURL,
 		"clone_depth":    config.Depth,
@@ -110,7 +110,7 @@ func cloneRepository(ctx context.Context, repoURL string, config *config.GitClon
 		}
 
 		outputStr := string(output)
-		
+
 		// Check for specific error types and log accordingly
 		if cloneCtx.Err() == context.DeadlineExceeded {
 			log.WithFields(map[string]interface{}{

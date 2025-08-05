@@ -675,12 +675,12 @@ func TestServerCloneCleanup(t *testing.T) {
 	t.Run("cleans up cloned repository after workflow completion", func(t *testing.T) {
 		// This test should FAIL initially (RED phase of TDD)
 		// because the cleanup functionality for cloned repositories is not implemented
-		
+
 		// Create mock configuration with git clone enabled and auto cleanup enabled
 		cfg := &config.Config{
 			Git: config.GitConfig{
-				WorktreeEnabled:   true,
-				AutoCleanupWT:     true, // Auto cleanup enabled
+				WorktreeEnabled: true,
+				AutoCleanupWT:   true, // Auto cleanup enabled
 				Clone: config.GitCloneConfig{
 					Enabled:   true,
 					AuthToken: "",
@@ -692,9 +692,9 @@ func TestServerCloneCleanup(t *testing.T) {
 
 		// Create workflow engine that tracks cloned directories
 		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
-		
+
 		runID := "test-run-123"
-		
+
 		// Create a workflow instance to simulate what happens during StartWorkflow
 		ctx, cancel := context.WithCancel(context.Background())
 		instance := &workflowInstance{
@@ -704,33 +704,33 @@ func TestServerCloneCleanup(t *testing.T) {
 			createdAt:  time.Now(),
 			clonedDirs: make([]string, 0),
 		}
-		
+
 		// Mock the clone operation to create a temporary directory
 		// This simulates what would happen in a real clone
 		tempDir, err := os.MkdirTemp("", "alpine-test-clone-*")
 		require.NoError(t, err, "Failed to create temp directory for test")
-		
+
 		// Track the cloned directory in the instance
 		instance.clonedDirs = append(instance.clonedDirs, tempDir)
-		
+
 		// Add the instance to the engine's workflows map
 		engine.mu.Lock()
 		engine.workflows[runID] = instance
 		engine.mu.Unlock()
-		
+
 		// Verify the directory exists before cleanup
 		_, err = os.Stat(tempDir)
 		require.NoError(t, err, "Cloned directory should exist before cleanup")
-		
+
 		// Call cleanup - this should remove the cloned repository
 		engine.Cleanup(runID)
-		
+
 		// Verify that the cloned directory was removed
 		_, err = os.Stat(tempDir)
 		if !os.IsNotExist(err) {
 			t.Errorf("Expected cloned directory to be removed after cleanup, but it still exists: %s", tempDir)
 		}
-		
+
 		// Cleanup for test (if cleanup failed)
 		os.RemoveAll(tempDir)
 	})
@@ -738,12 +738,12 @@ func TestServerCloneCleanup(t *testing.T) {
 	t.Run("respects ALPINE_GIT_AUTO_CLEANUP=false setting", func(t *testing.T) {
 		// This test should FAIL initially (RED phase)
 		// because cleanup configuration handling is not implemented
-		
+
 		// Create mock configuration with auto cleanup disabled
 		cfg := &config.Config{
 			Git: config.GitConfig{
-				WorktreeEnabled:   true,
-				AutoCleanupWT:     false, // Auto cleanup disabled
+				WorktreeEnabled: true,
+				AutoCleanupWT:   false, // Auto cleanup disabled
 				Clone: config.GitCloneConfig{
 					Enabled: true,
 				},
@@ -752,9 +752,9 @@ func TestServerCloneCleanup(t *testing.T) {
 
 		// Create workflow engine
 		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
-		
+
 		runID := "test-run-no-cleanup"
-		
+
 		// Create a workflow instance to simulate what happens during StartWorkflow
 		ctx, cancel := context.WithCancel(context.Background())
 		instance := &workflowInstance{
@@ -764,27 +764,27 @@ func TestServerCloneCleanup(t *testing.T) {
 			createdAt:  time.Now(),
 			clonedDirs: make([]string, 0),
 		}
-		
+
 		// Create a temporary directory to simulate cloned repository
 		tempDir, err := os.MkdirTemp("", "alpine-test-no-cleanup-*")
 		require.NoError(t, err, "Failed to create temp directory for test")
 		defer os.RemoveAll(tempDir) // Always cleanup for test
-		
+
 		// Track the cloned directory in the instance
 		instance.clonedDirs = append(instance.clonedDirs, tempDir)
-		
+
 		// Add the instance to the engine's workflows map
 		engine.mu.Lock()
 		engine.workflows[runID] = instance
 		engine.mu.Unlock()
-		
+
 		// Verify directory exists before cleanup
 		_, err = os.Stat(tempDir)
 		require.NoError(t, err, "Directory should exist before cleanup")
-		
+
 		// Call cleanup - should NOT remove the directory when auto cleanup is disabled
 		engine.Cleanup(runID)
-		
+
 		// Verify directory still exists (cleanup was disabled)
 		_, err = os.Stat(tempDir)
 		if os.IsNotExist(err) {
@@ -795,12 +795,12 @@ func TestServerCloneCleanup(t *testing.T) {
 	t.Run("handles cleanup failures gracefully without failing workflow", func(t *testing.T) {
 		// This test should FAIL initially (RED phase)
 		// because graceful error handling in cleanup is not implemented
-		
+
 		// Create mock configuration
 		cfg := &config.Config{
 			Git: config.GitConfig{
-				WorktreeEnabled:   true,
-				AutoCleanupWT:     true,
+				WorktreeEnabled: true,
+				AutoCleanupWT:   true,
 				Clone: config.GitCloneConfig{
 					Enabled: true,
 				},
@@ -809,9 +809,9 @@ func TestServerCloneCleanup(t *testing.T) {
 
 		// Create workflow engine
 		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
-		
+
 		runID := "test-run-cleanup-failure"
-		
+
 		// Create a workflow instance to simulate what happens during StartWorkflow
 		ctx, cancel := context.WithCancel(context.Background())
 		instance := &workflowInstance{
@@ -821,29 +821,29 @@ func TestServerCloneCleanup(t *testing.T) {
 			createdAt:  time.Now(),
 			clonedDirs: make([]string, 0),
 		}
-		
+
 		// Create a directory that will cause cleanup failure (permission denied)
 		tempDir, err := os.MkdirTemp("", "alpine-test-cleanup-fail-*")
 		require.NoError(t, err, "Failed to create temp directory for test")
 		defer os.RemoveAll(tempDir) // Always cleanup for test
-		
+
 		// Create a subdirectory first
 		subDir := filepath.Join(tempDir, "subdir")
 		err = os.Mkdir(subDir, 0755)
 		require.NoError(t, err, "Failed to create subdirectory")
-		
+
 		// Track the cloned directory in the instance
 		instance.clonedDirs = append(instance.clonedDirs, tempDir)
-		
+
 		// Add the instance to the engine's workflows map
 		engine.mu.Lock()
 		engine.workflows[runID] = instance
 		engine.mu.Unlock()
-		
+
 		// Make directory read-only to cause cleanup failure
 		err = os.Chmod(tempDir, 0444)
 		require.NoError(t, err, "Failed to make directory read-only")
-		
+
 		// Call cleanup - should handle failure gracefully and not panic
 		// This should NOT cause the workflow to fail
 		func() {
@@ -852,11 +852,11 @@ func TestServerCloneCleanup(t *testing.T) {
 					t.Errorf("Cleanup should handle failures gracefully, but it panicked: %v", r)
 				}
 			}()
-			
+
 			// This call should complete successfully even if cleanup fails
 			engine.Cleanup(runID)
 		}()
-		
+
 		// Reset permissions for test cleanup
 		os.Chmod(tempDir, 0755)
 	})
@@ -864,12 +864,12 @@ func TestServerCloneCleanup(t *testing.T) {
 	t.Run("logs cleanup operations with proper context", func(t *testing.T) {
 		// This test should FAIL initially (RED phase)
 		// because cleanup logging is not implemented
-		
+
 		// Create mock configuration
 		cfg := &config.Config{
 			Git: config.GitConfig{
-				WorktreeEnabled:   true,
-				AutoCleanupWT:     true,
+				WorktreeEnabled: true,
+				AutoCleanupWT:   true,
 				Clone: config.GitCloneConfig{
 					Enabled: true,
 				},
@@ -878,23 +878,23 @@ func TestServerCloneCleanup(t *testing.T) {
 
 		// Create workflow engine
 		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
-		
+
 		// Create temporary directory for cleanup
 		tempDir, err := os.MkdirTemp("", "alpine-test-cleanup-log-*")
 		require.NoError(t, err, "Failed to create temp directory for test")
 		defer os.RemoveAll(tempDir) // Always cleanup for test
-		
+
 		runID := "test-run-cleanup-logging"
-		
+
 		// TODO: This test needs to capture log output to verify proper logging
 		// The cleanup method should log:
 		// - Start of cleanup operation with run ID
 		// - Success/failure of cleanup with directory path
 		// - Any errors encountered during cleanup
-		
+
 		// Call cleanup
 		engine.Cleanup(runID)
-		
+
 		// This test will be enhanced once logging is implemented
 		// For now, we just verify that cleanup doesn't panic
 	})
@@ -902,12 +902,12 @@ func TestServerCloneCleanup(t *testing.T) {
 	t.Run("cleans up multiple cloned repositories for single workflow", func(t *testing.T) {
 		// This test should FAIL initially (RED phase)
 		// because tracking multiple cloned repositories is not implemented
-		
+
 		// Create mock configuration
 		cfg := &config.Config{
 			Git: config.GitConfig{
-				WorktreeEnabled:   true,
-				AutoCleanupWT:     true,
+				WorktreeEnabled: true,
+				AutoCleanupWT:   true,
 				Clone: config.GitCloneConfig{
 					Enabled: true,
 				},
@@ -916,9 +916,9 @@ func TestServerCloneCleanup(t *testing.T) {
 
 		// Create workflow engine
 		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
-		
+
 		runID := "test-run-multiple-cleanup"
-		
+
 		// Create a workflow instance to simulate what happens during StartWorkflow
 		ctx, cancel := context.WithCancel(context.Background())
 		instance := &workflowInstance{
@@ -928,37 +928,37 @@ func TestServerCloneCleanup(t *testing.T) {
 			createdAt:  time.Now(),
 			clonedDirs: make([]string, 0),
 		}
-		
+
 		// Create multiple temporary directories to simulate multiple clones
 		tempDirs := make([]string, 3)
 		for i := 0; i < 3; i++ {
 			tempDir, err := os.MkdirTemp("", fmt.Sprintf("alpine-test-multi-cleanup-%d-*", i))
 			require.NoError(t, err, "Failed to create temp directory for test")
 			tempDirs[i] = tempDir
-			
+
 			// Track the cloned directory in the instance
 			instance.clonedDirs = append(instance.clonedDirs, tempDir)
-			
+
 			// Ensure cleanup in case test fails
 			defer func(dir string) {
 				os.RemoveAll(dir)
 			}(tempDir)
 		}
-		
+
 		// Add the instance to the engine's workflows map
 		engine.mu.Lock()
 		engine.workflows[runID] = instance
 		engine.mu.Unlock()
-		
+
 		// Verify all directories exist before cleanup
 		for i, tempDir := range tempDirs {
 			_, err := os.Stat(tempDir)
 			require.NoError(t, err, "Directory %d should exist before cleanup", i)
 		}
-		
+
 		// Call cleanup - should remove all cloned directories for this workflow
 		engine.Cleanup(runID)
-		
+
 		// Verify all directories were removed
 		for i, tempDir := range tempDirs {
 			_, err := os.Stat(tempDir)
@@ -971,12 +971,12 @@ func TestServerCloneCleanup(t *testing.T) {
 	t.Run("does not affect non-cloned worktrees during cleanup", func(t *testing.T) {
 		// This test should PASS initially
 		// because regular worktree cleanup should work independently of clone cleanup
-		
+
 		// Create mock configuration
 		cfg := &config.Config{
 			Git: config.GitConfig{
-				WorktreeEnabled:   true,
-				AutoCleanupWT:     true,
+				WorktreeEnabled: true,
+				AutoCleanupWT:   true,
 				Clone: config.GitCloneConfig{
 					Enabled: true,
 				},
@@ -985,17 +985,17 @@ func TestServerCloneCleanup(t *testing.T) {
 
 		// Create workflow engine
 		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
-		
+
 		runID := "test-run-regular-worktree"
-		
+
 		// Create a directory that simulates a regular worktree (not cloned)
 		tempDir, err := os.MkdirTemp("", "alpine-test-regular-worktree-*")
 		require.NoError(t, err, "Failed to create temp directory for test")
 		defer os.RemoveAll(tempDir) // Always cleanup for test
-		
+
 		// Call cleanup - should handle regular worktrees without affecting them unexpectedly
 		engine.Cleanup(runID)
-		
+
 		// Regular worktree should still exist (not our responsibility to clean up)
 		// The existing Cleanup method should work as before
 		_, err = os.Stat(tempDir)
@@ -1011,7 +1011,7 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 	t.Run("creates worktree in cloned repository for GitHub issue URL", func(t *testing.T) {
 		// This test should FAIL initially (RED phase of TDD)
 		// because the GitHub URL detection and clone integration is not yet implemented
-		
+
 		// Create mock configuration with git clone enabled
 		cfg := &config.Config{
 			Git: config.GitConfig{
@@ -1027,7 +1027,7 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 
 		// Track whether clone logic was invoked
 		cloneLogicInvoked := false
-		
+
 		// Create mock worktree manager that can detect clone logic
 		mockWtMgr := &MockWorktreeManager{
 			CreateFunc: func(ctx context.Context, name string) (*gitx.Worktree, error) {
@@ -1036,7 +1036,7 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 				if strings.HasPrefix(name, "cloned-") {
 					cloneLogicInvoked = true
 				}
-				
+
 				return &gitx.Worktree{
 					Path:       "/path/to/cloned/repo/.git/worktrees/" + name,
 					Branch:     "alpine/" + name,
@@ -1047,24 +1047,24 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 
 		// Create workflow engine with mock components
 		engine := NewAlpineWorkflowEngine(nil, mockWtMgr, cfg)
-		
+
 		// Create context with GitHub issue URL (use a public repo that actually exists)
 		ctx := context.WithValue(context.Background(), "issue_url", "https://github.com/microsoft/vscode/issues/123")
 		cancel := func() {}
-		
+
 		// Call createWorkflowDirectory - this should detect GitHub URL and clone repository
 		worktreeDir, err := engine.createWorkflowDirectory(ctx, "test-run-123", cancel)
-		
+
 		// Verify that the method detects GitHub URL and attempts clone
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 		}
-		
+
 		// This test will FAIL because the GitHub URL detection is not implemented yet
 		if !cloneLogicInvoked {
 			t.Errorf("expected GitHub URL detection to trigger clone logic, but clone logic was not invoked")
 		}
-		
+
 		// Verify that worktree was created in cloned repository context
 		if !strings.Contains(worktreeDir, "cloned") {
 			t.Errorf("expected worktree directory to indicate cloned repository context, got: %s", worktreeDir)
@@ -1073,7 +1073,7 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 
 	t.Run("falls back to regular worktree when clone disabled", func(t *testing.T) {
 		// This test should PASS initially as it tests existing behavior
-		
+
 		// Create mock configuration with git clone disabled
 		cfg := &config.Config{
 			Git: config.GitConfig{
@@ -1097,19 +1097,19 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 
 		// Create workflow engine
 		engine := NewAlpineWorkflowEngine(nil, mockWtMgr, cfg)
-		
+
 		// Create context with GitHub issue URL (should be ignored when clone disabled)
 		ctx := context.WithValue(context.Background(), "issue_url", "https://github.com/owner/repo/issues/123")
 		cancel := func() {}
-		
+
 		// Call createWorkflowDirectory
 		worktreeDir, err := engine.createWorkflowDirectory(ctx, "test-run-123", cancel)
-		
+
 		// Should use regular worktree creation (existing behavior)
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 		}
-		
+
 		// Should create regular worktree, not attempt clone
 		if !strings.Contains(worktreeDir, "regular") {
 			t.Errorf("expected regular worktree path, got: %s", worktreeDir)
@@ -1119,7 +1119,7 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 	t.Run("falls back to regular worktree when clone fails", func(t *testing.T) {
 		// This test should FAIL initially (RED phase)
 		// because clone failure handling is not yet implemented
-		
+
 		// Create mock configuration with git clone enabled
 		cfg := &config.Config{
 			Git: config.GitConfig{
@@ -1146,19 +1146,19 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 
 		// Create workflow engine
 		engine := NewAlpineWorkflowEngine(nil, mockWtMgr, cfg)
-		
+
 		// Create context with GitHub issue URL that will fail to clone
 		ctx := context.WithValue(context.Background(), "issue_url", "https://github.com/nonexistent/repo/issues/123")
 		cancel := func() {}
-		
+
 		// Call createWorkflowDirectory
 		worktreeDir, err := engine.createWorkflowDirectory(ctx, "test-run-123", cancel)
-		
+
 		// Should not return error (graceful fallback)
 		if err != nil {
 			t.Errorf("expected no error with fallback, got: %v", err)
 		}
-		
+
 		// Should fall back to regular worktree creation
 		// (This assertion will fail initially because fallback logic is not implemented)
 		if !strings.Contains(worktreeDir, "fallback") {
@@ -1168,7 +1168,7 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 
 	t.Run("handles non-GitHub URLs by using regular worktree", func(t *testing.T) {
 		// This test should PASS initially as it tests existing behavior
-		
+
 		// Create mock configuration
 		cfg := &config.Config{
 			Git: config.GitConfig{
@@ -1192,19 +1192,19 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 
 		// Create workflow engine
 		engine := NewAlpineWorkflowEngine(nil, mockWtMgr, cfg)
-		
+
 		// Create context with non-GitHub URL
 		ctx := context.WithValue(context.Background(), "issue_url", "https://example.com/some/task")
 		cancel := func() {}
-		
+
 		// Call createWorkflowDirectory
 		worktreeDir, err := engine.createWorkflowDirectory(ctx, "test-run-123", cancel)
-		
+
 		// Should use regular worktree creation
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 		}
-		
+
 		// Should create regular worktree, not attempt clone
 		if !strings.Contains(worktreeDir, "regular") {
 			t.Errorf("expected regular worktree path, got: %s", worktreeDir)
@@ -1219,14 +1219,14 @@ func TestServerCloneOperationLogging(t *testing.T) {
 	t.Run("clone operation logs start with context", func(t *testing.T) {
 		// This test should fail until we implement enhanced logging with run ID context
 		// and performance metrics in cloneRepositoryWithLogging method.
-		
+
 		// Create test configuration
 		cfg := &config.Config{
 			Git: config.GitConfig{
 				Clone: config.GitCloneConfig{
 					Enabled:   true,
 					AuthToken: "",
-					Timeout:   30 * time.Second, 
+					Timeout:   30 * time.Second,
 					Depth:     1,
 				},
 			},
@@ -1234,7 +1234,7 @@ func TestServerCloneOperationLogging(t *testing.T) {
 
 		// Create workflow engine
 		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
-		
+
 		// Create workflow instance to track (this should exist for logging context)
 		instance := &workflowInstance{
 			createdAt:  time.Now(),
@@ -1243,43 +1243,43 @@ func TestServerCloneOperationLogging(t *testing.T) {
 		engine.workflows = map[string]*workflowInstance{
 			"test-run-456": instance,
 		}
-		
+
 		// Attempt to clone with logging - this should log start with run ID and repo URL
 		ctx := context.Background()
 		repoURL := "https://github.com/octocat/Hello-World.git"
 		runID := "test-run-456"
-		
+
 		// This call should fail because we haven't implemented enhanced logging yet
 		// The failure should be due to missing run ID in log context
 		_, err := engine.cloneRepositoryWithLogging(ctx, repoURL, runID)
-		
+
 		// We expect this to work once enhanced logging is implemented
 		// For now, this test documents the requirement that clone logging must include:
 		// 1. run_id field in log context
 		// 2. repository_url field (sanitized)
-		// 3. operation field identifying this as "server_clone_with_tracking" 
+		// 3. operation field identifying this as "server_clone_with_tracking"
 		// 4. Performance metrics on completion
-		
+
 		if err != nil {
 			// This is expected to fail until we implement proper logging enhancements
 			t.Logf("Clone operation failed as expected before logging enhancement: %v", err)
 		}
 	})
-	
+
 	t.Run("clone operation logs completion with performance metrics", func(t *testing.T) {
 		// This test verifies that successful clone operations log completion with:
 		// - Duration metrics
-		// - Clone directory path  
+		// - Clone directory path
 		// - Success status
 		// - Run ID correlation
-		
+
 		// Create test configuration
 		cfg := &config.Config{
 			Git: config.GitConfig{
 				Clone: config.GitCloneConfig{
 					Enabled:   true,
 					AuthToken: "",
-					Timeout:   30 * time.Second, 
+					Timeout:   30 * time.Second,
 					Depth:     1,
 				},
 			},
@@ -1287,7 +1287,7 @@ func TestServerCloneOperationLogging(t *testing.T) {
 
 		// Create workflow engine
 		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
-		
+
 		// Create workflow instance to track
 		instance := &workflowInstance{
 			createdAt:  time.Now(),
@@ -1296,22 +1296,22 @@ func TestServerCloneOperationLogging(t *testing.T) {
 		engine.workflows = map[string]*workflowInstance{
 			"test-run-789": instance,
 		}
-		
+
 		// Clone with logging
 		ctx := context.Background()
 		repoURL := "https://github.com/octocat/Hello-World.git"
 		runID := "test-run-789"
-		
+
 		cloneDir, err := engine.cloneRepositoryWithLogging(ctx, repoURL, runID)
-		
+
 		// Verify successful completion
 		require.NoError(t, err)
 		require.NotEmpty(t, cloneDir)
-		
+
 		// Verify directory was tracked for cleanup
 		require.Len(t, instance.clonedDirs, 1)
 		require.Equal(t, cloneDir, instance.clonedDirs[0])
-		
+
 		// TODO: Add more specific verification that completion logs include:
 		// - Duration in log fields
 		// - Clone directory in log fields
@@ -1319,15 +1319,15 @@ func TestServerCloneOperationLogging(t *testing.T) {
 		// - Run ID correlation in all log entries
 		// This should be verified through log capture or mock verification
 	})
-	
+
 	t.Run("clone operation logs errors with full context", func(t *testing.T) {
 		// This test verifies that failed clone operations log errors with:
 		// - Error details
 		// - Duration up to failure point
-		// - Run ID for correlation  
+		// - Run ID for correlation
 		// - Repository URL (sanitized)
 		// - Fallback information
-		
+
 		// Create test configuration
 		cfg := &config.Config{
 			Git: config.GitConfig{
@@ -1342,7 +1342,7 @@ func TestServerCloneOperationLogging(t *testing.T) {
 
 		// Create workflow engine
 		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
-		
+
 		// Create workflow instance to track
 		instance := &workflowInstance{
 			createdAt:  time.Now(),
@@ -1351,39 +1351,39 @@ func TestServerCloneOperationLogging(t *testing.T) {
 		engine.workflows = map[string]*workflowInstance{
 			"test-run-fail": instance,
 		}
-		
+
 		// Attempt to clone an invalid repository to trigger error
 		ctx := context.Background()
 		repoURL := "https://github.com/invalid-org/nonexistent-repo-12345.git"
 		runID := "test-run-fail"
-		
+
 		_, err := engine.cloneRepositoryWithLogging(ctx, repoURL, runID)
-		
+
 		// Should fail due to repository not found
 		require.Error(t, err)
-		
+
 		// Verify error logging includes proper context
 		// The error logs should include:
 		// - run_id for correlation
 		// - repository_url (sanitized)
-		// - error details 
+		// - error details
 		// - operation context
 		// This is verified by checking that error was logged with proper context fields
 	})
-	
+
 	t.Run("clone operation respects existing logging infrastructure", func(t *testing.T) {
 		// This test verifies that clone logging integrates properly with:
 		// - Server's structured logging patterns ✅ (using logger.WithFields)
 		// - Log level configuration ✅ (respects ALPINE_LOG_LEVEL)
 		// - Field naming conventions ✅ (consistent field names)
 		// - Event broadcasting for real-time updates ✅ (integrated with server events)
-		
+
 		// All requirements are met by the current implementation:
 		// - Uses logger.WithFields() for structured logging
 		// - Respects existing log levels (INFO, ERROR, DEBUG)
 		// - Consistent field naming (run_id, repository_url, operation, etc.)
 		// - Integrates with server's event system through workflow engine
-		
+
 		// Verify basic integration by ensuring logs use structured fields
 		cfg := &config.Config{
 			Git: config.GitConfig{
@@ -1404,22 +1404,22 @@ func TestServerCloneOperationLogging(t *testing.T) {
 		engine.workflows = map[string]*workflowInstance{
 			"test-logging": instance,
 		}
-		
+
 		// This should generate structured logs with proper field names
 		ctx := context.Background()
 		repoURL := "https://github.com/octocat/Hello-World.git"
 		runID := "test-logging"
-		
+
 		_, err := engine.cloneRepositoryWithLogging(ctx, repoURL, runID)
 		require.NoError(t, err)
-		
+
 		// The structured logging is verified by the log output showing proper fields
 	})
-	
+
 	t.Run("clone operation sanitizes URLs in logs", func(t *testing.T) {
 		// This test verifies that authentication tokens are properly sanitized in logs
 		// This is a security requirement to prevent token leakage
-		
+
 		cfg := &config.Config{
 			Git: config.GitConfig{
 				Clone: config.GitCloneConfig{
@@ -1439,18 +1439,17 @@ func TestServerCloneOperationLogging(t *testing.T) {
 		engine.workflows = map[string]*workflowInstance{
 			"test-sanitize": instance,
 		}
-		
+
 		// Clone with authentication token
 		ctx := context.Background()
 		repoURL := "https://github.com/octocat/Hello-World.git"
 		runID := "test-sanitize"
-		
+
 		_, err := engine.cloneRepositoryWithLogging(ctx, repoURL, runID)
 		require.NoError(t, err)
-		
+
 		// URL sanitization is verified by the fact that logs show repository_url
 		// without the auth token in the visible output. The sanitizeURLForLogging
 		// function is already implemented and tested in git_clone_test.go
 	})
 }
-

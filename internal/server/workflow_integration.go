@@ -311,7 +311,7 @@ func (e *AlpineWorkflowEngine) SubscribeToEvents(ctx context.Context, runID stri
 //   - runID: The unique identifier for the workflow to clean up
 func (e *AlpineWorkflowEngine) Cleanup(runID string) {
 	cleanupStartTime := time.Now()
-	
+
 	logger.WithFields(map[string]interface{}{
 		"run_id":    runID,
 		"operation": "workflow_cleanup",
@@ -336,8 +336,8 @@ func (e *AlpineWorkflowEngine) Cleanup(runID string) {
 		e.cleanupClonedRepositories(runID, instance.clonedDirs)
 	} else if clonedDirsCount > 0 {
 		logger.WithFields(map[string]interface{}{
-			"run_id":             runID,
-			"cloned_dirs_count":  clonedDirsCount,
+			"run_id":               runID,
+			"cloned_dirs_count":    clonedDirsCount,
 			"auto_cleanup_enabled": e.cfg.Git.AutoCleanupWT,
 		}).Debug("Skipping cloned repository cleanup (disabled by configuration)")
 	}
@@ -487,9 +487,9 @@ func (e *AlpineWorkflowEngine) cloneRepositoryWithLogging(ctx context.Context, r
 		"repository_url": sanitizeURLForLogging(repoURL),
 		"operation":      "server_clone_with_tracking",
 	})
-	
+
 	cloneLog.Info("Attempting to clone repository for server workflow")
-	
+
 	clonedDir, err := cloneRepository(ctx, repoURL, &e.cfg.Git.Clone)
 	if err != nil {
 		cloneLog.WithFields(map[string]interface{}{
@@ -497,24 +497,24 @@ func (e *AlpineWorkflowEngine) cloneRepositoryWithLogging(ctx context.Context, r
 		}).Error("Repository clone failed for server workflow")
 		return "", err
 	}
-	
+
 	// Track the cloned directory for cleanup (thread-safe)
 	e.mu.Lock()
 	if instance, exists := e.workflows[runID]; exists {
 		instance.clonedDirs = append(instance.clonedDirs, clonedDir)
 		cloneLog.WithFields(map[string]interface{}{
-			"clone_directory":     clonedDir,
-			"tracked_dirs_count":  len(instance.clonedDirs),
+			"clone_directory":    clonedDir,
+			"tracked_dirs_count": len(instance.clonedDirs),
 		}).Debug("Registered cloned directory for cleanup tracking")
 	} else {
 		cloneLog.Warn("Cannot track cloned directory: workflow instance not found")
 	}
 	e.mu.Unlock()
-	
+
 	cloneLog.WithFields(map[string]interface{}{
 		"clone_directory": clonedDir,
 	}).Info("Successfully cloned repository for server workflow")
-	
+
 	return clonedDir, nil
 }
 
