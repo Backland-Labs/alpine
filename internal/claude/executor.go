@@ -479,7 +479,6 @@ const DefaultSystemPrompt = "You are an expert software engineer with deep knowl
 
 // DefaultAllowedTools are the default tools allowed when none are specified
 var DefaultAllowedTools = []string{
-	"mcp__context7__*",
 	"Bash",
 	"Read",
 	"Write",
@@ -519,6 +518,9 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 		systemPrompt = DefaultSystemPrompt
 	}
 	args = append(args, "--append-system-prompt", systemPrompt)
+
+	// set model
+	args = append(args, "--model", "claude-sonnet-4-20250514")
 
 	// Note: Claude CLI doesn't have a --project flag
 	// It uses the current working directory by default
