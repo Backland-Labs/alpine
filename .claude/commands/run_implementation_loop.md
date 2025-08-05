@@ -109,6 +109,7 @@ c. REFACTOR Phase - Improve Code Quality:
 - What aspects of the code can be improved?
 - How can I enhance readability and maintainability?
 - What design patterns might be applicable?
+- What linting or formatting tools are my disposal?
 </reasoning>
 
 Refactor to:
@@ -117,6 +118,7 @@ Refactor to:
 - Apply appropriate design patterns
 - Ensure consistent coding style
 - Add necessary documentation
+- Run the available linting or formatting tools for the codebase on the specific changes.
 
 5. Update Project Plan:
 
