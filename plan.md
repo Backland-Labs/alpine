@@ -258,42 +258,66 @@
 - ✅ Uses existing logging infrastructure with structured fields
 - ✅ Respects existing thread-safety patterns with mutex protection
 
-### Task 7: Add Server-Specific Error Handling
+### ✅ Task 7: Add Server-Specific Error Handling (IMPLEMENTED - 2025-08-05)
 
-**Acceptance Criteria**:
-- REST API returns appropriate HTTP status codes for clone failures
-- Provides clear error messages in API responses
-- Falls back gracefully with informative messages
+**Acceptance Criteria**: ✅ COMPLETED
+- ✅ REST API returns appropriate HTTP status codes for clone failures
+- ✅ Provides clear error messages in API responses
+- ✅ Falls back gracefully with informative messages
 
-**Test Cases**:
-- Test API error responses for clone failures
-- Test authentication failure responses
-- Test timeout error responses
+**Test Cases**: ✅ COMPLETED
+- ✅ Test API error responses for clone failures (5 test scenarios including edge cases)
+- ✅ Test authentication failure responses (5 different auth error patterns)
+- ✅ Test timeout error responses with graceful fallback
+- ✅ Test graceful fallback behavior with run creation
+- ✅ Test different HTTP status codes (504, 404, 400, 401, 500)
 
-**Implementation Steps**:
-1. Add server error types:
-   - Clone timeout errors (return 504 Gateway Timeout)
-   - Authentication errors (return 401 Unauthorized)
-   - Repository not found (return 404 Not Found)
-2. Update REST API handler error responses
-3. Add fallback with warning in response
+**Implementation Steps**: ✅ COMPLETED
+1. ✅ Add server error types:
+   - ✅ Clone timeout errors (return 504 Gateway Timeout)
+   - ✅ Authentication errors (return 401 Unauthorized)
+   - ✅ Repository not found (return 404 Not Found)
+   - ✅ Clone disabled errors (return 400 Bad Request)
+   - ✅ Generic workflow errors (return 500 Internal Server Error)
+2. ✅ Update REST API handler error responses with hybrid approach
+3. ✅ Add graceful fallback with warning responses for recoverable errors
 
-**Integration Points**:
-- REST API error handling
+**Implementation Details**:
+- Hybrid error handling strategy: git clone errors return proper HTTP status codes but include run data for graceful fallback
+- Authentication and generic errors fail the request entirely with appropriate status codes
+- Enhanced error mapping with `mapWorkflowErrorToServerError()` function and `ErrorResponse` struct
+- Pattern-based authentication error detection with case-insensitive matching
+- User-friendly error messages with actionable guidance
+- Comprehensive test coverage with 16 test cases covering all error scenarios
+- Follows TDD methodology (RED-GREEN-REFACTOR)
+- Includes comprehensive documentation with usage examples
+
+**Files Created**:
+- `internal/server/errors.go` - Server error handling with mapping functions
+- `internal/server/error_handling_test.go` - Comprehensive test suite (16 test cases)
+
+**Files Modified**:
+- `internal/server/handlers.go` - Enhanced agentsRunHandler with error mapping and hybrid response strategy
+
+**Integration Points**: ✅ COMPLETED
+- ✅ REST API error handling in agentsRunHandler
+- ✅ Uses existing git clone error types from Task 2 (`ErrCloneTimeout`, `ErrRepoNotFound`, `ErrCloneDisabled`)
+- ✅ Integrates with existing `respondWithError` utility function for critical errors
+- ✅ Maintains backward compatibility with existing API response format
 
 ## Success Criteria Checklist
 
-- [ ] Server REST API successfully parses GitHub issue URLs
-- [ ] Server can clone public repositories without authentication
-- [ ] Server can clone private repositories with authentication token
-- [ ] Server creates worktrees in cloned repositories
-- [ ] Claude Code receives proper working directory in server workflows
-- [ ] Server falls back gracefully when clone fails
-- [ ] Clone operations timeout after configurable duration
-- [ ] Server cleans up cloned repositories after workflow
-- [ ] REST API returns appropriate error codes for failures
-- [ ] Server logs clone operations for debugging
-- [ ] All server code has appropriate test coverage
+- [x] Server REST API successfully parses GitHub issue URLs
+- [x] Server can clone public repositories without authentication
+- [x] Server can clone private repositories with authentication token
+- [x] Server creates worktrees in cloned repositories
+- [x] Claude Code receives proper working directory in server workflows
+- [x] Server falls back gracefully when clone fails
+- [x] Clone operations timeout after configurable duration
+- [x] Server cleans up cloned repositories after workflow
+- [x] REST API returns appropriate error codes for failures
+- [x] Server logs clone operations for debugging
+- [x] All server code has appropriate test coverage
 
 ## Files to be Modified or Created
 

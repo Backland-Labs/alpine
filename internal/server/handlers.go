@@ -162,8 +162,48 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 				"error":     err.Error(),
 				"issue_url": payload.IssueURL,
 			}).Error("Failed to start workflow")
-			// Update run status to failed
+
+			// Map workflow error to appropriate response strategy
+			errorResponse := mapWorkflowErrorToServerError(err)
+
+			if !errorResponse.ShouldFallback {
+				// For critical errors (auth, generic), fail the request
+				s.updateRunStatus(run, "failed", "")
+				s.respondWithError(w, errorResponse.StatusCode, errorResponse.Message)
+				return
+			}
+
+			// For recoverable git clone errors, continue with graceful fallback
+			// Update run status to failed but continue with response
 			s.updateRunStatus(run, "failed", "")
+
+			// Return appropriate status code with run data and error message
+			w.Header().Set("Content-Type", contentTypeJSON)
+			w.WriteHeader(errorResponse.StatusCode)
+
+			// Create response with both run data and error information
+			response := map[string]interface{}{
+				"id":           run.ID,
+				"agent_id":     run.AgentID,
+				"status":       run.Status,
+				"issue":        run.Issue,
+				"created":      run.Created,
+				"updated":      run.Updated,
+				"worktree_dir": run.WorktreeDir,
+				"error":        errorResponse.Message,
+				"warning":      MsgFallbackWarning,
+			}
+
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				logger.Errorf("Failed to encode fallback response: %v", err)
+			} else {
+				logger.WithFields(map[string]interface{}{
+					"run_id":      run.ID,
+					"status_code": errorResponse.StatusCode,
+					"fallback":    true,
+				}).Debug("Fallback response sent successfully")
+			}
+			return
 		} else {
 			logger.WithFields(map[string]interface{}{
 				"run_id":       run.ID,
