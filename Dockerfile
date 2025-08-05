@@ -91,6 +91,7 @@ WORKDIR /workspace
 # Accept API keys and tokens as environment variables
 ENV GEMINI_API_KEY=""
 ENV CLAUDE_CODE_OAUTH_TOKEN=""
+ENV GITHUB_TOKEN=""
 
 # Expose port for OAuth callback (Claude Code default)
 EXPOSE 5173
