@@ -21,7 +21,7 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
 		logger.WithFields(map[string]interface{}{
-			"method": r.Method,
+			"method":   r.Method,
 			"expected": http.MethodGet,
 		}).Debug("Invalid method for health check")
 		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -48,7 +48,7 @@ func (s *Server) agentsListHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
 		logger.WithFields(map[string]interface{}{
-			"method": r.Method,
+			"method":   r.Method,
 			"expected": http.MethodGet,
 		}).Debug("Invalid method for agents list")
 		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -76,13 +76,13 @@ func (s *Server) agentsListHandler(w http.ResponseWriter, r *http.Request) {
 // agentsRunHandler starts a new workflow run from a GitHub issue
 func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 	logger.WithFields(map[string]interface{}{
-		"method": r.Method,
+		"method":         r.Method,
 		"content_length": r.ContentLength,
 	}).Debug("Agent run requested")
 
 	if r.Method != http.MethodPost {
 		logger.WithFields(map[string]interface{}{
-			"method": r.Method,
+			"method":   r.Method,
 			"expected": http.MethodPost,
 		}).Debug("Invalid method for agent run")
 		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -103,7 +103,7 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.WithFields(map[string]interface{}{
 		"issue_url": payload.IssueURL,
-		"agent_id": payload.AgentID,
+		"agent_id":  payload.AgentID,
 	}).Debug("Agent run payload decoded")
 
 	// Validate payload
@@ -122,8 +122,8 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 	// Create new run
 	runID := GenerateID("run")
 	logger.WithFields(map[string]interface{}{
-		"run_id": runID,
-		"agent_id": payload.AgentID,
+		"run_id":    runID,
+		"agent_id":  payload.AgentID,
 		"issue_url": payload.IssueURL,
 	}).Info("Creating new workflow run")
 
@@ -144,31 +144,71 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 
 	logger.WithFields(map[string]interface{}{
-		"run_id": run.ID,
+		"run_id":     run.ID,
 		"total_runs": runCount,
 	}).Debug("Run stored")
 
 	// Start workflow if engine is available
 	if s.workflowEngine != nil {
 		logger.WithFields(map[string]interface{}{
-			"run_id": run.ID,
+			"run_id":    run.ID,
 			"issue_url": payload.IssueURL,
 		}).Debug("Starting workflow execution")
 
 		worktreeDir, err := s.workflowEngine.StartWorkflow(r.Context(), payload.IssueURL, run.ID)
 		if err != nil {
 			logger.WithFields(map[string]interface{}{
-				"run_id": run.ID,
-				"error": err.Error(),
+				"run_id":    run.ID,
+				"error":     err.Error(),
 				"issue_url": payload.IssueURL,
 			}).Error("Failed to start workflow")
-			// Update run status to failed
+
+			// Map workflow error to appropriate response strategy
+			errorResponse := mapWorkflowErrorToServerError(err)
+
+			if !errorResponse.ShouldFallback {
+				// For critical errors (auth, generic), fail the request
+				s.updateRunStatus(run, "failed", "")
+				s.respondWithError(w, errorResponse.StatusCode, errorResponse.Message)
+				return
+			}
+
+			// For recoverable git clone errors, continue with graceful fallback
+			// Update run status to failed but continue with response
 			s.updateRunStatus(run, "failed", "")
+
+			// Return appropriate status code with run data and error message
+			w.Header().Set("Content-Type", contentTypeJSON)
+			w.WriteHeader(errorResponse.StatusCode)
+
+			// Create response with both run data and error information
+			response := map[string]interface{}{
+				"id":           run.ID,
+				"agent_id":     run.AgentID,
+				"status":       run.Status,
+				"issue":        run.Issue,
+				"created":      run.Created,
+				"updated":      run.Updated,
+				"worktree_dir": run.WorktreeDir,
+				"error":        errorResponse.Message,
+				"warning":      MsgFallbackWarning,
+			}
+
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				logger.Errorf("Failed to encode fallback response: %v", err)
+			} else {
+				logger.WithFields(map[string]interface{}{
+					"run_id":      run.ID,
+					"status_code": errorResponse.StatusCode,
+					"fallback":    true,
+				}).Debug("Fallback response sent successfully")
+			}
+			return
 		} else {
 			logger.WithFields(map[string]interface{}{
-				"run_id": run.ID,
+				"run_id":       run.ID,
 				"worktree_dir": worktreeDir,
-				"issue_url": payload.IssueURL,
+				"issue_url":    payload.IssueURL,
 			}).Info("Workflow started successfully")
 			// Update run with worktree directory
 			s.updateRunStatus(run, run.Status, worktreeDir)
@@ -200,7 +240,7 @@ func (s *Server) runsListHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
 		logger.WithFields(map[string]interface{}{
-			"method": r.Method,
+			"method":   r.Method,
 			"expected": http.MethodGet,
 		}).Debug("Invalid method for runs list")
 		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -216,10 +256,10 @@ func (s *Server) runsListHandler(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 
 	logger.WithFields(map[string]interface{}{
-		"run_count": runCount,
-		"active_runs": s.countRunsByStatus("running"),
+		"run_count":      runCount,
+		"active_runs":    s.countRunsByStatus("running"),
 		"completed_runs": s.countRunsByStatus("completed"),
-		"failed_runs": s.countRunsByStatus("failed"),
+		"failed_runs":    s.countRunsByStatus("failed"),
 	}).Debug("Returning runs list")
 
 	w.Header().Set("Content-Type", contentTypeJSON)
@@ -240,7 +280,7 @@ func (s *Server) runDetailsHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodGet {
 		logger.WithFields(map[string]interface{}{
-			"method": r.Method,
+			"method":   r.Method,
 			"expected": http.MethodGet,
 		}).Debug("Invalid method for run details")
 		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -259,7 +299,7 @@ func (s *Server) runDetailsHandler(w http.ResponseWriter, r *http.Request) {
 
 	if !exists {
 		logger.WithFields(map[string]interface{}{
-			"run_id": runID,
+			"run_id":     runID,
 			"total_runs": len(s.runs),
 		}).Debug("Run not found")
 		s.respondWithError(w, http.StatusNotFound, "Run not found")
@@ -267,8 +307,8 @@ func (s *Server) runDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.WithFields(map[string]interface{}{
-		"run_id": run.ID,
-		"status": run.Status,
+		"run_id":  run.ID,
+		"status":  run.Status,
 		"created": run.Created,
 		"updated": run.Updated,
 	}).Debug("Run found")
@@ -290,15 +330,15 @@ func (s *Server) runDetailsHandler(w http.ResponseWriter, r *http.Request) {
 		if state, err := s.workflowEngine.GetWorkflowState(r.Context(), runID); err == nil {
 			response["current_step"] = state.CurrentStepDescription
 			logger.WithFields(map[string]interface{}{
-				"run_id": runID,
+				"run_id":          runID,
 				"workflow_status": state.Status,
-				"current_step": state.CurrentStepDescription,
+				"current_step":    state.CurrentStepDescription,
 			}).Debug("Workflow state retrieved")
 
 			// Update run status based on workflow state
 			if state.Status == "completed" && run.Status != "completed" {
 				logger.WithFields(map[string]interface{}{
-					"run_id": runID,
+					"run_id":          runID,
 					"previous_status": run.Status,
 				}).Info("Updating run status to completed")
 				s.mu.Lock()
@@ -309,7 +349,7 @@ func (s *Server) runDetailsHandler(w http.ResponseWriter, r *http.Request) {
 		} else {
 			logger.WithFields(map[string]interface{}{
 				"run_id": runID,
-				"error": err.Error(),
+				"error":  err.Error(),
 			}).Debug("Failed to get workflow state")
 		}
 	}
@@ -319,7 +359,7 @@ func (s *Server) runDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		logger.WithFields(map[string]interface{}{
 			"run_id": runID,
-			"error": err.Error(),
+			"error":  err.Error(),
 		}).Error("Failed to encode run details")
 	}
 }
@@ -355,7 +395,7 @@ func (s *Server) runEventsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send initial connection event
-	fmt.Fprintf(w, "data: {\"type\":\"connected\",\"runId\":\"%s\"}\n\n", runID)
+	_, _ = fmt.Fprintf(w, "data: {\"type\":\"connected\",\"runId\":\"%s\"}\n\n", runID)
 	flusher.Flush()
 
 	// Subscribe to workflow events if engine is available
@@ -371,7 +411,7 @@ func (s *Server) runEventsHandler(w http.ResponseWriter, r *http.Request) {
 					}
 					// Send event as SSE
 					data, _ := json.Marshal(event)
-					fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, string(data))
+					_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, string(data))
 					flusher.Flush()
 				case <-r.Context().Done():
 					return // Client disconnected
@@ -399,7 +439,7 @@ func (s *Server) runCancelHandler(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": "Cannot cancel non-running workflow",
 		})
 		return
@@ -409,7 +449,7 @@ func (s *Server) runCancelHandler(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": "Run not found",
 		})
 		return
@@ -420,7 +460,7 @@ func (s *Server) runCancelHandler(w http.ResponseWriter, r *http.Request) {
 		if err := s.workflowEngine.CancelWorkflow(r.Context(), runID); err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
+			_ = json.NewEncoder(w).Encode(map[string]string{
 				"error": "Failed to cancel workflow",
 			})
 			return
@@ -434,7 +474,7 @@ func (s *Server) runCancelHandler(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{
 		"status": "cancelled",
 		"runId":  runID,
 	})
@@ -456,14 +496,14 @@ func (s *Server) planGetHandler(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": "Plan not found",
 		})
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(plan)
+	_ = json.NewEncoder(w).Encode(plan)
 }
 
 // planApproveHandler approves a plan to continue workflow

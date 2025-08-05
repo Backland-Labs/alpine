@@ -81,7 +81,7 @@ func TestAgUIHookScriptGeneratesValidEvents(t *testing.T) {
 	var receivedEvent map[string]interface{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &receivedEvent)
+		_ = json.Unmarshal(body, &receivedEvent)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -199,7 +199,7 @@ func TestAgUIHookScriptGeneratesToolCallEndEvents(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var event map[string]interface{}
 		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &event)
+		_ = json.Unmarshal(body, &event)
 		receivedEvents = append(receivedEvents, event)
 		w.WriteHeader(http.StatusOK)
 	}))

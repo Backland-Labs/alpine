@@ -61,8 +61,8 @@ func NewEngine(executor ClaudeExecutor, wtMgr gitx.WorktreeManager, cfg *config.
 func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan bool) (runErr error) {
 	logger.WithFields(map[string]interface{}{
 		"task_description": taskDescription,
-		"generate_plan": generatePlan,
-		"state_file": e.stateFile,
+		"generate_plan":    generatePlan,
+		"state_file":       e.stateFile,
 	}).Debug("Starting workflow run")
 
 	// Generate a unique run ID for event tracking
@@ -70,7 +70,7 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 	e.taskDesc = taskDescription
 
 	logger.WithFields(map[string]interface{}{
-		"run_id": e.runID,
+		"run_id":           e.runID,
 		"task_description": taskDescription,
 	}).Info("Workflow run initialized")
 
@@ -90,12 +90,12 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 	// Ensure agent_state directory exists
 	stateDir := filepath.Dir(e.stateFile)
 	logger.WithFields(map[string]interface{}{
-		"directory": stateDir,
+		"directory":  stateDir,
 		"state_file": e.stateFile,
 	}).Debug("Ensuring agent_state directory exists")
 	if err := os.MkdirAll(stateDir, 0755); err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":     err.Error(),
 			"directory": stateDir,
 		}).Error("Failed to create agent_state directory")
 		return fmt.Errorf("failed to create agent_state directory: %w", err)
@@ -105,9 +105,9 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 	// Check if this is bare mode
 	isBareMode := taskDescription == "" && !generatePlan && !e.cfg.Git.WorktreeEnabled
 	logger.WithFields(map[string]interface{}{
-		"is_bare_mode": isBareMode,
-		"task_empty": taskDescription == "",
-		"generate_plan": generatePlan,
+		"is_bare_mode":     isBareMode,
+		"task_empty":       taskDescription == "",
+		"generate_plan":    generatePlan,
 		"worktree_enabled": e.cfg.Git.WorktreeEnabled,
 	}).Debug("Determined execution mode")
 
@@ -122,7 +122,7 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 		logger.WithField("task_description", taskDescription).Debug("Attempting to create worktree")
 		if err := e.createWorktree(ctx, taskDescription); err != nil {
 			logger.WithFields(map[string]interface{}{
-				"error": err.Error(),
+				"error":            err.Error(),
 				"task_description": taskDescription,
 			}).Error("Failed to create worktree")
 			return fmt.Errorf("failed to create worktree: %w", err)
@@ -136,11 +136,11 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 		if e.wt != nil && e.cfg.Git.AutoCleanupWT {
 			logger.WithFields(map[string]interface{}{
 				"worktree_path": e.wt.Path,
-				"branch": e.wt.Branch,
+				"branch":        e.wt.Branch,
 			}).Debug("Cleaning up worktree")
 			if err := e.wtMgr.Cleanup(ctx, e.wt); err != nil {
 				logger.WithFields(map[string]interface{}{
-					"error": err.Error(),
+					"error":         err.Error(),
 					"worktree_path": e.wt.Path,
 				}).Error("Failed to cleanup worktree")
 				e.printer.Warning("Failed to cleanup worktree: %v", err)
@@ -153,11 +153,11 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 		if e.originalDir != "" && e.wt != nil {
 			logger.WithFields(map[string]interface{}{
 				"original_dir": e.originalDir,
-				"current_dir": e.wt.Path,
+				"current_dir":  e.wt.Path,
 			}).Debug("Restoring original directory")
 			if err := os.Chdir(e.originalDir); err != nil {
 				logger.WithFields(map[string]interface{}{
-					"error": err.Error(),
+					"error":        err.Error(),
 					"original_dir": e.originalDir,
 				}).Error("Failed to restore original directory")
 			} else {
@@ -180,14 +180,14 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 			e.printer.Info("Starting bare execution with /run_implementation_loop")
 			if err := e.initializeWorkflow(ctx, "/run_implementation_loop", false); err != nil {
 				logger.WithFields(map[string]interface{}{
-					"error": err.Error(),
+					"error":   err.Error(),
 					"command": "/run_implementation_loop",
 				}).Error("Failed to initialize bare workflow")
 				return fmt.Errorf("failed to initialize bare workflow: %w", err)
 			}
 		} else {
 			logger.WithFields(map[string]interface{}{
-				"error": err.Error(),
+				"error":      err.Error(),
 				"state_file": e.stateFile,
 			}).Error("Failed to check state file")
 			return fmt.Errorf("failed to check state file: %w", err)
@@ -195,15 +195,15 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 	} else {
 		// Normal initialization
 		logger.WithFields(map[string]interface{}{
-			"generate_plan": generatePlan,
+			"generate_plan":    generatePlan,
 			"task_description": taskDescription,
-			"state_file": e.stateFile,
+			"state_file":       e.stateFile,
 		}).Debug("Initializing workflow with task")
 		if err := e.initializeWorkflow(ctx, taskDescription, generatePlan); err != nil {
 			logger.WithFields(map[string]interface{}{
-				"error": err.Error(),
+				"error":            err.Error(),
 				"task_description": taskDescription,
-				"generate_plan": generatePlan,
+				"generate_plan":    generatePlan,
 			}).Error("Failed to initialize workflow")
 			return fmt.Errorf("failed to initialize workflow: %w", err)
 		}
@@ -221,16 +221,16 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 		iteration++
 		logger.WithFields(map[string]interface{}{
 			"iteration": iteration,
-			"run_id": e.runID,
+			"run_id":    e.runID,
 		}).Debug("Starting workflow iteration")
 
 		// Check context cancellation
 		select {
 		case <-ctx.Done():
 			logger.WithFields(map[string]interface{}{
-				"run_id": e.runID,
+				"run_id":    e.runID,
 				"iteration": iteration,
-				"error": ctx.Err().Error(),
+				"error":     ctx.Err().Error(),
 			}).Warn("Workflow interrupted by context cancellation")
 			return fmt.Errorf("workflow interrupted: %w", ctx.Err())
 		default:
@@ -239,14 +239,14 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 		// Load current state
 		logger.WithFields(map[string]interface{}{
 			"state_file": e.stateFile,
-			"iteration": iteration,
+			"iteration":  iteration,
 		}).Debug("Loading current state")
 		state, err := core.LoadState(e.stateFile)
 		if err != nil {
 			logger.WithFields(map[string]interface{}{
-				"error": err.Error(),
+				"error":      err.Error(),
 				"state_file": e.stateFile,
-				"iteration": iteration,
+				"iteration":  iteration,
 			}).Error("Failed to load state")
 			return fmt.Errorf("failed to load state: %w", err)
 		}
@@ -258,7 +258,7 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 		// Check if workflow is completed
 		if state.Status == "completed" {
 			logger.WithFields(map[string]interface{}{
-				"run_id": e.runID,
+				"run_id":     e.runID,
 				"iterations": iteration,
 				"final_step": state.CurrentStepDescription,
 			}).Info("Workflow completed successfully")
@@ -274,7 +274,7 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 			logger.WithField("state_file", e.stateFile).Debug("Cleaning up state file")
 			if err := os.Remove(e.stateFile); err != nil && !os.IsNotExist(err) {
 				logger.WithFields(map[string]interface{}{
-					"error": err.Error(),
+					"error":      err.Error(),
 					"state_file": e.stateFile,
 				}).Info("Failed to clean up state file")
 				// Don't fail the workflow for cleanup issues
@@ -288,9 +288,9 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 		// Execute Claude with the next prompt
 		e.printer.Step("Executing Claude with prompt: %s", state.NextStepPrompt)
 		logger.WithFields(map[string]interface{}{
-			"prompt": state.NextStepPrompt,
-			"iteration": iteration,
-			"run_id": e.runID,
+			"prompt":       state.NextStepPrompt,
+			"iteration":    iteration,
+			"run_id":       e.runID,
 			"current_step": state.CurrentStepDescription,
 		}).Info("Executing Claude command")
 
@@ -313,7 +313,7 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 		}
 
 		logger.WithFields(map[string]interface{}{
-			"prompt": config.Prompt,
+			"prompt":     config.Prompt,
 			"state_file": config.StateFile,
 		}).Debug("Claude execute config prepared")
 
@@ -329,31 +329,31 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 
 		if claudeErr != nil {
 			logger.WithFields(map[string]interface{}{
-				"error":    claudeErr.Error(),
-				"duration": time.Since(startTime).String(),
+				"error":       claudeErr.Error(),
+				"duration":    time.Since(startTime).String(),
 				"duration_ms": time.Since(startTime).Milliseconds(),
-				"iteration": iteration,
-				"run_id": e.runID,
+				"iteration":   iteration,
+				"run_id":      e.runID,
 			}).Error("Claude execution failed")
 			return fmt.Errorf("claude execution failed: %w", claudeErr)
 		}
 		logger.WithFields(map[string]interface{}{
-			"duration": time.Since(startTime).String(),
+			"duration":    time.Since(startTime).String(),
 			"duration_ms": time.Since(startTime).Milliseconds(),
-			"iteration": iteration,
-			"run_id": e.runID,
+			"iteration":   iteration,
+			"run_id":      e.runID,
 		}).Info("Claude execution completed successfully")
 
 		// Wait for state file to be updated
 		logger.WithFields(map[string]interface{}{
 			"state_file": e.stateFile,
-			"iteration": iteration,
+			"iteration":  iteration,
 		}).Debug("Waiting for state file update")
 		if err := e.waitForStateUpdate(ctx, state); err != nil {
 			logger.WithFields(map[string]interface{}{
-				"error": err.Error(),
+				"error":      err.Error(),
 				"state_file": e.stateFile,
-				"iteration": iteration,
+				"iteration":  iteration,
 			}).Error("Error waiting for state update")
 			return fmt.Errorf("error waiting for state update: %w", err)
 		}
@@ -373,9 +373,9 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 
 	logger.WithFields(map[string]interface{}{
 		"task_description": taskDescription,
-		"generate_plan": generatePlan,
-		"prompt": prompt,
-		"run_id": e.runID,
+		"generate_plan":    generatePlan,
+		"prompt":           prompt,
+		"run_id":           e.runID,
 	}).Debug("Preparing initial workflow state")
 
 	// For bare mode, taskDescription is just "/run_implementation_loop"
@@ -385,7 +385,7 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 		e.printer.Info("Initializing bare workflow execution")
 	} else {
 		logger.WithFields(map[string]interface{}{
-			"task": taskDescription,
+			"task":    taskDescription,
 			"command": prompt,
 		}).Info("Initializing workflow for task")
 		e.printer.Info("Initializing workflow for task: %s", taskDescription)
@@ -396,7 +396,7 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 	logger.WithField("directory", stateDir).Debug("Ensuring state directory exists")
 	if err := os.MkdirAll(stateDir, 0755); err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":     err.Error(),
 			"directory": stateDir,
 		}).Error("Failed to create state directory")
 		return fmt.Errorf("failed to create state directory: %w", err)
@@ -410,13 +410,13 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 
 	logger.WithFields(map[string]interface{}{
 		"state_file": e.stateFile,
-		"status": state.Status,
-		"prompt": state.NextStepPrompt,
+		"status":     state.Status,
+		"prompt":     state.NextStepPrompt,
 	}).Debug("Saving initial state")
 
 	if err := state.Save(e.stateFile); err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":      err.Error(),
 			"state_file": e.stateFile,
 		}).Error("Failed to save initial state")
 		return err
@@ -437,8 +437,8 @@ func (e *Engine) waitForStateUpdate(ctx context.Context, previousState *core.Sta
 		logger.WithFields(map[string]interface{}{
 			"old_status": previousState.Status,
 			"new_status": newState.Status,
-			"old_step": previousState.CurrentStepDescription,
-			"new_step": newState.CurrentStepDescription,
+			"old_step":   previousState.CurrentStepDescription,
+			"new_step":   newState.CurrentStepDescription,
 		}).Debug("State already updated")
 		return nil // State already updated
 	}
@@ -447,7 +447,7 @@ func (e *Engine) waitForStateUpdate(ctx context.Context, previousState *core.Sta
 	initialStat, err := os.Stat(e.stateFile)
 	if err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":      err.Error(),
 			"state_file": e.stateFile,
 		}).Error("Failed to stat state file")
 		return fmt.Errorf("failed to stat state file: %w", err)
@@ -455,7 +455,7 @@ func (e *Engine) waitForStateUpdate(ctx context.Context, previousState *core.Sta
 	initialModTime := initialStat.ModTime()
 	logger.WithFields(map[string]interface{}{
 		"state_file": e.stateFile,
-		"mod_time": initialModTime.Format(time.RFC3339),
+		"mod_time":   initialModTime.Format(time.RFC3339),
 	}).Debug("Got initial state file modification time")
 
 	// Show progress indicator while waiting
@@ -479,7 +479,7 @@ func (e *Engine) waitForStateUpdate(ctx context.Context, previousState *core.Sta
 					continue
 				}
 				logger.WithFields(map[string]interface{}{
-					"error": err.Error(),
+					"error":      err.Error(),
 					"state_file": e.stateFile,
 				}).Error("Failed to stat state file during wait")
 				return fmt.Errorf("failed to stat state file: %w", err)
@@ -490,7 +490,7 @@ func (e *Engine) waitForStateUpdate(ctx context.Context, previousState *core.Sta
 					"old_mod_time": initialModTime.Format(time.RFC3339),
 					"new_mod_time": stat.ModTime().Format(time.RFC3339),
 				}).Debug("State file modification detected")
-				
+
 				// File has been modified, load and check if content changed
 				newState, err := core.LoadState(e.stateFile)
 				if err != nil {
@@ -504,8 +504,8 @@ func (e *Engine) waitForStateUpdate(ctx context.Context, previousState *core.Sta
 					newState.NextStepPrompt != previousState.NextStepPrompt ||
 					newState.Status != previousState.Status {
 					logger.WithFields(map[string]interface{}{
-						"old_status": previousState.Status,
-						"new_status": newState.Status,
+						"old_status":    previousState.Status,
+						"new_status":    newState.Status,
 						"state_changed": true,
 					}).Info("State file content changed")
 					return nil // State has been updated
@@ -535,7 +535,7 @@ func (e *Engine) createWorktree(ctx context.Context, taskDescription string) err
 	if !e.cfg.Git.WorktreeEnabled || e.wtMgr == nil {
 		logger.WithFields(map[string]interface{}{
 			"worktree_enabled": e.cfg.Git.WorktreeEnabled,
-			"wtmgr_nil": e.wtMgr == nil,
+			"wtmgr_nil":        e.wtMgr == nil,
 		}).Debug("Worktree creation skipped")
 		return nil
 	}
@@ -551,14 +551,14 @@ func (e *Engine) createWorktree(ctx context.Context, taskDescription string) err
 
 	// Create worktree
 	logger.WithFields(map[string]interface{}{
-		"task": taskDescription,
+		"task":   taskDescription,
 		"run_id": e.runID,
 	}).Info("Creating worktree for task")
 	e.wt, err = e.wtMgr.Create(ctx, taskDescription)
 	if err != nil {
 		logger.WithFields(map[string]interface{}{
 			"error": err.Error(),
-			"task": taskDescription,
+			"task":  taskDescription,
 		}).Error("Failed to create worktree")
 		return fmt.Errorf("failed to create worktree: %w", err)
 	}
@@ -571,11 +571,11 @@ func (e *Engine) createWorktree(ctx context.Context, taskDescription string) err
 	// Change to worktree directory
 	logger.WithFields(map[string]interface{}{
 		"from": e.originalDir,
-		"to": e.wt.Path,
+		"to":   e.wt.Path,
 	}).Debug("Changing to worktree directory")
 	if err := os.Chdir(e.wt.Path); err != nil {
 		logger.WithFields(map[string]interface{}{
-			"error": err.Error(),
+			"error":         err.Error(),
 			"worktree_path": e.wt.Path,
 		}).Error("Failed to change to worktree directory")
 		return fmt.Errorf("failed to change to worktree directory: %w", err)
@@ -585,9 +585,9 @@ func (e *Engine) createWorktree(ctx context.Context, taskDescription string) err
 	// The working directory has changed to the worktree, but the state file
 	// path remains relative to that directory
 	logger.WithFields(map[string]interface{}{
-		"state_file": e.stateFile,
+		"state_file":    e.stateFile,
 		"worktree_path": e.wt.Path,
-		"working_dir": e.wt.Path,
+		"working_dir":   e.wt.Path,
 	}).Debug("State file path configured in worktree")
 
 	e.printer.Info("Created worktree: %s (branch: %s)", e.wt.Path, e.wt.Branch)

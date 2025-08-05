@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 // Verbosity represents the output verbosity level
@@ -21,6 +22,21 @@ const (
 	VerbosityDebug Verbosity = "debug"
 )
 
+// GitCloneConfig holds git clone-related configuration for server operations
+type GitCloneConfig struct {
+	// Enabled controls whether git clone operations are enabled
+	Enabled bool
+
+	// AuthToken is the GitHub authentication token for private repositories
+	AuthToken string
+
+	// Timeout is the maximum duration to wait for clone operations
+	Timeout time.Duration
+
+	// Depth is the depth of the shallow clone (default: 1)
+	Depth int
+}
+
 // GitConfig holds git-related configuration
 type GitConfig struct {
 	// WorktreeEnabled controls whether to create git worktrees for tasks
@@ -31,6 +47,9 @@ type GitConfig struct {
 
 	// AutoCleanupWT controls whether to clean up worktrees after completion
 	AutoCleanupWT bool
+
+	// Clone holds git clone-related configuration
+	Clone GitCloneConfig
 }
 
 // ServerConfig holds server-related configuration
@@ -171,6 +190,49 @@ func New() (*Config, error) {
 		return nil, err
 	}
 	cfg.Git.AutoCleanupWT = autoCleanupWT
+
+	// Load Git Clone configuration
+	cfg.Git.Clone = GitCloneConfig{}
+
+	// Load Clone.Enabled - defaults to true
+	cloneEnabled, err := parseBoolEnv("ALPINE_GIT_CLONE_ENABLED", true)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Git.Clone.Enabled = cloneEnabled
+
+	// Load Clone.AuthToken - defaults to empty string
+	cfg.Git.Clone.AuthToken = os.Getenv("ALPINE_GIT_CLONE_AUTH_TOKEN")
+
+	// Load Clone.Timeout - defaults to 300 seconds
+	cloneTimeoutStr := os.Getenv("ALPINE_GIT_CLONE_TIMEOUT")
+	if cloneTimeoutStr == "" {
+		cfg.Git.Clone.Timeout = 300 * time.Second
+	} else {
+		cloneTimeoutSecs, err := strconv.Atoi(cloneTimeoutStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ALPINE_GIT_CLONE_TIMEOUT: %w", err)
+		}
+		if cloneTimeoutSecs <= 0 {
+			return nil, fmt.Errorf("ALPINE_GIT_CLONE_TIMEOUT must be positive, got: %d", cloneTimeoutSecs)
+		}
+		cfg.Git.Clone.Timeout = time.Duration(cloneTimeoutSecs) * time.Second
+	}
+
+	// Load Clone.Depth - defaults to 1
+	cloneDepthStr := os.Getenv("ALPINE_GIT_CLONE_DEPTH")
+	if cloneDepthStr == "" {
+		cfg.Git.Clone.Depth = 1
+	} else {
+		cloneDepth, err := strconv.Atoi(cloneDepthStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ALPINE_GIT_CLONE_DEPTH: %w", err)
+		}
+		if cloneDepth <= 0 {
+			return nil, fmt.Errorf("ALPINE_GIT_CLONE_DEPTH must be positive, got: %d", cloneDepth)
+		}
+		cfg.Git.Clone.Depth = cloneDepth
+	}
 
 	// Load Server configuration
 	cfg.Server = ServerConfig{}

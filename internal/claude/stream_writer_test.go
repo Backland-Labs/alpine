@@ -37,13 +37,13 @@ func TestStreamWriterFunctionality(t *testing.T) {
 
 	// Test partial line buffering
 	streamer.contentCalls = nil // Reset
-	sw.Write([]byte("Partial"))
+	_, _ = sw.Write([]byte("Partial"))
 	if len(streamer.contentCalls) != 0 {
 		t.Error("Partial line should not be streamed immediately")
 	}
 
 	// Complete the line
-	sw.Write([]byte(" Line\n"))
+	_, _ = sw.Write([]byte(" Line\n"))
 	if len(streamer.contentCalls) != 1 {
 		t.Errorf("Expected 1 content call after completing line, got %d", len(streamer.contentCalls))
 	} else {
@@ -54,8 +54,8 @@ func TestStreamWriterFunctionality(t *testing.T) {
 
 	// Test flush
 	streamer.contentCalls = nil
-	sw.Write([]byte("No newline"))
-	sw.Flush()
+	_, _ = sw.Write([]byte("No newline"))
+	_ = sw.Flush()
 	if len(streamer.contentCalls) != 1 {
 		t.Errorf("Expected 1 content call after flush, got %d", len(streamer.contentCalls))
 	} else {

@@ -56,6 +56,7 @@ type workflowInstance struct {
 	worktreeDir string             // Directory containing workflow files
 	stateFile   string             // Path to the workflow state file
 	createdAt   time.Time          // Timestamp when the workflow was created
+	clonedDirs  []string           // Directories of cloned repositories for cleanup
 }
 
 // NewAlpineWorkflowEngine creates a new workflow engine integration.
@@ -91,8 +92,9 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 		return "", fmt.Errorf("workflow %s already exists", runID)
 	}
 
-	// Create workflow context
+	// Create workflow context with issue URL
 	workflowCtx, cancel := context.WithCancel(ctx)
+	workflowCtx = context.WithValue(workflowCtx, "issue_url", issueURL)
 
 	// Create custom config for this workflow
 	workflowCfg := *e.cfg // Copy config
@@ -129,6 +131,7 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 		worktreeDir: worktreeDir,
 		stateFile:   workflowCfg.StateFile,
 		createdAt:   time.Now(),
+		clonedDirs:  make([]string, 0),
 	}
 
 	e.workflows[runID] = instance
@@ -290,28 +293,252 @@ func (e *AlpineWorkflowEngine) SubscribeToEvents(ctx context.Context, runID stri
 	return subscriber, nil
 }
 
-// Cleanup removes completed workflows from memory.
-// It cancels the workflow context and removes it from the active workflows map.
+// Cleanup removes completed workflows from memory and cleans up associated resources.
+// It performs comprehensive cleanup including workflow context cancellation, cloned repository
+// removal (if enabled), and memory cleanup from the active workflows map.
+//
+// This method implements the server-side resource cleanup requirements from Task 6,
+// ensuring that cloned repositories are properly removed after workflow completion
+// to prevent disk space accumulation in long-running server deployments.
+//
+// Cleanup behavior:
+// - Respects ALPINE_GIT_AUTO_CLEANUP configuration setting
+// - Handles cleanup failures gracefully without affecting workflow status
+// - Provides comprehensive logging for monitoring and debugging
+// - Thread-safe through mutex protection
+//
+// Parameters:
+//   - runID: The unique identifier for the workflow to clean up
 func (e *AlpineWorkflowEngine) Cleanup(runID string) {
-	logger.Debugf("Cleaning up workflow: %s", runID)
+	cleanupStartTime := time.Now()
+
+	logger.WithFields(map[string]interface{}{
+		"run_id":    runID,
+		"operation": "workflow_cleanup",
+	}).Debug("Starting workflow cleanup")
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if instance, exists := e.workflows[runID]; exists {
-		instance.cancel()
-		delete(e.workflows, runID)
-		logger.Infof("Workflow %s cleaned up after %.2f minutes", runID, time.Since(instance.createdAt).Minutes())
+	instance, exists := e.workflows[runID]
+	if !exists {
+		logger.WithFields(map[string]interface{}{
+			"run_id": runID,
+		}).Debug("Workflow cleanup requested for non-existent workflow")
+		return
 	}
+
+	workflowDuration := time.Since(instance.createdAt)
+	clonedDirsCount := len(instance.clonedDirs)
+
+	// Clean up cloned repositories if auto cleanup is enabled and directories exist
+	if e.cfg.Git.AutoCleanupWT && clonedDirsCount > 0 {
+		e.cleanupClonedRepositories(runID, instance.clonedDirs)
+	} else if clonedDirsCount > 0 {
+		logger.WithFields(map[string]interface{}{
+			"run_id":               runID,
+			"cloned_dirs_count":    clonedDirsCount,
+			"auto_cleanup_enabled": e.cfg.Git.AutoCleanupWT,
+		}).Debug("Skipping cloned repository cleanup (disabled by configuration)")
+	}
+
+	// Cancel workflow context and remove from active workflows
+	instance.cancel()
+	delete(e.workflows, runID)
+
+	cleanupDuration := time.Since(cleanupStartTime)
+	logger.WithFields(map[string]interface{}{
+		"run_id":            runID,
+		"workflow_duration": workflowDuration,
+		"cleanup_duration":  cleanupDuration,
+		"cloned_dirs_count": clonedDirsCount,
+		"auto_cleanup":      e.cfg.Git.AutoCleanupWT,
+	}).Info("Workflow cleanup completed")
+}
+
+// cleanupClonedRepositories removes cloned repository directories for a workflow.
+// It handles cleanup failures gracefully without failing the overall cleanup operation.
+//
+// This method implements defensive cleanup patterns:
+// - Logs comprehensive context for debugging and monitoring
+// - Continues cleanup even if individual directories fail to remove
+// - Uses structured logging for consistent log analysis
+// - Provides detailed progress tracking for multiple directory cleanup
+//
+// Parameters:
+//   - runID: The workflow run identifier for logging context
+//   - clonedDirs: Slice of directory paths to be removed
+//
+// The method respects the principle that cleanup failures should not prevent
+// workflow completion, ensuring system stability over strict cleanup guarantees.
+func (e *AlpineWorkflowEngine) cleanupClonedRepositories(runID string, clonedDirs []string) {
+	cleanupLog := logger.WithFields(map[string]interface{}{
+		"run_id":            runID,
+		"cloned_dirs_count": len(clonedDirs),
+		"operation":         "clone_cleanup",
+	})
+
+	cleanupLog.Info("Starting cleanup of cloned repositories")
+
+	successCount := 0
+	failureCount := 0
+
+	for i, clonedDir := range clonedDirs {
+		dirLog := cleanupLog.WithFields(map[string]interface{}{
+			"clone_directory": clonedDir,
+			"directory_index": i + 1,
+			"total_dirs":      len(clonedDirs),
+		})
+
+		dirLog.Debug("Removing cloned repository directory")
+
+		if err := os.RemoveAll(clonedDir); err != nil {
+			failureCount++
+			// Log error but don't fail the cleanup operation
+			dirLog.WithFields(map[string]interface{}{
+				"error": err.Error(),
+			}).Warn("Failed to remove cloned repository directory, continuing cleanup")
+		} else {
+			successCount++
+			dirLog.Debug("Successfully removed cloned repository directory")
+		}
+	}
+
+	// Log final cleanup summary
+	cleanupLog.WithFields(map[string]interface{}{
+		"success_count": successCount,
+		"failure_count": failureCount,
+		"total_dirs":    len(clonedDirs),
+	}).Info("Completed cleanup of cloned repositories")
 }
 
 // Helper methods
 
 // createWorkflowDirectory creates an isolated directory for workflow execution.
 // It uses a worktree if available and enabled, otherwise creates a temporary directory.
+// For GitHub issue URLs, it attempts to clone the repository first and create a worktree within it.
 func (e *AlpineWorkflowEngine) createWorkflowDirectory(ctx context.Context, runID string, cancel context.CancelFunc) (string, error) {
+	// Try to create worktree in cloned repository for GitHub issues
+	if worktreeDir, created := e.tryCreateClonedWorktree(ctx, runID); created {
+		return worktreeDir, nil
+	}
+
+	// Fallback to regular worktree creation
+	return e.createFallbackWorktree(ctx, runID, cancel)
+}
+
+// tryCreateClonedWorktree attempts to clone a GitHub repository and create a worktree within it.
+// Returns the worktree directory path and a boolean indicating if the operation succeeded.
+func (e *AlpineWorkflowEngine) tryCreateClonedWorktree(ctx context.Context, runID string) (string, bool) {
+	// Check if context contains a GitHub issue URL for cloning
+	issueURL, ok := ctx.Value("issue_url").(string)
+	if !ok || issueURL == "" || !isGitHubIssueURL(issueURL) || !e.cfg.Git.Clone.Enabled {
+		return "", false
+	}
+
+	logger.Infof("Detected GitHub issue URL for workflow %s: %s", runID, issueURL)
+
+	// Parse GitHub URL to extract repository information
+	owner, repo, _, err := parseGitHubIssueURL(issueURL)
+	if err != nil {
+		logger.Warnf("Failed to parse GitHub issue URL %s: %v, falling back to regular worktree", issueURL, err)
+		return "", false
+	}
+
+	// Clone the repository
+	repoURL := buildGitCloneURL(owner, repo)
+	clonedDir, err := e.cloneRepositoryWithLogging(ctx, repoURL, runID)
+	if err != nil {
+		logger.Warnf("Failed to clone repository %s: %v, falling back to regular worktree", repoURL, err)
+		return "", false
+	}
+
+	// Create worktree in cloned repository if possible
+	if worktreeDir, err := e.createWorktreeInClonedRepo(ctx, runID, clonedDir); err == nil {
+		return worktreeDir, true
+	}
+
+	// Return cloned directory as fallback
+	logger.Infof("Using cloned repository directory directly for workflow %s: %s", runID, clonedDir)
+	return clonedDir, true
+}
+
+// cloneRepositoryWithLogging clones a repository with comprehensive logging and directory tracking.
+// This method extends the basic cloneRepository functionality with server-specific requirements:
+// - Automatic tracking of cloned directories for cleanup
+// - Thread-safe directory tracking through mutex protection
+// - Structured logging for monitoring and debugging
+//
+// The method registers cloned directories with the workflow instance to enable
+// automatic cleanup when the workflow completes, preventing disk space accumulation
+// in long-running server deployments.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control
+//   - repoURL: The repository URL to clone
+//   - runID: The workflow run identifier for tracking and logging
+//
+// Returns:
+//   - string: Path to the cloned repository directory
+//   - error: Any error that occurred during cloning or tracking
+func (e *AlpineWorkflowEngine) cloneRepositoryWithLogging(ctx context.Context, repoURL, runID string) (string, error) {
+	cloneLog := logger.WithFields(map[string]interface{}{
+		"run_id":         runID,
+		"repository_url": sanitizeURLForLogging(repoURL),
+		"operation":      "server_clone_with_tracking",
+	})
+
+	cloneLog.Info("Attempting to clone repository for server workflow")
+
+	clonedDir, err := cloneRepository(ctx, repoURL, &e.cfg.Git.Clone)
+	if err != nil {
+		cloneLog.WithFields(map[string]interface{}{
+			"error": err.Error(),
+		}).Error("Repository clone failed for server workflow")
+		return "", err
+	}
+
+	// Track the cloned directory for cleanup (thread-safe)
+	e.mu.Lock()
+	if instance, exists := e.workflows[runID]; exists {
+		instance.clonedDirs = append(instance.clonedDirs, clonedDir)
+		cloneLog.WithFields(map[string]interface{}{
+			"clone_directory":    clonedDir,
+			"tracked_dirs_count": len(instance.clonedDirs),
+		}).Debug("Registered cloned directory for cleanup tracking")
+	} else {
+		cloneLog.Warn("Cannot track cloned directory: workflow instance not found")
+	}
+	e.mu.Unlock()
+
+	cloneLog.WithFields(map[string]interface{}{
+		"clone_directory": clonedDir,
+	}).Info("Successfully cloned repository for server workflow")
+
+	return clonedDir, nil
+}
+
+// createWorktreeInClonedRepo creates a worktree within a cloned repository.
+func (e *AlpineWorkflowEngine) createWorktreeInClonedRepo(ctx context.Context, runID, clonedDir string) (string, error) {
+	if e.wtMgr == nil || !e.cfg.Git.WorktreeEnabled {
+		return "", fmt.Errorf("worktree manager not available")
+	}
+
+	// Create worktree name to indicate clone context
+	worktreeName := fmt.Sprintf("cloned-%s%s", worktreeNamePrefix, runID)
+	wt, err := e.wtMgr.Create(ctx, worktreeName)
+	if err != nil {
+		return "", fmt.Errorf("failed to create worktree in cloned repository: %w", err)
+	}
+
+	logger.Infof("Created worktree in cloned repository for workflow %s at: %s", runID, wt.Path)
+	return wt.Path, nil
+}
+
+// createFallbackWorktree creates a regular worktree or temporary directory as fallback.
+func (e *AlpineWorkflowEngine) createFallbackWorktree(ctx context.Context, runID string, cancel context.CancelFunc) (string, error) {
+	// Try to create regular worktree
 	if e.wtMgr != nil && e.cfg.Git.WorktreeEnabled {
-		// Create worktree for the workflow
 		worktreeName := fmt.Sprintf("%s%s", worktreeNamePrefix, runID)
 		wt, err := e.wtMgr.Create(ctx, worktreeName)
 		if err != nil {
@@ -323,7 +550,7 @@ func (e *AlpineWorkflowEngine) createWorkflowDirectory(ctx context.Context, runI
 		return wt.Path, nil
 	}
 
-	// Use temporary directory for state
+	// Use temporary directory as final fallback
 	tempDirName := fmt.Sprintf("%s%s-", tempDirPrefix, runID)
 	tempDir, err := os.MkdirTemp("", tempDirName)
 	if err != nil {

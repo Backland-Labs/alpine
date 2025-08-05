@@ -250,7 +250,7 @@ func TestRESTAPIGitHubIssueProcessing(t *testing.T) {
 				}
 
 				var errResp map[string]string
-				json.NewDecoder(resp.Body).Decode(&errResp)
+				_ = json.NewDecoder(resp.Body).Decode(&errResp)
 				if !strings.Contains(errResp["error"], tc.errorMsg) {
 					t.Errorf("Expected error containing '%s', got '%s'", tc.errorMsg, errResp["error"])
 				}
@@ -520,7 +520,7 @@ func TestRESTAPIServerStability(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Server unresponsive after client disconnect: %v", err)
 		}
-		healthResp.Body.Close()
+		_ = healthResp.Body.Close()
 
 		if healthResp.StatusCode != http.StatusOK {
 			t.Errorf("Health check failed after client disconnect")

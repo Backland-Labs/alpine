@@ -213,7 +213,7 @@ func TestAGUIFieldValidation(t *testing.T) {
 
 		data, _ := json.Marshal(event)
 		var jsonMap map[string]interface{}
-		json.Unmarshal(data, &jsonMap)
+		_ = json.Unmarshal(data, &jsonMap)
 
 		timestampStr, ok := jsonMap["timestamp"].(string)
 		if !ok {
@@ -260,8 +260,8 @@ func TestAGUIJSONSerialization(t *testing.T) {
 
 		// Parse both to handle map ordering differences
 		var gotMap, expectedMap map[string]interface{}
-		json.Unmarshal(data, &gotMap)
-		json.Unmarshal([]byte(expected), &expectedMap)
+		_ = json.Unmarshal(data, &gotMap)
+		_ = json.Unmarshal([]byte(expected), &expectedMap)
 
 		// Deep equal comparison would go here
 		if gotMap["type"] != expectedMap["type"] {
@@ -282,7 +282,7 @@ func TestAGUIJSONSerialization(t *testing.T) {
 
 		data, _ := json.Marshal(event)
 		var jsonMap map[string]interface{}
-		json.Unmarshal(data, &jsonMap)
+		_ = json.Unmarshal(data, &jsonMap)
 
 		// Check that optional empty fields are not present
 		if _, ok := jsonMap["messageId"]; ok {

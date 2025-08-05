@@ -49,13 +49,13 @@ func (rc *reviewCmd) execute(cmd *cobra.Command, args []string) error {
 	}
 
 	// Review the plan file
-	fmt.Fprintf(cmd.OutOrStdout(), "Reviewing plan file: %s\n", planFile)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Reviewing plan file: %s\n", planFile)
 
 	file, err := os.Open(planFile)
 	if err != nil {
 		return fmt.Errorf("failed to open plan file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var totalTasks, implementedTasks, pendingTasks int
 	scanner := bufio.NewScanner(file)
@@ -79,14 +79,14 @@ func (rc *reviewCmd) execute(cmd *cobra.Command, args []string) error {
 	}
 
 	// Print summary
-	fmt.Fprintf(cmd.OutOrStdout(), "Tasks found: %d\n", totalTasks)
-	fmt.Fprintf(cmd.OutOrStdout(), "Implemented: %d\n", implementedTasks)
-	fmt.Fprintf(cmd.OutOrStdout(), "Pending: %d\n", pendingTasks)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Tasks found: %d\n", totalTasks)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Implemented: %d\n", implementedTasks)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Pending: %d\n", pendingTasks)
 
 	if pendingTasks == 0 && totalTasks > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "All tasks are implemented!\n")
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "All tasks are implemented!\n")
 	} else if pendingTasks > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "There are %d pending tasks\n", pendingTasks)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "There are %d pending tasks\n", pendingTasks)
 	}
 
 	return nil

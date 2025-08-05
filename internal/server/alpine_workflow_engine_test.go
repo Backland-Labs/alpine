@@ -301,7 +301,7 @@ func TestGetWorkflowState(t *testing.T) {
 			setupFunc: func(engine *AlpineWorkflowEngine, tempDir string) {
 				// Create workflow directory
 				workDir := filepath.Join(tempDir, "run-123")
-				os.MkdirAll(filepath.Join(workDir, "agent_state"), 0755)
+				_ = os.MkdirAll(filepath.Join(workDir, "agent_state"), 0755)
 
 				// Create state file
 				state := &core.State{
@@ -310,7 +310,7 @@ func TestGetWorkflowState(t *testing.T) {
 					Status:                 core.StatusRunning,
 				}
 				stateFile := filepath.Join(workDir, stateFileRelativePath)
-				state.Save(stateFile)
+				_ = state.Save(stateFile)
 
 				// Track workflow
 				engine.workflows["run-123"] = &workflowInstance{
@@ -408,7 +408,7 @@ func TestApprovePlan(t *testing.T) {
 			setupFunc: func(engine *AlpineWorkflowEngine, tempDir string) {
 				// Create workflow directory with state
 				workDir := filepath.Join(tempDir, "run-123")
-				os.MkdirAll(filepath.Join(workDir, "agent_state"), 0755)
+				_ = os.MkdirAll(filepath.Join(workDir, "agent_state"), 0755)
 
 				// Create initial state
 				state := &core.State{
@@ -417,7 +417,7 @@ func TestApprovePlan(t *testing.T) {
 					Status:                 core.StatusRunning,
 				}
 				stateFile := filepath.Join(workDir, stateFileRelativePath)
-				state.Save(stateFile)
+				_ = state.Save(stateFile)
 
 				// Track workflow
 				ctx, cancel := context.WithCancel(context.Background())
@@ -682,7 +682,7 @@ func TestRunWorkflowAsync(t *testing.T) {
 	t.Run("successful workflow execution", func(t *testing.T) {
 		tempDir := t.TempDir()
 		stateDir := filepath.Join(tempDir, "agent_state")
-		os.MkdirAll(stateDir, 0755)
+		_ = os.MkdirAll(stateDir, 0755)
 
 		// Create initial state
 		initialState := &core.State{
@@ -691,7 +691,7 @@ func TestRunWorkflowAsync(t *testing.T) {
 			Status:                 core.StatusRunning,
 		}
 		stateFile := filepath.Join(tempDir, stateFileRelativePath)
-		initialState.Save(stateFile)
+		_ = initialState.Save(stateFile)
 
 		executeCalls := 0
 		mockExecutor := &MockClaudeExecutor{
@@ -704,7 +704,7 @@ func TestRunWorkflowAsync(t *testing.T) {
 						NextStepPrompt:         "",
 						Status:                 core.StatusCompleted,
 					}
-					completedState.Save(stateFile)
+					_ = completedState.Save(stateFile)
 				}
 				return "", nil
 			},
