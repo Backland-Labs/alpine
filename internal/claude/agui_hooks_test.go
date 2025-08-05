@@ -32,7 +32,7 @@ func TestSetupAgUIHooks(t *testing.T) {
 		originalWd, _ := os.Getwd()
 		err := os.Chdir(tmpDir)
 		require.NoError(t, err)
-		defer os.Chdir(originalWd)
+		defer func() { _ = os.Chdir(originalWd) }()
 
 		// Create mock hook script in current directory
 		createMockHookScript(tmpDir)
@@ -94,7 +94,7 @@ func TestSetupAgUIHooks(t *testing.T) {
 		originalWd, _ := os.Getwd()
 		err := os.Chdir(tmpDir)
 		require.NoError(t, err)
-		defer os.Chdir(originalWd)
+		defer func() { _ = os.Chdir(originalWd) }()
 
 		// Create mock hook script in current directory
 		createMockHookScript(tmpDir)
@@ -134,7 +134,7 @@ func TestSetupAgUIHooks(t *testing.T) {
 		originalWd, _ := os.Getwd()
 		err := os.Chdir(tmpDir)
 		require.NoError(t, err)
-		defer os.Chdir(originalWd)
+		defer func() { _ = os.Chdir(originalWd) }()
 
 		// Create mock hook script in current directory
 		createMockHookScript(tmpDir)
@@ -164,7 +164,7 @@ func TestSetupAgUIHooks(t *testing.T) {
 		originalWd, _ := os.Getwd()
 		err = os.Chdir(emptyDir)
 		require.NoError(t, err)
-		defer os.Chdir(originalWd)
+		defer func() { _ = os.Chdir(originalWd) }()
 
 		// Create executor in empty directory where hook script won't be found
 		e := &Executor{}
@@ -183,7 +183,7 @@ func TestSetupAgUIHooks(t *testing.T) {
 		originalWd, _ := os.Getwd()
 		err := os.Chdir(tmpDir)
 		require.NoError(t, err)
-		defer os.Chdir(originalWd)
+		defer func() { _ = os.Chdir(originalWd) }()
 
 		// Create mock hook script in current directory
 		createMockHookScript(tmpDir)
@@ -217,7 +217,7 @@ func TestGetAgUIHookScript(t *testing.T) {
 		originalWd, _ := os.Getwd()
 		err := os.Chdir(tmpDir)
 		require.NoError(t, err)
-		defer os.Chdir(originalWd)
+		defer func() { _ = os.Chdir(originalWd) }()
 
 		// Create hooks directory and script
 		hooksDir := filepath.Join(tmpDir, "hooks")

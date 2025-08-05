@@ -72,7 +72,7 @@ func TestExecutorStreamingWithMockExecution(t *testing.T) {
 				}
 
 				// Flush any remaining data
-				multiWriter.Flush()
+				_ = multiWriter.Flush()
 
 				// End streaming
 				if err := tt.streamer.StreamEnd(tt.runID, messageID); err != nil {

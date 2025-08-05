@@ -108,7 +108,7 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start workflow: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status 201, got %d", resp.StatusCode)
@@ -129,7 +129,7 @@ func TestEndToEndStreamingValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to SSE stream: %v", err)
 	}
-	defer sseResp.Body.Close()
+	defer func() { _ = sseResp.Body.Close() }()
 
 	// Verify SSE content type
 	contentType := sseResp.Header.Get("Content-Type")
@@ -398,10 +398,10 @@ func TestStreamingWithMultipleClients(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start workflow: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var runResponse server.Run
-	json.NewDecoder(resp.Body).Decode(&runResponse)
+	_ = json.NewDecoder(resp.Body).Decode(&runResponse)
 	runID := runResponse.ID
 
 	// Connect multiple SSE clients
@@ -418,7 +418,7 @@ func TestStreamingWithMultipleClients(t *testing.T) {
 				done <- clientID
 				return
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			scanner := bufio.NewScanner(resp.Body)
 			var events []server.WorkflowEvent
@@ -492,7 +492,7 @@ func TestStreamingErrorHandling(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go srv.Start(ctx)
+	go func() { _ = srv.Start(ctx) }()
 	time.Sleep(100 * time.Millisecond)
 
 	// Create workflow engine with a nil worktree manager to simulate error conditions
@@ -513,10 +513,10 @@ func TestStreamingErrorHandling(t *testing.T) {
 		"application/json",
 		bytes.NewReader(payloadBytes),
 	)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	var runResponse server.Run
-	json.NewDecoder(resp.Body).Decode(&runResponse)
+	_ = json.NewDecoder(resp.Body).Decode(&runResponse)
 
 	// Connect to SSE and verify we still get events even if streaming has issues
 	sseURL := fmt.Sprintf("http://%s/runs/%s/events", addr, runResponse.ID)
@@ -524,7 +524,7 @@ func TestStreamingErrorHandling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to SSE: %v", err)
 	}
-	defer sseResp.Body.Close()
+	defer func() { _ = sseResp.Body.Close() }()
 
 	// We should at least get run_started and run_finished/run_error events
 	eventCount := 0

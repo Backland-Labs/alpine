@@ -164,7 +164,7 @@ func TestCloneRepository(t *testing.T) {
 
 				// Cleanup the cloned directory
 				t.Cleanup(func() {
-					os.RemoveAll(result)
+					_ = os.RemoveAll(result)
 				})
 			}
 		})
@@ -261,7 +261,7 @@ func TestCloneRepositoryIntegration(t *testing.T) {
 	require.NotEmpty(t, clonedDir, "Should return non-empty directory path")
 
 	// Cleanup
-	defer os.RemoveAll(clonedDir)
+	defer func() { _ = os.RemoveAll(clonedDir) }()
 
 	// Verify it's a proper git repository
 	gitDir := filepath.Join(clonedDir, ".git")

@@ -1741,7 +1741,7 @@ func TestPlanExecution_WithWorktree(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get current directory: %v", err)
 		}
-		defer os.Chdir(originalDir)
+		defer func() { _ = os.Chdir(originalDir) }()
 
 		// Change to temp directory
 		if err := os.Chdir(tempDir); err != nil {
@@ -1772,8 +1772,8 @@ func TestPlanExecution_WithWorktree(t *testing.T) {
 		rootCmd.SetErr(output)
 
 		// Set up environment to skip actual plan generation
-		os.Setenv("GEMINI_API_KEY", "test-key")
-		defer os.Unsetenv("GEMINI_API_KEY")
+		_ = os.Setenv("GEMINI_API_KEY", "test-key")
+		defer func() { _ = os.Unsetenv("GEMINI_API_KEY") }()
 
 		// The actual worktree implementation will be tested after implementation
 		// For now, this test serves as a placeholder for integration testing

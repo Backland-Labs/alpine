@@ -395,7 +395,7 @@ func (s *Server) runEventsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send initial connection event
-	fmt.Fprintf(w, "data: {\"type\":\"connected\",\"runId\":\"%s\"}\n\n", runID)
+	_, _ = fmt.Fprintf(w, "data: {\"type\":\"connected\",\"runId\":\"%s\"}\n\n", runID)
 	flusher.Flush()
 
 	// Subscribe to workflow events if engine is available
@@ -411,7 +411,7 @@ func (s *Server) runEventsHandler(w http.ResponseWriter, r *http.Request) {
 					}
 					// Send event as SSE
 					data, _ := json.Marshal(event)
-					fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, string(data))
+					_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, string(data))
 					flusher.Flush()
 				case <-r.Context().Done():
 					return // Client disconnected
@@ -439,7 +439,7 @@ func (s *Server) runCancelHandler(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": "Cannot cancel non-running workflow",
 		})
 		return
@@ -449,7 +449,7 @@ func (s *Server) runCancelHandler(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": "Run not found",
 		})
 		return
@@ -460,7 +460,7 @@ func (s *Server) runCancelHandler(w http.ResponseWriter, r *http.Request) {
 		if err := s.workflowEngine.CancelWorkflow(r.Context(), runID); err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
+			_ = json.NewEncoder(w).Encode(map[string]string{
 				"error": "Failed to cancel workflow",
 			})
 			return
@@ -474,7 +474,7 @@ func (s *Server) runCancelHandler(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{
 		"status": "cancelled",
 		"runId":  runID,
 	})
@@ -496,14 +496,14 @@ func (s *Server) planGetHandler(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error": "Plan not found",
 		})
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(plan)
+	_ = json.NewEncoder(w).Encode(plan)
 }
 
 // planApproveHandler approves a plan to continue workflow

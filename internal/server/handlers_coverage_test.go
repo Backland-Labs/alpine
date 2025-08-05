@@ -443,7 +443,7 @@ func TestServerMethodsCoverage(t *testing.T) {
 		}
 
 		var response map[string]string
-		json.NewDecoder(w.Body).Decode(&response)
+		_ = json.NewDecoder(w.Body).Decode(&response)
 		if response["error"] != "test error" {
 			t.Errorf("expected error 'test error', got '%s'", response["error"])
 		}
@@ -458,7 +458,7 @@ func TestWorkflowIntegrationCoverage(t *testing.T) {
 		os.MkdirAll(filepath.Dir(stateFile), 0755)
 
 		// Write invalid JSON
-		os.WriteFile(stateFile, []byte("invalid json"), 0644)
+		_ = os.WriteFile(stateFile, []byte("invalid json"), 0644)
 
 		engine := NewAlpineWorkflowEngine(
 			&MockClaudeExecutor{},
