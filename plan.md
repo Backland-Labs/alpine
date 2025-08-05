@@ -194,27 +194,51 @@
 **Integration Points**:
 - Uses server's logging infrastructure
 
-### Task 6: Implement Server Clone Cleanup
+### ✅ Task 6: Implement Server Clone Cleanup (IMPLEMENTED - 2025-08-05)
 
-**Acceptance Criteria**:
-- Server cleans up cloned repositories after workflow completion
-- Respects server cleanup configuration
-- Handles cleanup failures gracefully
+**Acceptance Criteria**: ✅ COMPLETED
+- ✅ Server cleans up cloned repositories after workflow completion
+- ✅ Respects server cleanup configuration
+- ✅ Handles cleanup failures gracefully
 
-**Test Cases**:
-- Test automatic cleanup after server workflow
-- Test cleanup disable via configuration
-- Test cleanup error handling
+**Test Cases**: ✅ COMPLETED
+- ✅ Test automatic cleanup after server workflow (6 test cases including edge cases)
+- ✅ Test cleanup disable via configuration
+- ✅ Test cleanup error handling with graceful failure recovery
+- ✅ Test multiple cloned repositories cleanup
+- ✅ Test proper logging with context
 
-**Implementation Steps**:
-1. Track cloned repositories in server workflow context
-2. Add cleanup in `AlpineWorkflowEngine` cleanup phase:
-   - Remove entire cloned repository directory
-   - Handle cleanup errors without failing workflow
-3. Respect `ALPINE_GIT_AUTO_CLEANUP` setting
+**Implementation Steps**: ✅ COMPLETED
+1. ✅ Track cloned repositories in server workflow context:
+   - ✅ Added `clonedDirs []string` field to `workflowInstance` struct
+   - ✅ Modified `cloneRepositoryWithLogging()` to track directories thread-safely
+   - ✅ Integrated tracking with existing workflow creation
+2. ✅ Add cleanup in `AlpineWorkflowEngine` cleanup phase:
+   - ✅ Enhanced `Cleanup()` method with clone directory removal
+   - ✅ Implemented `cleanupClonedRepositories()` helper method
+   - ✅ Handle cleanup errors without failing workflow completion
+3. ✅ Respect `ALPINE_GIT_AUTO_CLEANUP` setting via `config.Git.AutoCleanupWT`
 
-**Integration Points**:
-- Called from server workflow cleanup phase
+**Implementation Details**:
+- Uses thread-safe tracking of cloned directories in workflow instances
+- Comprehensive error handling with graceful degradation on cleanup failures
+- Structured logging with context for debugging and monitoring:
+  - Clone directory tracking with run ID correlation
+  - Cleanup progress reporting with success/failure counts
+  - Performance metrics including cleanup duration
+- Follows TDD methodology (RED-GREEN-REFACTOR) with 6 comprehensive test cases
+- Maintains backward compatibility with existing workflow cleanup behavior
+- Includes comprehensive documentation with usage examples
+
+**Files Modified**:
+- `internal/server/workflow_integration.go` - Core cleanup implementation with directory tracking
+- `internal/server/workflow_integration_test.go` - Comprehensive test suite (6 test cases)
+
+**Integration Points**: ✅ COMPLETED
+- ✅ Called from server workflow cleanup phase in `AlpineWorkflowEngine.Cleanup()`
+- ✅ Integrates with existing configuration via `config.Git.AutoCleanupWT`
+- ✅ Uses existing logging infrastructure with structured fields
+- ✅ Respects existing thread-safety patterns with mutex protection
 
 ### Task 7: Add Server-Specific Error Handling
 

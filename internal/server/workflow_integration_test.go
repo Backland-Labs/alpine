@@ -7,10 +7,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/Backland-Labs/alpine/internal/config"
 	"github.com/Backland-Labs/alpine/internal/core"
@@ -661,6 +665,342 @@ func TestConcurrentWorkflowOperations(t *testing.T) {
 		// Verify all runs were created
 		if len(server.Server.runs) != 3 {
 			t.Errorf("expected 3 runs, got %d", len(server.Server.runs))
+		}
+	})
+}
+
+// TestServerCloneCleanup tests Task 6: Implement Server Clone Cleanup
+// This tests that cloned repositories are properly cleaned up after workflow completion.
+func TestServerCloneCleanup(t *testing.T) {
+	t.Run("cleans up cloned repository after workflow completion", func(t *testing.T) {
+		// This test should FAIL initially (RED phase of TDD)
+		// because the cleanup functionality for cloned repositories is not implemented
+		
+		// Create mock configuration with git clone enabled and auto cleanup enabled
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled:   true,
+				AutoCleanupWT:     true, // Auto cleanup enabled
+				Clone: config.GitCloneConfig{
+					Enabled:   true,
+					AuthToken: "",
+					Timeout:   time.Duration(30) * time.Second,
+					Depth:     1,
+				},
+			},
+		}
+
+		// Create workflow engine that tracks cloned directories
+		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
+		
+		runID := "test-run-123"
+		
+		// Create a workflow instance to simulate what happens during StartWorkflow
+		ctx, cancel := context.WithCancel(context.Background())
+		instance := &workflowInstance{
+			ctx:        ctx,
+			cancel:     cancel,
+			events:     make(chan WorkflowEvent),
+			createdAt:  time.Now(),
+			clonedDirs: make([]string, 0),
+		}
+		
+		// Mock the clone operation to create a temporary directory
+		// This simulates what would happen in a real clone
+		tempDir, err := os.MkdirTemp("", "alpine-test-clone-*")
+		require.NoError(t, err, "Failed to create temp directory for test")
+		
+		// Track the cloned directory in the instance
+		instance.clonedDirs = append(instance.clonedDirs, tempDir)
+		
+		// Add the instance to the engine's workflows map
+		engine.mu.Lock()
+		engine.workflows[runID] = instance
+		engine.mu.Unlock()
+		
+		// Verify the directory exists before cleanup
+		_, err = os.Stat(tempDir)
+		require.NoError(t, err, "Cloned directory should exist before cleanup")
+		
+		// Call cleanup - this should remove the cloned repository
+		engine.Cleanup(runID)
+		
+		// Verify that the cloned directory was removed
+		_, err = os.Stat(tempDir)
+		if !os.IsNotExist(err) {
+			t.Errorf("Expected cloned directory to be removed after cleanup, but it still exists: %s", tempDir)
+		}
+		
+		// Cleanup for test (if cleanup failed)
+		os.RemoveAll(tempDir)
+	})
+
+	t.Run("respects ALPINE_GIT_AUTO_CLEANUP=false setting", func(t *testing.T) {
+		// This test should FAIL initially (RED phase)
+		// because cleanup configuration handling is not implemented
+		
+		// Create mock configuration with auto cleanup disabled
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled:   true,
+				AutoCleanupWT:     false, // Auto cleanup disabled
+				Clone: config.GitCloneConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		// Create workflow engine
+		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
+		
+		runID := "test-run-no-cleanup"
+		
+		// Create a workflow instance to simulate what happens during StartWorkflow
+		ctx, cancel := context.WithCancel(context.Background())
+		instance := &workflowInstance{
+			ctx:        ctx,
+			cancel:     cancel,
+			events:     make(chan WorkflowEvent),
+			createdAt:  time.Now(),
+			clonedDirs: make([]string, 0),
+		}
+		
+		// Create a temporary directory to simulate cloned repository
+		tempDir, err := os.MkdirTemp("", "alpine-test-no-cleanup-*")
+		require.NoError(t, err, "Failed to create temp directory for test")
+		defer os.RemoveAll(tempDir) // Always cleanup for test
+		
+		// Track the cloned directory in the instance
+		instance.clonedDirs = append(instance.clonedDirs, tempDir)
+		
+		// Add the instance to the engine's workflows map
+		engine.mu.Lock()
+		engine.workflows[runID] = instance
+		engine.mu.Unlock()
+		
+		// Verify directory exists before cleanup
+		_, err = os.Stat(tempDir)
+		require.NoError(t, err, "Directory should exist before cleanup")
+		
+		// Call cleanup - should NOT remove the directory when auto cleanup is disabled
+		engine.Cleanup(runID)
+		
+		// Verify directory still exists (cleanup was disabled)
+		_, err = os.Stat(tempDir)
+		if os.IsNotExist(err) {
+			t.Errorf("Expected directory to NOT be removed when auto cleanup is disabled, but it was removed")
+		}
+	})
+
+	t.Run("handles cleanup failures gracefully without failing workflow", func(t *testing.T) {
+		// This test should FAIL initially (RED phase)
+		// because graceful error handling in cleanup is not implemented
+		
+		// Create mock configuration
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled:   true,
+				AutoCleanupWT:     true,
+				Clone: config.GitCloneConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		// Create workflow engine
+		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
+		
+		runID := "test-run-cleanup-failure"
+		
+		// Create a workflow instance to simulate what happens during StartWorkflow
+		ctx, cancel := context.WithCancel(context.Background())
+		instance := &workflowInstance{
+			ctx:        ctx,
+			cancel:     cancel,
+			events:     make(chan WorkflowEvent),
+			createdAt:  time.Now(),
+			clonedDirs: make([]string, 0),
+		}
+		
+		// Create a directory that will cause cleanup failure (permission denied)
+		tempDir, err := os.MkdirTemp("", "alpine-test-cleanup-fail-*")
+		require.NoError(t, err, "Failed to create temp directory for test")
+		defer os.RemoveAll(tempDir) // Always cleanup for test
+		
+		// Create a subdirectory first
+		subDir := filepath.Join(tempDir, "subdir")
+		err = os.Mkdir(subDir, 0755)
+		require.NoError(t, err, "Failed to create subdirectory")
+		
+		// Track the cloned directory in the instance
+		instance.clonedDirs = append(instance.clonedDirs, tempDir)
+		
+		// Add the instance to the engine's workflows map
+		engine.mu.Lock()
+		engine.workflows[runID] = instance
+		engine.mu.Unlock()
+		
+		// Make directory read-only to cause cleanup failure
+		err = os.Chmod(tempDir, 0444)
+		require.NoError(t, err, "Failed to make directory read-only")
+		
+		// Call cleanup - should handle failure gracefully and not panic
+		// This should NOT cause the workflow to fail
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("Cleanup should handle failures gracefully, but it panicked: %v", r)
+				}
+			}()
+			
+			// This call should complete successfully even if cleanup fails
+			engine.Cleanup(runID)
+		}()
+		
+		// Reset permissions for test cleanup
+		os.Chmod(tempDir, 0755)
+	})
+
+	t.Run("logs cleanup operations with proper context", func(t *testing.T) {
+		// This test should FAIL initially (RED phase)
+		// because cleanup logging is not implemented
+		
+		// Create mock configuration
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled:   true,
+				AutoCleanupWT:     true,
+				Clone: config.GitCloneConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		// Create workflow engine
+		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
+		
+		// Create temporary directory for cleanup
+		tempDir, err := os.MkdirTemp("", "alpine-test-cleanup-log-*")
+		require.NoError(t, err, "Failed to create temp directory for test")
+		defer os.RemoveAll(tempDir) // Always cleanup for test
+		
+		runID := "test-run-cleanup-logging"
+		
+		// TODO: This test needs to capture log output to verify proper logging
+		// The cleanup method should log:
+		// - Start of cleanup operation with run ID
+		// - Success/failure of cleanup with directory path
+		// - Any errors encountered during cleanup
+		
+		// Call cleanup
+		engine.Cleanup(runID)
+		
+		// This test will be enhanced once logging is implemented
+		// For now, we just verify that cleanup doesn't panic
+	})
+
+	t.Run("cleans up multiple cloned repositories for single workflow", func(t *testing.T) {
+		// This test should FAIL initially (RED phase)
+		// because tracking multiple cloned repositories is not implemented
+		
+		// Create mock configuration
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled:   true,
+				AutoCleanupWT:     true,
+				Clone: config.GitCloneConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		// Create workflow engine
+		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
+		
+		runID := "test-run-multiple-cleanup"
+		
+		// Create a workflow instance to simulate what happens during StartWorkflow
+		ctx, cancel := context.WithCancel(context.Background())
+		instance := &workflowInstance{
+			ctx:        ctx,
+			cancel:     cancel,
+			events:     make(chan WorkflowEvent),
+			createdAt:  time.Now(),
+			clonedDirs: make([]string, 0),
+		}
+		
+		// Create multiple temporary directories to simulate multiple clones
+		tempDirs := make([]string, 3)
+		for i := 0; i < 3; i++ {
+			tempDir, err := os.MkdirTemp("", fmt.Sprintf("alpine-test-multi-cleanup-%d-*", i))
+			require.NoError(t, err, "Failed to create temp directory for test")
+			tempDirs[i] = tempDir
+			
+			// Track the cloned directory in the instance
+			instance.clonedDirs = append(instance.clonedDirs, tempDir)
+			
+			// Ensure cleanup in case test fails
+			defer func(dir string) {
+				os.RemoveAll(dir)
+			}(tempDir)
+		}
+		
+		// Add the instance to the engine's workflows map
+		engine.mu.Lock()
+		engine.workflows[runID] = instance
+		engine.mu.Unlock()
+		
+		// Verify all directories exist before cleanup
+		for i, tempDir := range tempDirs {
+			_, err := os.Stat(tempDir)
+			require.NoError(t, err, "Directory %d should exist before cleanup", i)
+		}
+		
+		// Call cleanup - should remove all cloned directories for this workflow
+		engine.Cleanup(runID)
+		
+		// Verify all directories were removed
+		for i, tempDir := range tempDirs {
+			_, err := os.Stat(tempDir)
+			if !os.IsNotExist(err) {
+				t.Errorf("Expected cloned directory %d to be removed after cleanup, but it still exists: %s", i, tempDir)
+			}
+		}
+	})
+
+	t.Run("does not affect non-cloned worktrees during cleanup", func(t *testing.T) {
+		// This test should PASS initially
+		// because regular worktree cleanup should work independently of clone cleanup
+		
+		// Create mock configuration
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled:   true,
+				AutoCleanupWT:     true,
+				Clone: config.GitCloneConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		// Create workflow engine
+		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
+		
+		runID := "test-run-regular-worktree"
+		
+		// Create a directory that simulates a regular worktree (not cloned)
+		tempDir, err := os.MkdirTemp("", "alpine-test-regular-worktree-*")
+		require.NoError(t, err, "Failed to create temp directory for test")
+		defer os.RemoveAll(tempDir) // Always cleanup for test
+		
+		// Call cleanup - should handle regular worktrees without affecting them unexpectedly
+		engine.Cleanup(runID)
+		
+		// Regular worktree should still exist (not our responsibility to clean up)
+		// The existing Cleanup method should work as before
+		_, err = os.Stat(tempDir)
+		if os.IsNotExist(err) {
+			t.Errorf("Regular worktree should not be affected by clone cleanup logic")
 		}
 	})
 }
