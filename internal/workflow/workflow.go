@@ -14,6 +14,7 @@ import (
 	"github.com/Backland-Labs/alpine/internal/config"
 	"github.com/Backland-Labs/alpine/internal/core"
 	"github.com/Backland-Labs/alpine/internal/events"
+	"github.com/Backland-Labs/alpine/internal/github"
 	"github.com/Backland-Labs/alpine/internal/gitx"
 	"github.com/Backland-Labs/alpine/internal/logger"
 	"github.com/Backland-Labs/alpine/internal/output"
@@ -372,8 +373,28 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 	var prompt string
 
 	if generatePlan {
-		// Use the embedded prompt template and replace {{TASK}} with the GitHub URL
-		prompt = strings.Replace(prompts.PromptPlan, "{{TASK}}", taskDescription, -1)
+		// Check if taskDescription is a GitHub issue URL and fetch the description
+		var taskText string
+		if github.IsGitHubIssueURL(taskDescription) {
+			logger.WithField("github_url", taskDescription).Info("Detected GitHub issue URL, fetching description")
+
+			description, err := github.FetchIssueDescription(taskDescription)
+			if err != nil {
+				logger.WithFields(map[string]interface{}{
+					"github_url": taskDescription,
+					"error":      err.Error(),
+				}).Warn("Failed to fetch GitHub issue description, falling back to URL")
+				taskText = taskDescription
+			} else {
+				logger.WithField("github_url", taskDescription).Info("Successfully fetched GitHub issue description")
+				taskText = description
+			}
+		} else {
+			taskText = taskDescription
+		}
+
+		// Use the embedded prompt template and replace {{TASK}} with the task description
+		prompt = strings.ReplaceAll(prompts.PromptPlan, "{{TASK}}", taskText)
 	} else {
 		prompt = "/run_implementation_loop " + taskDescription
 	}

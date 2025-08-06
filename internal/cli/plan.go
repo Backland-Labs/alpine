@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Backland-Labs/alpine/internal/claude"
+	"github.com/Backland-Labs/alpine/internal/github"
 	"github.com/Backland-Labs/alpine/internal/gitx"
 	"github.com/Backland-Labs/alpine/internal/output"
 	"github.com/Backland-Labs/alpine/internal/prompts"
@@ -244,40 +244,6 @@ func filterEnvironment(env []string) []string {
 	return filtered
 }
 
-// fetchGitHubIssue fetches issue data from GitHub using the gh CLI
-func fetchGitHubIssue(url string) (title, body string, err error) {
-	// Execute gh command
-	cmd := exec.Command("gh", "issue", "view", url, "--json", "title,body")
-
-	// Capture output
-	output, err := cmd.Output()
-	if err != nil {
-		// Check if gh is not found
-		if strings.Contains(err.Error(), "executable file not found") {
-			return "", "", fmt.Errorf("gh CLI not found. Please install from https://cli.github.com")
-		}
-
-		// Check for exit error with stderr
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			stderr := string(exitErr.Stderr)
-			return "", "", fmt.Errorf("gh command failed: %s", stderr)
-		}
-
-		return "", "", fmt.Errorf("failed to execute gh command: %w", err)
-	}
-
-	// Parse JSON output
-	var issue struct {
-		Title string `json:"title"`
-		Body  string `json:"body"`
-	}
-
-	if err := json.Unmarshal(output, &issue); err != nil {
-		return "", "", fmt.Errorf("failed to parse gh output: %w", err)
-	}
-
-	return issue.Title, issue.Body, nil
-}
 
 // runPlanInWorktree executes plan generation in an isolated git worktree
 func runPlanInWorktree(task string, useClaude bool, cleanup bool) error {
@@ -380,14 +346,11 @@ Requirements:
 
 			// Fetch issue data
 			printer.Info("Fetching GitHub issue...")
-			title, body, err := fetchGitHubIssue(url)
+			task, err := github.FetchIssueDescription(url)
 			if err != nil {
 				printer.Error("Failed to fetch issue: %v", err)
 				return fmt.Errorf("failed to fetch issue: %w", err)
 			}
-
-			// Format task description
-			task := fmt.Sprintf("Task: %s\n\n%s", title, body)
 
 			// Access parent command's flags
 			ccFlag, _ := cmd.Parent().Flags().GetBool("cc")

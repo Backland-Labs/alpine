@@ -87,7 +87,8 @@ func TestExecutorStreamingWithMockExecution(t *testing.T) {
 					}
 
 					// Verify content calls
-					if tt.simulateOutput == "Line 1\nLine 2\nLine 3\n" {
+					switch tt.simulateOutput {
+					case "Line 1\nLine 2\nLine 3\n":
 						// Should have 3 content calls for 3 lines
 						if len(mock.contentCalls) != 3 {
 							t.Errorf("Expected 3 StreamContent calls, got %d", len(mock.contentCalls))
@@ -99,7 +100,7 @@ func TestExecutorStreamingWithMockExecution(t *testing.T) {
 								}
 							}
 						}
-					} else if tt.simulateOutput == "Partial line without newline" {
+					case "Partial line without newline":
 						// Should have 1 content call after flush
 						if len(mock.contentCalls) != 1 {
 							t.Errorf("Expected 1 StreamContent call for partial line, got %d", len(mock.contentCalls))

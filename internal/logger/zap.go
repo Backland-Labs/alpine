@@ -80,7 +80,7 @@ func NewZapLoggerFromEnv() (*ZapLogger, error) {
 
 	// Add caller info if requested
 	if os.Getenv("ALPINE_LOG_CALLER") == "true" {
-		logger.Logger = logger.Logger.WithOptions(zap.AddCaller())
+		logger.Logger = logger.WithOptions(zap.AddCaller())
 	}
 
 	// Configure stack traces
@@ -95,7 +95,7 @@ func NewZapLoggerFromEnv() (*ZapLogger, error) {
 		default:
 			zapLevel = zap.FatalLevel
 		}
-		logger.Logger = logger.Logger.WithOptions(zap.AddStacktrace(zapLevel))
+		logger.Logger = logger.WithOptions(zap.AddStacktrace(zapLevel))
 	}
 
 	return logger, nil
@@ -124,7 +124,7 @@ func (l *ZapLogger) WithHTTPRequest(r *http.Request) *ZapLogger {
 	}
 
 	return &ZapLogger{
-		Logger: l.Logger.With(fields...),
+		Logger: l.With(fields...),
 		sugar:  l.Logger.With(fields...).Sugar(),
 	}
 }
@@ -132,7 +132,7 @@ func (l *ZapLogger) WithHTTPRequest(r *http.Request) *ZapLogger {
 // WithWorkflow adds workflow context to the logger
 func (l *ZapLogger) WithWorkflow(runID, workflowID string) *ZapLogger {
 	return &ZapLogger{
-		Logger: l.Logger.With(
+		Logger: l.With(
 			zap.String("run_id", runID),
 			zap.String("workflow_id", workflowID),
 		),
@@ -146,7 +146,7 @@ func (l *ZapLogger) WithWorkflow(runID, workflowID string) *ZapLogger {
 // WithDuration adds a duration field to the logger
 func (l *ZapLogger) WithDuration(duration time.Duration) *ZapLogger {
 	return &ZapLogger{
-		Logger: l.Logger.With(
+		Logger: l.With(
 			zap.Duration("duration", duration),
 			zap.Float64("duration_ms", float64(duration.Nanoseconds())/1e6),
 		),
@@ -164,7 +164,7 @@ func (l *ZapLogger) WithError(err error) *ZapLogger {
 	}
 
 	return &ZapLogger{
-		Logger: l.Logger.With(
+		Logger: l.With(
 			zap.Error(err),
 			zap.String("error_type", fmt.Sprintf("%T", err)),
 		),
@@ -178,7 +178,7 @@ func (l *ZapLogger) WithError(err error) *ZapLogger {
 // WithField adds a single field to the logger context
 func (l *ZapLogger) WithField(key string, value interface{}) *Logger {
 	newZapLogger := &ZapLogger{
-		Logger: l.Logger.With(zap.Any(key, value)),
+		Logger: l.With(zap.Any(key, value)),
 		sugar:  l.Logger.With(zap.Any(key, value)).Sugar(),
 	}
 	return &Logger{zap: newZapLogger}
@@ -192,7 +192,7 @@ func (l *ZapLogger) WithFields(fields map[string]interface{}) *Logger {
 	}
 
 	newZapLogger := &ZapLogger{
-		Logger: l.Logger.With(zapFields...),
+		Logger: l.With(zapFields...),
 		sugar:  l.Logger.With(zapFields...).Sugar(),
 	}
 	return &Logger{zap: newZapLogger}
