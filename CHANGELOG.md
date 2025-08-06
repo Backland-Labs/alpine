@@ -82,6 +82,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+#### Server-Sent Events and Containerized Workflow Issues
+- **Fixed context cancellation issue in containerized workflows** - Resolved race conditions and context handling in Docker environments
+- **Fixed deadlock in workflow mutex handling** - Improved synchronization and reduced lock contention
+- **Fixed race condition in workflow instance creation** - Enhanced thread-safety for concurrent workflow management
+- **Fixed embedded prompt template usage** - Replaced `/make_plan` slash command with proper embedded templates for better reliability
+
+#### Enhanced Branch Publishing for Server Workflows
+- **Added GitHub token authentication for branch publishing** - Secure token-based authentication for automated branch operations
+- **Enforced branch publishing for server workflows** - Server mode now consistently creates and publishes branches
+- **Skip worktree creation in favor of branches** - Streamlined server workflow by using direct branch operations instead of worktrees
+
 #### Allow --serve flag without task description
 - **Fixed server-only mode** - The `--serve` flag now works standalone without requiring a task
 - **Updated validation logic** - Root command now properly validates --serve usage
