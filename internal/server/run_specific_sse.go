@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/Backland-Labs/alpine/internal/logger"
 )
 
 // runSpecificEventHub manages run-specific event subscriptions
@@ -135,7 +137,13 @@ func (s *Server) enhancedRunEventsHandler(w http.ResponseWriter, r *http.Request
 	defer hub.unsubscribe(runID, eventChan)
 
 	// Send initial connection event after successful subscription
-	fmt.Fprintf(w, "data: {\"type\":\"connected\",\"runId\":\"%s\"}\n\n", runID)
+	if _, err := fmt.Fprintf(w, "data: {\"type\":\"connected\",\"runId\":\"%s\"}\n\n", runID); err != nil {
+		logger.WithFields(map[string]interface{}{
+			"error":  err.Error(),
+			"run_id": runID,
+		}).Error("Failed to write initial SSE event")
+		return
+	}
 	flusher.Flush()
 
 	// Also subscribe to workflow engine events if available

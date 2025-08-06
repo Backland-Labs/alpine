@@ -173,10 +173,17 @@ func generatePlanWithClaude(task string) error {
 	// Create Claude executor
 	executor := claude.NewExecutor()
 
+	// Get current working directory for Claude execution
+	workDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current working directory: %w", err)
+	}
+
 	// Configure ExecuteConfig for planning
 	config := claude.ExecuteConfig{
 		Prompt:    prompt,
 		StateFile: stateFile.Name(),
+		WorkDir:   workDir,
 		// No MCP servers for planning
 		MCPServers: []string{},
 		// Planning-specific allowed tools (read-only)

@@ -310,12 +310,17 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 		config := claude.ExecuteConfig{
 			Prompt:    state.NextStepPrompt,
 			StateFile: e.stateFile,
+			WorkDir:   e.cfg.WorkDir,
 		}
 
 		logger.WithFields(map[string]interface{}{
 			"prompt":     config.Prompt,
 			"state_file": config.StateFile,
-		}).Debug("Claude execute config prepared")
+			"work_dir":   config.WorkDir,
+			"run_id":     e.runID,
+			"iteration":  iteration,
+			"operation":  "workflow_claude_config",
+		}).Info("Passing WorkDir to Claude executor")
 
 		startTime := time.Now()
 		claudeErr := func() error {

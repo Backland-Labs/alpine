@@ -52,6 +52,11 @@ func (r *RealWorkflowEngine) Run(ctx context.Context, taskDescription string, ge
 	return r.engine.Run(ctx, taskDescription, generatePlan)
 }
 
+// SetEventEmitter sets the event emitter on the underlying workflow engine
+func (r *RealWorkflowEngine) SetEventEmitter(emitter events.EventEmitter) {
+	r.engine.SetEventEmitter(emitter)
+}
+
 // RealFileReader implements FileReader using the os package
 type RealFileReader struct{}
 

@@ -6,7 +6,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -112,6 +114,14 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 	// Disable worktree creation in workflow.Engine since we already created one
 	workflowCfg.Git.WorktreeEnabled = false
 
+	logger.WithFields(map[string]interface{}{
+		"run_id":         runID,
+		"worktree_dir":   worktreeDir,
+		"state_file":     workflowCfg.StateFile,
+		"work_dir":       workflowCfg.WorkDir,
+		"operation":      "workflow_config_setup",
+	}).Info("Configured workflow with WorkDir for server execution")
+
 	// Create workflow engine with server as streamer if available
 	var streamer events.Streamer
 	if e.server != nil {
@@ -121,6 +131,29 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 
 	engine := workflow.NewEngine(e.claudeExecutor, nil, &workflowCfg, streamer)
 	engine.SetStateFile(workflowCfg.StateFile)
+
+	// Set up ServerEventEmitter for workflow lifecycle events
+	if e.server != nil {
+		broadcastFunc := func(eventType, runID string, data map[string]interface{}) {
+			event := WorkflowEvent{
+				Type:      eventType,
+				RunID:     runID,
+				Timestamp: time.Now(),
+				Source:    "alpine",
+				Data:      data,
+			}
+			logger.WithFields(map[string]interface{}{
+				"event_type": eventType,
+				"run_id":     runID,
+				"source":     "server_event_emitter",
+			}).Debug("ServerEventEmitter broadcasting event")
+			e.server.BroadcastEvent(event)
+		}
+		
+		serverEventEmitter := events.NewServerEventEmitter(runID, broadcastFunc)
+		engine.SetEventEmitter(serverEventEmitter)
+		logger.WithField("run_id", runID).Debug("ServerEventEmitter configured for workflow engine")
+	}
 
 	// Create workflow instance
 	instance := &workflowInstance{
@@ -135,6 +168,32 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 	}
 
 	e.workflows[runID] = instance
+
+	// CRITICAL FIX: Forward instance events to server's broadcast system
+	if e.server != nil {
+		go func() {
+			logger.WithField("run_id", runID).Debug("Starting event forwarding goroutine")
+			for {
+				select {
+				case event, ok := <-instance.events:
+					if !ok {
+						logger.WithField("run_id", runID).Debug("Instance events channel closed, stopping event forwarding")
+						return
+					}
+					logger.WithFields(map[string]interface{}{
+						"run_id":     runID,
+						"event_type": event.Type,
+					}).Debug("Forwarding instance event to server broadcast")
+					
+					// Forward event to server's broadcast system
+					e.server.BroadcastEvent(event)
+				case <-workflowCtx.Done():
+					logger.WithField("run_id", runID).Debug("Context cancelled, stopping event forwarding")
+					return
+				}
+			}
+		}()
+	}
 
 	// Start workflow execution in background
 	go e.runWorkflowAsync(instance, issueURL, runID)
@@ -458,6 +517,13 @@ func (e *AlpineWorkflowEngine) tryCreateClonedWorktree(ctx context.Context, runI
 		return worktreeDir, true
 	}
 
+	// Create and publish a new branch for this workflow run
+	branchName := fmt.Sprintf("alpine-run-%s", runID)
+	if err := e.createAndPublishBranch(ctx, clonedDir, branchName, runID); err != nil {
+		logger.Warnf("Failed to create/publish branch %s: %v, continuing on default branch", branchName, err)
+		// Continue anyway - we can still work on the default branch
+	}
+
 	// Return cloned directory as fallback
 	logger.Infof("Using cloned repository directory directly for workflow %s: %s", runID, clonedDir)
 	return clonedDir, true
@@ -518,6 +584,70 @@ func (e *AlpineWorkflowEngine) cloneRepositoryWithLogging(ctx context.Context, r
 	return clonedDir, nil
 }
 
+// createAndPublishBranch creates a new branch in the cloned repository and publishes it to the remote.
+// This ensures each workflow run has its own isolated branch for tracking changes.
+func (e *AlpineWorkflowEngine) createAndPublishBranch(ctx context.Context, clonedDir, branchName, runID string) error {
+	branchLog := logger.WithFields(map[string]interface{}{
+		"run_id":      runID,
+		"branch_name": branchName,
+		"clone_dir":   clonedDir,
+		"operation":   "create_and_publish_branch",
+	})
+
+	branchLog.Info("Creating new branch for workflow run")
+
+	// Create and checkout the new branch
+	createCmd := exec.CommandContext(ctx, "git", "checkout", "-b", branchName)
+	createCmd.Dir = clonedDir
+	
+	if output, err := createCmd.CombinedOutput(); err != nil {
+		branchLog.WithFields(map[string]interface{}{
+			"error":  err.Error(),
+			"output": string(output),
+		}).Error("Failed to create and checkout new branch")
+		return fmt.Errorf("failed to create branch %s: %w", branchName, err)
+	}
+
+	branchLog.Info("Successfully created and checked out new branch")
+
+	// Configure git user for commits (required for some operations)
+	configNameCmd := exec.CommandContext(ctx, "git", "config", "user.name", "Alpine Server")
+	configNameCmd.Dir = clonedDir
+	if output, err := configNameCmd.CombinedOutput(); err != nil {
+		branchLog.WithField("output", string(output)).Warn("Failed to set git user.name")
+	}
+
+	configEmailCmd := exec.CommandContext(ctx, "git", "config", "user.email", "alpine@localhost")
+	configEmailCmd.Dir = clonedDir
+	if output, err := configEmailCmd.CombinedOutput(); err != nil {
+		branchLog.WithField("output", string(output)).Warn("Failed to set git user.email")
+	}
+
+	// Publish the branch to remote (push the new branch upstream)
+	pushCmd := exec.CommandContext(ctx, "git", "push", "-u", "origin", branchName)
+	pushCmd.Dir = clonedDir
+	
+	if output, err := pushCmd.CombinedOutput(); err != nil {
+		// Check if it's an authentication error
+		outputStr := string(output)
+		if strings.Contains(outputStr, "Authentication") || strings.Contains(outputStr, "403") || strings.Contains(outputStr, "401") {
+			branchLog.WithField("output", outputStr).Warn("Branch push failed due to authentication - continuing with local branch")
+			// This is okay - we can work locally without pushing
+			return nil
+		}
+		
+		branchLog.WithFields(map[string]interface{}{
+			"error":  err.Error(),
+			"output": outputStr,
+		}).Warn("Failed to push branch to remote, continuing with local branch")
+		// Don't fail the workflow - we can still work locally
+		return nil
+	}
+
+	branchLog.Info("Successfully published branch to remote")
+	return nil
+}
+
 // createWorktreeInClonedRepo creates a worktree within a cloned repository.
 func (e *AlpineWorkflowEngine) createWorktreeInClonedRepo(ctx context.Context, runID, clonedDir string) (string, error) {
 	if e.wtMgr == nil || !e.cfg.Git.WorktreeEnabled {
@@ -567,7 +697,7 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 	defer close(instance.events)
 
 	// Send start event (AG-UI compliant)
-	instance.events <- WorkflowEvent{
+	startEvent := WorkflowEvent{
 		Type:      events.AGUIEventRunStarted,
 		RunID:     runID,
 		Timestamp: time.Now(),
@@ -577,6 +707,13 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 			"planMode":    true,
 		},
 	}
+	
+	logger.WithFields(map[string]interface{}{
+		"run_id":     runID,
+		"event_type": startEvent.Type,
+	}).Debug("Sending start event to instance channel")
+	
+	instance.events <- startEvent
 
 	// Run the workflow
 	logger.Infof("Executing workflow %s", runID)
@@ -585,7 +722,7 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 	// Send completion event (AG-UI compliant)
 	if err != nil {
 		logger.Errorf("Workflow %s failed: %v", runID, err)
-		instance.events <- WorkflowEvent{
+		errorEvent := WorkflowEvent{
 			Type:      events.AGUIEventRunError,
 			RunID:     runID,
 			Timestamp: time.Now(),
@@ -593,6 +730,13 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 				"error": err.Error(),
 			},
 		}
+		
+		logger.WithFields(map[string]interface{}{
+			"run_id":     runID,
+			"event_type": errorEvent.Type,
+		}).Debug("Sending error event to instance channel")
+		
+		instance.events <- errorEvent
 	} else {
 		logger.Infof("Workflow %s completed successfully", runID)
 
@@ -609,12 +753,19 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 			}
 		}
 
-		instance.events <- WorkflowEvent{
+		completionEvent := WorkflowEvent{
 			Type:      events.AGUIEventRunFinished,
 			RunID:     runID,
 			Timestamp: time.Now(),
 			Data:      result,
 		}
+		
+		logger.WithFields(map[string]interface{}{
+			"run_id":     runID,
+			"event_type": completionEvent.Type,
+		}).Debug("Sending completion event to instance channel")
+		
+		instance.events <- completionEvent
 	}
 }
 
