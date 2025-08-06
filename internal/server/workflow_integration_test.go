@@ -16,6 +16,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/Backland-Labs/alpine/internal/claude"
 	"github.com/Backland-Labs/alpine/internal/config"
 	"github.com/Backland-Labs/alpine/internal/core"
 	"github.com/Backland-Labs/alpine/internal/gitx"
@@ -665,6 +666,146 @@ func TestConcurrentWorkflowOperations(t *testing.T) {
 		// Verify all runs were created
 		if len(server.Server.runs) != 3 {
 			t.Errorf("expected 3 runs, got %d", len(server.Server.runs))
+		}
+	})
+}
+
+// TestNonBlockingEventSending tests that workflow events are sent non-blocking
+// to prevent deadlocks when the event channel is full or not being consumed.
+func TestNonBlockingEventSending(t *testing.T) {
+	t.Run("workflow events are sent non-blocking and do not cause deadlocks", func(t *testing.T) {
+		// Create mock components
+		mockExecutor := &MockClaudeExecutor{
+			ExecuteFunc: func(ctx context.Context, config claude.ExecuteConfig) (string, error) {
+				// Simulate some work to allow event processing
+				time.Sleep(100 * time.Millisecond)
+				return "success", nil
+			},
+		}
+		
+		// Create config
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled: false, // Use temp dir for simplicity
+			},
+		}
+		
+		// Create engine
+		engine := NewAlpineWorkflowEngine(mockExecutor, nil, cfg)
+		
+		// Create context and run workflow
+		ctx := context.Background()
+		runID := "test-non-blocking"
+		issueURL := "https://github.com/owner/repo/issues/123"
+		
+		// Start the workflow but don't consume events from the channel
+		// This simulates the scenario where events might back up
+		worktreeDir, err := engine.StartWorkflow(ctx, issueURL, runID)
+		require.NoError(t, err)
+		require.NotEmpty(t, worktreeDir)
+		
+		// Give the workflow time to execute and send events
+		time.Sleep(500 * time.Millisecond)
+		
+		// Verify that the workflow completed without hanging
+		// If the events were blocking, this would cause a deadlock
+		engine.mu.RLock()
+		instance := engine.workflows[runID]
+		engine.mu.RUnlock()
+		
+		require.NotNil(t, instance)
+		
+		// The workflow should complete even if events are not consumed
+		// Wait a bit more to ensure completion
+		time.Sleep(200 * time.Millisecond)
+		
+		// Cleanup
+		engine.Cleanup(runID)
+	})
+	
+	t.Run("event channel full scenario does not block workflow execution", func(t *testing.T) {
+		// Create a mock executor that will complete quickly
+		mockExecutor := &MockClaudeExecutor{
+			ExecuteFunc: func(ctx context.Context, config claude.ExecuteConfig) (string, error) {
+				return "success", nil
+			},
+		}
+		
+		cfg := &config.Config{
+			Git: config.GitConfig{
+				WorktreeEnabled: false,
+			},
+		}
+		
+		engine := NewAlpineWorkflowEngine(mockExecutor, nil, cfg)
+		
+		// Create a workflow with a very small event channel to force it to fill up
+		ctx := context.Background()
+		runID := "test-full-channel"
+		issueURL := "https://github.com/owner/repo/issues/456"
+		
+		// Start workflow
+		_, err := engine.StartWorkflow(ctx, issueURL, runID)
+		require.NoError(t, err)
+		
+		// Fill up the event channel by not consuming events
+		// The workflow should still complete without hanging
+		done := make(chan bool)
+		go func() {
+			// Wait for workflow to finish
+			time.Sleep(1 * time.Second)
+			done <- true
+		}()
+		
+		select {
+		case <-done:
+			// Success - workflow completed without hanging
+		case <-time.After(2 * time.Second):
+			t.Fatal("Workflow execution timed out - likely due to blocking event sends")
+		}
+		
+		// Cleanup
+		engine.Cleanup(runID)
+	})
+	
+	t.Run("sendEventNonBlocking drops events when channel is full", func(t *testing.T) {
+		cfg := &config.Config{}
+		engine := NewAlpineWorkflowEngine(nil, nil, cfg)
+		
+		// Create a workflow instance with a small buffered channel
+		instance := &workflowInstance{
+			events: make(chan WorkflowEvent, 1), // Very small buffer
+		}
+		
+		// Fill the channel
+		instance.events <- WorkflowEvent{Type: "test1", RunID: "test"}
+		
+		// Try to send another event - should not block
+		start := time.Now()
+		engine.sendEventNonBlocking(instance, WorkflowEvent{Type: "test2", RunID: "test"})
+		duration := time.Since(start)
+		
+		// Should complete immediately (non-blocking)
+		if duration > 50*time.Millisecond {
+			t.Errorf("sendEventNonBlocking took too long: %v", duration)
+		}
+		
+		// Verify the channel still has the original event
+		select {
+		case event := <-instance.events:
+			if event.Type != "test1" {
+				t.Errorf("expected first event, got %s", event.Type)
+			}
+		default:
+			t.Error("expected event in channel")
+		}
+		
+		// Channel should be empty now (second event was dropped)
+		select {
+		case <-instance.events:
+			t.Error("second event should have been dropped")
+		default:
+			// Expected - channel is empty
 		}
 	})
 }

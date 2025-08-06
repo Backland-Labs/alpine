@@ -95,7 +95,9 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 	e.mu.Unlock()
 
 	// Create workflow context with issue URL
-	workflowCtx, cancel := context.WithCancel(ctx)
+	// Use context.Background() for long-running workflows to avoid premature cancellation
+	// when the HTTP request context is cancelled after the handler returns
+	workflowCtx, cancel := context.WithCancel(context.Background())
 	workflowCtx = context.WithValue(workflowCtx, "issue_url", issueURL)
 
 	// Create custom config for this workflow
@@ -836,7 +838,7 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 		"event_type": startEvent.Type,
 	}).Debug("Sending start event to instance channel")
 	
-	instance.events <- startEvent
+	e.sendEventNonBlocking(instance, startEvent)
 
 	// Run the workflow
 	logger.Infof("Executing workflow %s", runID)
@@ -859,7 +861,7 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 			"event_type": errorEvent.Type,
 		}).Debug("Sending error event to instance channel")
 		
-		instance.events <- errorEvent
+		e.sendEventNonBlocking(instance, errorEvent)
 	} else {
 		logger.Infof("Workflow %s completed successfully", runID)
 
@@ -888,7 +890,7 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 			"event_type": completionEvent.Type,
 		}).Debug("Sending completion event to instance channel")
 		
-		instance.events <- completionEvent
+		e.sendEventNonBlocking(instance, completionEvent)
 	}
 }
 
