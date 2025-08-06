@@ -101,11 +101,31 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 	// Create custom config for this workflow
 	workflowCfg := *e.cfg // Copy config
 
+	// Create workflow instance early so it exists for directory tracking
+	instance := &workflowInstance{
+		engine:      nil, // Will be set after engine creation
+		ctx:         workflowCtx,
+		cancel:      cancel,
+		events:      make(chan WorkflowEvent, defaultEventChannelSize),
+		worktreeDir: "", // Will be set after directory creation
+		stateFile:   "", // Will be set after directory creation
+		createdAt:   time.Now(),
+		clonedDirs:  make([]string, 0),
+	}
+
+	// Register instance before directory creation so cleanup tracking works
+	e.workflows[runID] = instance
+
 	// Create isolated directory for the workflow
 	worktreeDir, err := e.createWorkflowDirectory(workflowCtx, runID, cancel)
 	if err != nil {
+		// Clean up the instance if directory creation fails
+		delete(e.workflows, runID)
 		return "", err
 	}
+
+	// Update instance with directory information
+	instance.worktreeDir = worktreeDir
 
 	// Update state file path to be in workflow directory
 	workflowCfg.StateFile = filepath.Join(worktreeDir, stateFileRelativePath)
@@ -155,19 +175,9 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 		logger.WithField("run_id", runID).Debug("ServerEventEmitter configured for workflow engine")
 	}
 
-	// Create workflow instance
-	instance := &workflowInstance{
-		engine:      engine,
-		ctx:         workflowCtx,
-		cancel:      cancel,
-		events:      make(chan WorkflowEvent, defaultEventChannelSize),
-		worktreeDir: worktreeDir,
-		stateFile:   workflowCfg.StateFile,
-		createdAt:   time.Now(),
-		clonedDirs:  make([]string, 0),
-	}
-
-	e.workflows[runID] = instance
+	// Update the instance with the engine and state file
+	instance.engine = engine
+	instance.stateFile = workflowCfg.StateFile
 
 	// CRITICAL FIX: Forward instance events to server's broadcast system
 	if e.server != nil {
