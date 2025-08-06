@@ -677,7 +677,42 @@ func (e *AlpineWorkflowEngine) createAndPublishBranch(ctx context.Context, clone
 		branchLog.Debug("Set git user.email to 'alpine@localhost'")
 	}
 
-	// Step 3: Publish the branch to remote (push the new branch upstream)
+	// Step 3: Configure Git to use GitHub token for authentication if available
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken == "" {
+		branchLog.Error("GITHUB_TOKEN not set - cannot push to remote")
+		return fmt.Errorf("GITHUB_TOKEN environment variable not set: cannot push branch to remote")
+	}
+	
+	// Extract owner/repo from the remote URL
+	remoteCmd := exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
+	remoteCmd.Dir = clonedDir
+	remoteOutput, err := remoteCmd.Output()
+	if err != nil {
+		branchLog.WithField("error", err.Error()).Error("Failed to get remote URL")
+		return fmt.Errorf("failed to get remote URL: %w", err)
+	}
+	
+	// Configure Git to use token authentication
+	// Set the remote URL to include the token for HTTPS authentication
+	remoteURL := strings.TrimSpace(string(remoteOutput))
+	if strings.HasPrefix(remoteURL, "https://github.com/") {
+		// Replace https://github.com/ with https://TOKEN@github.com/
+		authenticatedURL := strings.Replace(remoteURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", githubToken), 1)
+		
+		setRemoteCmd := exec.CommandContext(ctx, "git", "remote", "set-url", "origin", authenticatedURL)
+		setRemoteCmd.Dir = clonedDir
+		if output, err := setRemoteCmd.CombinedOutput(); err != nil {
+			branchLog.WithFields(map[string]interface{}{
+				"error":  err.Error(),
+				"output": string(output),
+			}).Error("Failed to set authenticated remote URL")
+			return fmt.Errorf("failed to configure Git authentication: %w", err)
+		}
+		branchLog.Debug("Configured Git remote with authentication token")
+	}
+	
+	// Step 4: Publish the branch to remote (push the new branch upstream)
 	branchLog.Info("Publishing branch to remote repository")
 	pushCmd := exec.CommandContext(ctx, "git", "push", "-u", "origin", branchName)
 	pushCmd.Dir = clonedDir
