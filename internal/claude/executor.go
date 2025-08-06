@@ -27,6 +27,9 @@ type ExecuteConfig struct {
 	// StateFile is the path to the agent_state/agent_state.json file
 	StateFile string
 
+	// WorkDir is the working directory for Claude execution (optional, defaults to current directory)
+	WorkDir string
+
 	// MCPServers is a list of MCP servers to enable (optional)
 	MCPServers []string
 
@@ -537,18 +540,34 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 	// Create command
 	cmd := exec.Command("claude", args...)
 
-	// Set working directory to current directory (enables worktree isolation)
-	workDir, err := os.Getwd()
-	if err != nil {
-		// Log warning but continue without setting Dir
-		// Claude will use default behavior (inherit from parent process)
-		logger.WithField("error", err.Error()).Warn("Failed to get working directory, Claude will use default directory")
-	} else {
-		cmd.Dir = workDir
+	// Set working directory - use config.WorkDir if provided, otherwise use current directory
+	var workDir string
+	if config.WorkDir != "" {
+		workDir = config.WorkDir
 		logger.WithFields(map[string]interface{}{
 			"workDir":        workDir,
 			"prompt_preview": truncateString(config.Prompt, 50),
-		}).Info("Set Claude working directory")
+			"source":         "config",
+		}).Info("Set Claude working directory from config")
+	} else {
+		// Fallback to current directory (original behavior)
+		var err error
+		workDir, err = os.Getwd()
+		if err != nil {
+			// Log warning but continue without setting Dir
+			// Claude will use default behavior (inherit from parent process)
+			logger.WithField("error", err.Error()).Warn("Failed to get working directory, Claude will use default directory")
+		} else {
+			logger.WithFields(map[string]interface{}{
+				"workDir":        workDir,
+				"prompt_preview": truncateString(config.Prompt, 50),
+				"source":         "current_directory",
+			}).Info("Set Claude working directory from current directory")
+		}
+	}
+
+	if workDir != "" {
+		cmd.Dir = workDir
 	}
 
 	// Set environment variables

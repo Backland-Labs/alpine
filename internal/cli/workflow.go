@@ -124,9 +124,48 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 			streamer = server.NewServerStreamer(httpServer)
 		}
 
-		engine, wtMgr := CreateWorkflowEngine(cfg, streamer)
+		engine, wtMgr, claudeExecutor := CreateWorkflowEngine(cfg, streamer)
+		
+		// Connect ServerEventEmitter when --serve mode is active
+		if httpServer != nil {
+			// Create a broadcast function that converts to server's WorkflowEvent format
+			broadcastFunc := func(eventType, runID string, data map[string]interface{}) {
+				// Import the server package's WorkflowEvent in the function scope to avoid cycles
+				// We'll need to construct the proper WorkflowEvent structure here
+				httpServer.BroadcastEvent(server.WorkflowEvent{
+					Type:      eventType,
+					RunID:     runID,
+					Timestamp: time.Now(),
+					Data:      data,
+				})
+			}
+			
+			// Create and set the event emitter - using empty runID for now, will be set per workflow  
+			eventEmitter := events.NewServerEventEmitter("", broadcastFunc)
+			
+			// Set the event emitter on the underlying workflow engine
+			if realEngine, ok := engine.(*RealWorkflowEngine); ok {
+				realEngine.engine.SetEventEmitter(eventEmitter)
+			}
+		}
+		
 		deps.WorkflowEngine = engine
 		deps.WorktreeManager = wtMgr
+
+
+		// Create server workflow engine if server is running and task is provided
+		if httpServer != nil && len(args) > 0 {
+			logger.Debugf("Creating Alpine workflow engine for server with shared resources")
+
+			// Create AlpineWorkflowEngine with shared ClaudeExecutor and WorktreeManager
+			alpineEngine := server.NewAlpineWorkflowEngine(claudeExecutor, wtMgr, cfg)
+
+			// Set server reference on the AlpineWorkflowEngine
+			alpineEngine.SetServer(httpServer)
+
+			// Configure the server with the AlpineWorkflowEngine
+			httpServer.SetWorkflowEngine(alpineEngine)
+		}
 	}
 
 	// Run the workflow (generatePlan is opposite of noPlan)

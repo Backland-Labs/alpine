@@ -52,6 +52,11 @@ func (r *RealWorkflowEngine) Run(ctx context.Context, taskDescription string, ge
 	return r.engine.Run(ctx, taskDescription, generatePlan)
 }
 
+// SetEventEmitter sets the event emitter on the underlying workflow engine
+func (r *RealWorkflowEngine) SetEventEmitter(emitter events.EventEmitter) {
+	r.engine.SetEventEmitter(emitter)
+}
+
 // RealFileReader implements FileReader using the os package
 type RealFileReader struct{}
 
@@ -66,11 +71,12 @@ func NewRealDependencies() *Dependencies {
 		WorkflowEngine:  nil, // Will be created after config is finalized
 		FileReader:      &RealFileReader{},
 		WorktreeManager: nil, // Will be created after config is finalized
+		ClaudeExecutor:  nil, // Will be created after config is finalized
 	}
 }
 
 // CreateWorkflowEngine creates the workflow engine with finalized config
-func CreateWorkflowEngine(cfg *config.Config, streamer events.Streamer) (WorkflowEngine, gitx.WorktreeManager) {
+func CreateWorkflowEngine(cfg *config.Config, streamer events.Streamer) (WorkflowEngine, gitx.WorktreeManager, workflow.ClaudeExecutor) {
 	// Get current working directory for parent repo
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -84,10 +90,15 @@ func CreateWorkflowEngine(cfg *config.Config, streamer events.Streamer) (Workflo
 		wtMgr = gitx.NewCLIWorktreeManager(cwd, cfg.Git.BaseBranch)
 	}
 
-	// Create workflow engine
-	engine := NewRealWorkflowEngine(cfg, wtMgr, streamer)
+	// Create Claude executor
+	printer := output.NewPrinter()
+	executor := claude.NewExecutorWithConfig(cfg, printer)
 
-	return engine, wtMgr
+	// Create workflow engine
+	engine := workflow.NewEngine(executor, wtMgr, cfg, streamer)
+	workflowEngine := &RealWorkflowEngine{engine: engine}
+
+	return workflowEngine, wtMgr, executor
 }
 
 // Dependencies struct for injection (moved from test file for reuse)
@@ -96,4 +107,5 @@ type Dependencies struct {
 	WorkflowEngine  WorkflowEngine
 	FileReader      FileReader
 	WorktreeManager gitx.WorktreeManager
+	ClaudeExecutor  workflow.ClaudeExecutor
 }

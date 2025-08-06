@@ -17,6 +17,7 @@ import (
 	"github.com/Backland-Labs/alpine/internal/gitx"
 	"github.com/Backland-Labs/alpine/internal/logger"
 	"github.com/Backland-Labs/alpine/internal/output"
+	"github.com/Backland-Labs/alpine/internal/prompts"
 )
 
 // ClaudeExecutor interface for executing Claude commands
@@ -310,12 +311,17 @@ func (e *Engine) runWorkflowLoop(ctx context.Context) error {
 		config := claude.ExecuteConfig{
 			Prompt:    state.NextStepPrompt,
 			StateFile: e.stateFile,
+			WorkDir:   e.cfg.WorkDir,
 		}
 
 		logger.WithFields(map[string]interface{}{
 			"prompt":     config.Prompt,
 			"state_file": config.StateFile,
-		}).Debug("Claude execute config prepared")
+			"work_dir":   config.WorkDir,
+			"run_id":     e.runID,
+			"iteration":  iteration,
+			"operation":  "workflow_claude_config",
+		}).Info("Passing WorkDir to Claude executor")
 
 		startTime := time.Now()
 		claudeErr := func() error {
@@ -366,7 +372,8 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 	var prompt string
 
 	if generatePlan {
-		prompt = "/make_plan " + taskDescription
+		// Use the embedded prompt template and replace {{TASK}} with the GitHub URL
+		prompt = strings.Replace(prompts.PromptPlan, "{{TASK}}", taskDescription, -1)
 	} else {
 		prompt = "/run_implementation_loop " + taskDescription
 	}

@@ -171,15 +171,15 @@ func (s *Server) Start(ctx context.Context) error {
 	// Register endpoint handlers with logging
 	logger.Debug("Registering HTTP endpoints")
 
-	mux.Handle("/events", middleware(logger.SSEMiddleware(log)(http.HandlerFunc(s.sseHandler))))
+	mux.Handle("/events", logger.SSEMiddleware(log)(http.HandlerFunc(s.sseHandler)))
 	mux.Handle("/health", middleware(http.HandlerFunc(s.healthHandler)))
 	mux.Handle("/agents/list", middleware(http.HandlerFunc(s.agentsListHandler)))
 	mux.Handle("/agents/run", middleware(http.HandlerFunc(s.agentsRunHandler)))
 	mux.Handle("/runs", middleware(http.HandlerFunc(s.runsListHandler)))
 	mux.Handle("/runs/{id}", middleware(http.HandlerFunc(s.runDetailsHandler)))
-	mux.Handle("/runs/{id}/events", middleware(logger.SSEMiddleware(log)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/runs/{id}/events", logger.SSEMiddleware(log)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.enhancedRunEventsHandler(w, r, s.runEventHub)
-	}))))
+	})))
 	mux.Handle("/runs/{id}/cancel", middleware(http.HandlerFunc(s.runCancelHandler)))
 	mux.Handle("/plans/{runId}", middleware(http.HandlerFunc(s.planGetHandler)))
 	mux.Handle("/plans/{runId}/approve", middleware(http.HandlerFunc(s.planApproveHandler)))
@@ -256,12 +256,14 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 		}
 	}()
 
+	// DEBUG: Add comprehensive logging to trace event flow
 	logger.WithFields(map[string]interface{}{
 		"type":      event.Type,
 		"run_id":    event.RunID,
 		"source":    event.Source,
 		"timestamp": event.Timestamp,
-	}).Debug("Broadcasting event")
+		"data":      event.Data,
+	}).Debug("Broadcasting event - ENTRY POINT")
 
 	// Convert event to JSON for SSE
 	data, err := json.Marshal(event)
@@ -282,7 +284,9 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 		logger.WithFields(map[string]interface{}{
 			"event_type":   event.Type,
 			"message_size": len(message),
-		}).Debug("Event sent to global channel")
+			"channel_size": len(s.eventsChan),
+			"channel_cap":  cap(s.eventsChan),
+		}).Debug("Event sent to global channel - SUCCESS")
 	default:
 		// Channel full, drop message - this is expected behavior
 		// for graceful degradation under load
@@ -291,7 +295,7 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 			"run_id":       event.RunID,
 			"channel_size": len(s.eventsChan),
 			"channel_cap":  cap(s.eventsChan),
-		}).Warn("Event channel full, dropping message")
+		}).Warn("Event channel full, dropping message - FAILED")
 	}
 
 	// Also send to run-specific subscribers
@@ -330,6 +334,13 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 	flusher.Flush()
 	logger.WithField("client_id", clientID).Debug("Initial SSE event sent")
 
+	// DEBUG: Log channel state
+	logger.WithFields(map[string]interface{}{
+		"client_id":      clientID,
+		"channel_size":   len(s.eventsChan),
+		"channel_cap":    cap(s.eventsChan),
+	}).Debug("SSE client connected and ready to receive events")
+
 	// Create keepalive ticker for connection health
 	keepaliveTicker := time.NewTicker(30 * time.Second)
 	defer keepaliveTicker.Stop()
@@ -342,6 +353,12 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 		select {
 		case event := <-s.eventsChan:
 			eventCount++
+			logger.WithFields(map[string]interface{}{
+				"client_id":    clientID,
+				"event_count":  eventCount,
+				"event_size":   len(event),
+			}).Debug("SSE client received event from channel")
+			
 			// Send event to client
 			if _, err := fmt.Fprint(w, event); err != nil {
 				// Client write failed, disconnect
@@ -354,6 +371,11 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			flusher.Flush()
+			
+			logger.WithFields(map[string]interface{}{
+				"client_id":   clientID,
+				"event_count": eventCount,
+			}).Debug("SSE event sent to client successfully")
 
 			if eventCount%100 == 0 {
 				logger.WithFields(map[string]interface{}{

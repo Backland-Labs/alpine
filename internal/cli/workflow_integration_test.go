@@ -99,7 +99,7 @@ func TestCreateWorkflowEngineWithStreamer(t *testing.T) {
 	mockStreamer := &MockServerStreamer{}
 
 	// Act
-	engine, wtMgr := CreateWorkflowEngine(cfg, mockStreamer)
+	engine, wtMgr, _ := CreateWorkflowEngine(cfg, mockStreamer)
 
 	// Assert
 	if engine == nil {
@@ -123,7 +123,7 @@ func TestCreateWorkflowEngineWithoutStreamer(t *testing.T) {
 	}
 
 	// Act
-	engine, wtMgr := CreateWorkflowEngine(cfg, nil)
+	engine, wtMgr, _ := CreateWorkflowEngine(cfg, nil)
 
 	// Assert
 	if engine == nil {

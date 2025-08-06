@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -164,6 +165,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 		config         ExecuteConfig
 		expectedArgs   []string
 		expectedEnvSet map[string]bool
+		expectedWorkDir string // Added to test working directory behavior
 	}{
 		{
 			name: "basic command construction",
@@ -178,6 +180,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"-p", "test prompt",
 			},
 			expectedEnvSet: map[string]bool{},
+			expectedWorkDir: "", // Will be set to current directory by buildCommand
 		},
 		{
 			name: "command with multiple MCP servers",
@@ -195,6 +198,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"-p", "test prompt",
 			},
 			expectedEnvSet: map[string]bool{},
+			expectedWorkDir: "", // Will be set to current directory
 		},
 		{
 			name: "command with custom system prompt",
@@ -210,6 +214,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"-p", "test prompt",
 			},
 			expectedEnvSet: map[string]bool{},
+			expectedWorkDir: "", // Will be set to current directory
 		},
 		{
 			name: "command with tools restriction",
@@ -225,6 +230,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"-p", "test prompt",
 			},
 			expectedEnvSet: map[string]bool{},
+			expectedWorkDir: "", // Will be set to current directory
 		},
 		{
 			name: "command with additional args",
@@ -241,6 +247,66 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"-p", "test prompt",
 			},
 			expectedEnvSet: map[string]bool{},
+			expectedWorkDir: "", // Will be set to current directory
+		},
+		{
+			name: "command with custom working directory",
+			config: ExecuteConfig{
+				Prompt:    "test prompt",
+				StateFile: "/tmp/state.json",
+				WorkDir:   "/custom/work/dir",
+			},
+			expectedArgs: []string{
+				"--output-format", "text",
+				"--allowedTools",
+				"--append-system-prompt",
+				"-p", "test prompt",
+			},
+			expectedEnvSet: map[string]bool{},
+			expectedWorkDir: "/custom/work/dir",
+		},
+		{
+			name: "command with environment variables",
+			config: ExecuteConfig{
+				Prompt:    "test prompt",
+				StateFile: "/tmp/state.json",
+				EnvironmentVariables: map[string]string{
+					"TEST_VAR": "test_value",
+					"ANOTHER":  "another_value",
+				},
+			},
+			expectedArgs: []string{
+				"--output-format", "text",
+				"--allowedTools",
+				"--append-system-prompt",
+				"-p", "test prompt",
+			},
+			expectedEnvSet: map[string]bool{
+				"TEST_VAR": true,
+				"ANOTHER":  true,
+			},
+			expectedWorkDir: "", // Will be set to current directory
+		},
+		{
+			name: "command with custom workdir and environment",
+			config: ExecuteConfig{
+				Prompt:    "test prompt",
+				StateFile: "/tmp/state.json",
+				WorkDir:   "/tmp/test-workdir",
+				EnvironmentVariables: map[string]string{
+					"ALPINE_TEST": "true",
+				},
+			},
+			expectedArgs: []string{
+				"--output-format", "text",
+				"--allowedTools",
+				"--append-system-prompt",
+				"-p", "test prompt",
+			},
+			expectedEnvSet: map[string]bool{
+				"ALPINE_TEST": true,
+			},
+			expectedWorkDir: "/tmp/test-workdir",
 		},
 	}
 
@@ -252,6 +318,27 @@ func TestExecutor_buildCommand(t *testing.T) {
 			// Check that the base command is correct
 			if cmd.Path != "claude" && !strings.HasSuffix(cmd.Path, "/claude") {
 				t.Errorf("expected command path to be 'claude', got %q", cmd.Path)
+			}
+
+			// Check working directory is set correctly
+			if tt.config.WorkDir != "" {
+				// When WorkDir is specified in config, it should be used
+				if cmd.Dir != tt.config.WorkDir {
+					t.Errorf("expected working directory to be %q, got %q", tt.config.WorkDir, cmd.Dir)
+				}
+			} else {
+				// When WorkDir is not specified, should use current directory
+				expectedDir, err := os.Getwd()
+				if err != nil {
+					// If we can't get current directory, cmd.Dir should be empty (fallback behavior)
+					if cmd.Dir != "" {
+						t.Errorf("expected working directory to be empty when os.Getwd() fails, got %q", cmd.Dir)
+					}
+				} else {
+					if cmd.Dir != expectedDir {
+						t.Errorf("expected working directory to be %q (current dir), got %q", expectedDir, cmd.Dir)
+					}
+				}
 			}
 
 			// Check expected arguments are present
@@ -275,6 +362,18 @@ func TestExecutor_buildCommand(t *testing.T) {
 				_, exists := envMap[envKey]
 				if shouldBeSet && !exists {
 					t.Errorf("expected environment variable %s to be set", envKey)
+				}
+			}
+
+			// Verify additional environment variables from config are set
+			if tt.config.EnvironmentVariables != nil {
+				for expectedKey, expectedValue := range tt.config.EnvironmentVariables {
+					actualValue, exists := envMap[expectedKey]
+					if !exists {
+						t.Errorf("expected environment variable %s to be set", expectedKey)
+					} else if actualValue != expectedValue {
+						t.Errorf("expected environment variable %s to have value %q, got %q", expectedKey, expectedValue, actualValue)
+					}
 				}
 			}
 
@@ -447,6 +546,153 @@ func TestExecutor_WorkingDirectoryFallback(t *testing.T) {
 			t.Error("command building should not fail due to directory issues")
 		}
 	})
+}
+
+// TestExecutor_WorkingDirectoryIntegration tests the complete working directory workflow
+func TestExecutor_WorkingDirectoryIntegration(t *testing.T) {
+	t.Run("end-to-end working directory behavior with mock runner", func(t *testing.T) {
+		// Create a temporary directory for testing
+		tempDir, err := os.MkdirTemp("", "test-alpine-e2e-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.RemoveAll(tempDir) }()
+
+		// Create a mock command runner that captures the working directory
+		capturedDir := ""
+		mockRunner := &mockCommandRunnerWithDir{
+			output: "Mock execution successful",
+			err:    nil,
+			dirCapture: &capturedDir,
+		}
+
+		// Create executor with mock runner
+		executor := &Executor{
+			commandRunner: mockRunner,
+		}
+
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+			WorkDir:   tempDir,
+		}
+
+		// Execute - this should flow through the entire pipeline
+		output, err := executor.Execute(context.Background(), config)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if output != mockRunner.output {
+			t.Errorf("expected output %q, got %q", mockRunner.output, output)
+		}
+
+		// Verify that the working directory was properly passed through
+		if capturedDir != tempDir {
+			t.Errorf("expected working directory to be passed as %q, got %q", tempDir, capturedDir)
+		}
+	})
+
+	t.Run("integration with invalid directory clears WorkDir", func(t *testing.T) {
+		// Test that invalid directories are cleared and don't cause execution failure
+		capturedDir := ""
+		mockRunner := &mockCommandRunnerWithDir{
+			output: "Mock execution with cleared directory",
+			err:    nil,
+			dirCapture: &capturedDir,
+		}
+
+		executor := &Executor{
+			commandRunner: mockRunner,
+		}
+
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+			WorkDir:   "/nonexistent/invalid/directory",
+		}
+
+		// Execute - should succeed even with invalid WorkDir
+		output, err := executor.Execute(context.Background(), config)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if output != mockRunner.output {
+			t.Errorf("expected output %q, got %q", mockRunner.output, output)
+		}
+
+		// Verify that the invalid directory was cleared (not passed to runner)
+		if capturedDir == config.WorkDir {
+			t.Error("expected invalid working directory to be cleared before execution")
+		}
+	})
+
+	t.Run("integration with current directory fallback", func(t *testing.T) {
+		// Test that empty WorkDir falls back to current directory
+		capturedDir := ""
+		mockRunner := &mockCommandRunnerWithDir{
+			output: "Mock execution with current directory",
+			err:    nil,
+			dirCapture: &capturedDir,
+		}
+
+		executor := &Executor{
+			commandRunner: mockRunner,
+		}
+
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "/tmp/state.json",
+			WorkDir:   "", // Empty - should use current directory
+		}
+
+		// Execute
+		output, err := executor.Execute(context.Background(), config)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if output != mockRunner.output {
+			t.Errorf("expected output %q, got %q", mockRunner.output, output)
+		}
+
+		// Verify that current directory was used (if available)
+		expectedDir, err := os.Getwd()
+		if err != nil {
+			// If os.Getwd() fails, directory should be empty
+			if capturedDir != "" {
+				t.Errorf("expected working directory to be empty when os.Getwd() fails, got %q", capturedDir)
+			}
+		} else {
+			if capturedDir != expectedDir {
+				t.Errorf("expected working directory to be current directory %q, got %q", expectedDir, capturedDir)
+			}
+		}
+	})
+}
+
+// mockCommandRunnerWithDir is a mock that captures the working directory
+type mockCommandRunnerWithDir struct {
+	output     string
+	err        error
+	dirCapture *string // Pointer to capture the directory
+}
+
+func (m *mockCommandRunnerWithDir) Run(ctx context.Context, config ExecuteConfig) (string, error) {
+	// Create executor to simulate the actual command building process
+	executor := &Executor{}
+	cmd := executor.buildCommandWithValidation(config)
+	
+	// Capture the working directory that would be used
+	if m.dirCapture != nil {
+		*m.dirCapture = cmd.Dir
+	}
+	
+	return m.output, m.err
 }
 
 // TestExecutor_ToolLogsDisabled verifies that if ShowToolUpdates is false,
@@ -698,9 +944,114 @@ func TestExecutor_ValidatesWorkingDirectory(t *testing.T) {
 		}
 
 		// Working directory should be set to the valid directory
-		// Need to handle macOS symlink behavior for /var/folders -> /private/var/folders
-		if cmd.Dir != tempDir && !strings.HasSuffix(cmd.Dir, strings.TrimPrefix(tempDir, "/private")) {
-			t.Errorf("Expected working directory to be %s, got %s", tempDir, cmd.Dir)
+		// Handle potential symlink resolution on macOS (/var/folders -> /private/var/folders)
+		expectedDir := tempDir
+		if resolved, err := os.Stat(tempDir); err == nil {
+			// Check if the directory is accessible
+			if resolved.IsDir() {
+				// Directory is valid, should be preserved
+				if cmd.Dir != tempDir {
+					// Handle potential symlink resolution on macOS
+					if absTemp, err := filepath.Abs(tempDir); err == nil {
+						if absCmd, err := filepath.Abs(cmd.Dir); err == nil && absTemp == absCmd {
+							// Paths are equivalent after resolution
+							return
+						}
+					}
+					// Also check if it's just the /var -> /private/var symlink on macOS
+					if strings.HasPrefix(tempDir, "/var/") && strings.HasPrefix(cmd.Dir, "/private/var/") {
+						if "/private"+tempDir == cmd.Dir {
+							return // This is the expected macOS symlink behavior
+						}
+					}
+					t.Errorf("Expected working directory to be %q, got %q", expectedDir, cmd.Dir)
+				}
+			}
+		}
+	})
+
+	t.Run("preserves valid directory from config over current directory", func(t *testing.T) {
+		executor := &Executor{}
+		
+		// Create a valid temporary directory
+		tempDir, err := os.MkdirTemp("", "test-alpine-config-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.RemoveAll(tempDir) }()
+
+		config := ExecuteConfig{
+			Prompt:    "test prompt",
+			StateFile: "test-state.json",
+			WorkDir:   tempDir, // Specify custom workdir
+		}
+
+		// Get current directory for comparison
+		currentDir, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Build command with validation
+		cmd := executor.buildCommandWithValidation(config)
+
+		if cmd == nil {
+			t.Fatal("Expected command to be created")
+		}
+
+		// Should use config WorkDir, not current directory
+		if cmd.Dir == currentDir {
+			t.Errorf("Expected working directory to use config WorkDir %q, not current directory %q", tempDir, currentDir)
+		}
+
+		// Should match the configured WorkDir
+		if cmd.Dir != tempDir {
+			t.Errorf("Expected working directory to be %q (from config), got %q", tempDir, cmd.Dir)
+		}
+	})
+
+	t.Run("validation does not affect other command properties", func(t *testing.T) {
+		executor := &Executor{}
+		
+		// Use invalid directory but verify other properties are preserved
+		config := ExecuteConfig{
+			Prompt:       "test validation prompt",
+			StateFile:    "test-state.json",
+			WorkDir:      "/invalid/nonexistent/directory",
+			MCPServers:   []string{"test-server"},
+			AllowedTools: []string{"Read", "Write"},
+			SystemPrompt: "Custom validation prompt",
+		}
+
+		cmd := executor.buildCommandWithValidation(config)
+
+		if cmd == nil {
+			t.Fatal("Expected command to be created")
+		}
+
+		// Directory should be cleared due to validation
+		if cmd.Dir == config.WorkDir {
+			t.Error("Expected invalid working directory to be cleared")
+		}
+
+		// Other command properties should be preserved
+		if cmd.Path != "claude" && !strings.HasSuffix(cmd.Path, "/claude") {
+			t.Errorf("expected command path to be 'claude', got %q", cmd.Path)
+		}
+
+		// Check that arguments are preserved
+		argsStr := strings.Join(cmd.Args, " ")
+		if !strings.Contains(argsStr, "test validation prompt") {
+			t.Error("Expected prompt to be preserved in arguments")
+		}
+		if !strings.Contains(argsStr, "test-server") {
+			t.Error("Expected MCP server to be preserved in arguments")
+		}
+		if !strings.Contains(argsStr, "Read") || !strings.Contains(argsStr, "Write") {
+			t.Error("Expected allowed tools to be preserved in arguments")
+		}
+		if !strings.Contains(argsStr, "Custom validation prompt") {
+			t.Error("Expected system prompt to be preserved in arguments")
 		}
 	})
 }

@@ -50,16 +50,14 @@ Examples:
   alpine "Implement user authentication"
   alpine "Fix bug in payment processing" --no-plan
   alpine --no-plan --no-worktree              # Bare execution mode (continue from existing state)
-  alpine --serve                               # Run HTTP server with SSE support`,
+  alpine --serve                               # Run HTTP server with SSE support
+  alpine --serve "Add new feature"             # Run HTTP server + execute task with SSE events`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if showVersion {
 				return nil
 			}
-			// If --serve is provided, no task description is needed
-			if serve {
-				if len(args) > 0 {
-					return fmt.Errorf("cannot use --serve with a task description")
-				}
+			// If --serve is provided without task description, run server-only mode
+			if serve && len(args) == 0 {
 				return nil
 			}
 			// If --continue is provided, check for conflicts

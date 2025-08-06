@@ -58,13 +58,21 @@ func TestRootCommandFlagParsing(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("alpine --serve with task description should error", func(t *testing.T) {
+	t.Run("alpine --serve with task description is valid (dual-engine mode)", func(t *testing.T) {
 		cmd := NewRootCommand()
+
+		// Override RunE to prevent actual workflow execution in tests
+		cmd.RunE = func(cmd *cobra.Command, args []string) error {
+			// Just verify we can get the flag values
+			serve, err := cmd.Flags().GetBool("serve")
+			require.NoError(t, err)
+			assert.True(t, serve, "--serve flag should be true")
+			return nil
+		}
 
 		cmd.SetArgs([]string{"--serve", "test task"})
 		err := cmd.Execute()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "cannot use --serve with a task description")
+		require.NoError(t, err)
 	})
 
 	t.Run("alpine --port 8080 is a valid command", func(t *testing.T) {

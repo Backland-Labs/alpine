@@ -523,9 +523,11 @@ func (s *Server) planApproveHandler(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"error": "Plan not found",
-		})
+		}); err != nil {
+			logger.WithField("error", err.Error()).Error("Failed to encode error response")
+		}
 		return
 	}
 
@@ -534,9 +536,11 @@ func (s *Server) planApproveHandler(w http.ResponseWriter, r *http.Request) {
 		if err := s.workflowEngine.ApprovePlan(r.Context(), runID); err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{
+			if err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "Failed to approve plan",
-			})
+			}); err != nil {
+				logger.WithField("error", err.Error()).Error("Failed to encode error response")
+			}
 			return
 		}
 	}
@@ -553,10 +557,12 @@ func (s *Server) planApproveHandler(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"status": "approved",
 		"runId":  runID,
-	})
+	}); err != nil {
+		logger.WithField("error", err.Error()).Error("Failed to encode response")
+	}
 }
 
 // planFeedbackHandler handles feedback on a plan
@@ -575,9 +581,11 @@ func (s *Server) planFeedbackHandler(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"error": "Plan not found",
-		})
+		}); err != nil {
+			logger.WithField("error", err.Error()).Error("Failed to encode error response")
+		}
 		return
 	}
 

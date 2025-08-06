@@ -169,3 +169,62 @@ func (n *NoOpEmitter) RunError(runID string, task string, err error) {
 func (n *NoOpEmitter) StateSnapshot(runID string, snapshot interface{}) {
 	// No operation
 }
+
+// ServerEventEmitter broadcasts events via server's event system
+type ServerEventEmitter struct {
+	runID string
+	// Instead of trying to avoid import cycles, we'll use a function adapter
+	broadcastFunc func(eventType, runID string, data map[string]interface{})
+}
+
+// NewServerEventEmitter creates a new server-based event emitter
+// The broadcastFunc should handle converting to the server's event format
+func NewServerEventEmitter(runID string, broadcastFunc func(eventType, runID string, data map[string]interface{})) *ServerEventEmitter {
+	return &ServerEventEmitter{
+		runID:         runID,
+		broadcastFunc: broadcastFunc,
+	}
+}
+
+// RunStarted broadcasts a RunStarted event
+func (s *ServerEventEmitter) RunStarted(runID string, task string) {
+	if s.broadcastFunc != nil {
+		s.broadcastFunc("RunStarted", runID, map[string]interface{}{
+			"task": task,
+		})
+	}
+}
+
+// RunFinished broadcasts a RunFinished event
+func (s *ServerEventEmitter) RunFinished(runID string, task string) {
+	if s.broadcastFunc != nil {
+		s.broadcastFunc("RunFinished", runID, map[string]interface{}{
+			"task": task,
+		})
+	}
+}
+
+// RunError broadcasts a RunError event
+func (s *ServerEventEmitter) RunError(runID string, task string, err error) {
+	if s.broadcastFunc == nil {
+		return
+	}
+	
+	data := map[string]interface{}{
+		"task": task,
+	}
+	if err != nil {
+		data["error"] = err.Error()
+	}
+	
+	s.broadcastFunc("RunError", runID, data)
+}
+
+// StateSnapshot broadcasts a StateSnapshot event
+func (s *ServerEventEmitter) StateSnapshot(runID string, snapshot interface{}) {
+	if s.broadcastFunc != nil {
+		s.broadcastFunc("StateSnapshot", runID, map[string]interface{}{
+			"snapshot": snapshot,
+		})
+	}
+}
