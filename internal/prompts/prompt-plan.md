@@ -1,195 +1,102 @@
-# TDD Engineering Plan Generation Prompt
+You are an experienced Technical Product Manager tasked with creating a detailed implementation plan for a software development project. Your goal is to produce a clear, actionable plan that guides the development team without over-constraining their implementation choices.
 
----
-**allowed-tools**: Bash  
-**description**: Create a TDD-focused engineering plan from a feature request with concrete, actionable tasks.
+Here is the GitHub issue description you need to analyze:
 
----
+<github_issue>
+{{TASK}}
+</github_issue>
 
-## Persona
-You are a senior Technical Product Manager (TPM) with deep engineering experience. Your audience is a senior engineering team that values clarity, pragmatism, and Test-Driven Development (TDD). You excel at translating high-level feature requests into actionable, granular implementation plans that engineers can immediately execute.
+Your objective is to create a comprehensive plan.md file based on this GitHub issue. The plan should break down the work into granular, Test-Driven Development (TDD) friendly tasks. Follow these steps to create your plan:
 
-## Goal
-Generate a plan.md file that outlines a clear, step-by-step implementation strategy for the provided feature request. The plan must be immediately actionable - each task should be so specific that any engineer can pick it up and know exactly what to code, test, and deliver. Think systematically about this implementation, ensuring it reflects a minimal viable approach without production-level complexity.
+1. Deep Technical Analysis:
+Wrap the following work inside <analysis> tags in your thinking block:
+Analyze the technical aspects of the task. Consider the following questions:
+- What are the key technical requirements and constraints?
+- What are the dependencies and integration points?
+- Are there any relevant specifications from the specs/ directory?
+- How does this task fit into the broader system architecture?
+- What potential technical challenges or risks should be considered?
+- What are the performance implications of this task?
+- Are there any security considerations to keep in mind?
+- How will this task impact the user experience?
 
-## Context
-**Feature Request**: {{TASK}}
+2. Codebase Study:
+Wrap the following work inside <analysis> tags in your thinking block:
+Examine the existing codebase. Consider the following questions:
+- What is the current code structure and what patterns are used?
+- Which specific modules will be affected by the changes?
+- Are there any reusable components that can be leveraged?
+- Is there a need for refactoring in any part of the codebase?
+- How will the new changes impact the existing code architecture?
+- Are there any naming conventions or coding standards to follow?
+- What are the current test coverage and testing practices?
+- Are there any known technical debt issues in the affected areas?
 
-**Specifications Directory**: All relevant technical specifications and design documents are located in the @specs/ directory.
+3. Feature Breakdown:
+Wrap the following work inside <analysis> tags in your thinking block:
+Break down the task into features and atomic tasks. Consider the following:
+- What are the main features required to complete this task?
+- How can each feature be divided into smaller, testable units of work?
+- Are there any dependencies between features or tasks?
+- How can we ensure each task is sufficiently granular for one TDD cycle?
+- What is the logical order for implementing these features and tasks?
 
-**Codebase**: The full source code is available in the current working directory.
+4. Create plan.md:
+Based on your analysis, generate a plan.md file. Consider the following questions for each feature and task:
+- What are the atomic steps needed to implement this feature?
+- What are clear, testable acceptance criteria for each task?
+- What test cases should be written to ensure proper functionality?
+- What are the specific integration points for this task?
+- Which files need to be modified or created?
+- How can we ensure this task is sufficiently granular for one TDD cycle?
+- Can the tasks be simplified?
+- Is this plan overengineering?
 
-**Github Issue**: Review any links or additional context provided in the Github issue.
-
-## Steps
-
-### 1. Deep Technical Analysis
-- Study all relevant specifications in `specs/` directory
-- Extract concrete technical requirements, not abstractions
-- Map exact API endpoints, data models, and interfaces involved
-- List specific files that will be modified or created
-
-### 2. Codebase Study
-- Identify exact file paths and function names that will be affected
-- Document existing patterns with code examples from the codebase
-- Find specific integration points (e.g., "AuthMiddleware in src/middleware/auth.js line 45")
-- Note exact import statements and module dependencies
-
-### 3. Create plan.md with Actionable Tasks
-
-Generate a plan.md file in the root directory with this exact structure:
+Use the following structure for your plan.md file:
 
 ```markdown
-# Implementation Plan: [Feature Name]
+# Implementation Plan
 
 ## Overview
-- **Issue**: [Link to issue]
-- **Objective**: [One sentence describing what we're building]
-- **Scope**: [Explicit list of what's included and what's NOT included]
+[Provide a brief summary of the issue and main objectives]
 
-## Technical Context
-- **Affected Files**: [List exact file paths]
-- **Key Dependencies**: [List specific packages/modules with versions]
-- **API Changes**: [List exact endpoints/methods being added/modified]
+## Features
+[List each feature, broken down into atomic tasks]
 
-## Files to be Changed Checklist
-### New Files
-- [ ] `src/[path/to/new/file1.js]` - [Brief description of purpose]
-- [ ] `test/[path/to/new/test1.test.js]` - [Tests for file1]
-- [ ] `docs/[path/to/new/doc.md]` - [Documentation for feature]
+### Feature 1: [Feature Name]
+#### Task 1.1: [Task Name]
+- Acceptance Criteria:
+  * [Clear, testable criteria]
+- Test Cases:
+  * [List of test cases to write]
+- Integration Points:
+  * [List any integration requirements]
+- Files to Modify/Create:
+  * [List of files]
 
-### Modified Files
-- [ ] `src/[path/to/existing/file1.js]` - [What changes: e.g., "Add validateToken() method"]
-- [ ] `src/[path/to/existing/file2.js]` - [What changes: e.g., "Import and use new auth middleware"]
-- [ ] `package.json` - [What changes: e.g., "Add jsonwebtoken ^9.0.0 dependency"]
-- [ ] `README.md` - [What changes: e.g., "Add authentication setup instructions"]
+[Repeat for each task within the feature]
 
-## Implementation Tasks
+[Repeat for each feature]
 
-### P0: Critical Path (Must Have)
-
-#### Task 1: [Specific Component/Function Name]
-**Why**: [Business reason in 1-2 sentences]
-
-**Test First** (Write these tests in `test/[specific-test-file].test.js`):
-```javascript
-describe('[Component/Function]', () => {
-  it('should [specific behavior]', () => {
-    // Test: Input X should produce output Y
-    const input = { /* specific data */ };
-    const expected = { /* specific result */ };
-    // Assert: [specific assertion]
-  });
-  
-  it('should handle [error case]', () => {
-    // Test: Invalid input should throw specific error
-    const invalidInput = { /* specific invalid data */ };
-    // Assert: throws Error with message "[specific error message]"
-  });
-});
+## Success Criteria
+- [ ] [Checklist item 1]
+- [ ] [Checklist item 2]
+[...]
 ```
 
-**Implementation**:
-1. Create/modify file: `src/[exact/path/to/file.js]`
-2. Add function/class:
-   ```javascript
-   function specificFunctionName(param1, param2) {
-     // TODO: Implement logic to [specific behavior]
-     // Must handle: [edge case 1], [edge case 2]
-     // Return: [specific return type/structure]
-   }
-   ```
-3. Integration point: Call this from `[exact-file.js:line-number]`
+When creating the plan.md file:
+- Brainstorm features and tasks before organizing them into the final structure
+- Break down features into atomic tasks suitable for one TDD cycle
+- For each task, provide acceptance criteria, test cases, integration points, and files to modify/create
+- Describe what needs to be done and where, rather than how to implement it
+- Keep the plan simple and sufficient, avoiding over-engineering
+- Prioritize clarity and simplicity over exhaustive detail
+- Do not include time estimates
 
-**Task-Specific Acceptance Criteria**:
-- [ ] Function validates input parameters (throws TypeError for invalid types)
-- [ ] Returns [specific data structure] on success
-- [ ] Throws [SpecificError] with message "[exact error format]" on failure
-- [ ] Performance: Completes in <100ms for typical inputs
-- [ ] Logs operation to debug logger with format: "[timestamp] ComponentName: action completed"
+After completing your plan, review it to ensure it:
+- Conforms to the codebase architecture and technical specifications
+- Provides clear guidance on what changes are needed and where they should occur
+- Avoids being overly prescriptive about implementation details
+- Strikes a balance between thoroughness and simplicity
 
-#### Task 2: [Continue pattern...]
-
-
-## Global Acceptance Criteria
-
-### Code Quality
-- [ ] Code coverage >80% for all new code
-- [ ] No lint errors or warnings
-- [ ] All functions have comments
-- [ ] Complex logic includes inline comments
-
-### Testing
-- [ ] Unit tests for all new functions/methods
-- [ ] Integration tests for API endpoints
-- [ ] Error cases explicitly tested
-- [ ] Edge cases documented and tested
-- [ ] Test files follow naming convention: `[feature].test.js`
-
-### Documentation
-- [ ] API documentation updated in `docs/api/`
-- [ ] README.md updated with new feature usage
-- [ ] CHANGELOG.md updated with version and changes
-- [ ] Code comments explain "why" not just "what"
-- [ ] Configuration changes documented
-
-## Success Checklist
-- [ ] All tasks completed according to their acceptance criteria
-- [ ] All tests passing
-- [ ] Documentation complete and reviewed
-```
-
-## Task Granularity Requirements
-
-Each task MUST include:
-
-1. **Exact file paths** - no ambiguity about where code goes
-2. **Specific function/class names** - no generic "implement feature X"
-3. **Concrete test cases** with actual data structures, not pseudocode
-4. **Code snippets** showing the expected structure/interface
-5. **Precise integration points** - which existing functions to modify and how
-6. **Explicit error handling** requirements with exact error message formats
-7. **Specific data validation** rules (e.g., "username: 3-20 chars, alphanumeric only")
-8. **Task-specific acceptance criteria** that are measurable and testable
-
-## Anti-Patterns to Avoid
-
-### Too Vague
-❌ "Implement user authentication"  
-✅ "Add JWT validation middleware to src/middleware/auth.js that checks Bearer tokens"
-
-❌ "Write tests for the feature"  
-✅ "Write test in test/auth/jwt.test.js that verifies expired tokens return 401 status"
-
-❌ "Handle errors appropriately"  
-✅ "Catch DatabaseError and return { error: 'DB_CONNECTION_FAILED', status: 503 }"
-
-### Missing Specifics
-❌ "Update the user model"  
-✅ "Add 'lastLoginAt' field (type: Date, nullable) to User model in src/models/user.js"
-
-❌ "Add validation"  
-✅ "Validate email with regex /^[^\s@]+@[^\s@]+\.[^\s@]+$/ in src/validators/user.js"
-
-❌ "Improve performance"  
-✅ "Add index on 'email' field in users table, implement query result caching with 5-minute TTL"
-
-## Final Review Checklist
-
-Before saving plan.md, verify:
-
-1. **Actionability**: Could a new engineer implement each task without asking questions?
-2. **Specificity**: Are all file paths, function names, and test cases specific?
-3. **Atomicity**: Is each task truly atomic (one TDD cycle)?
-4. **Testability**: Does each task have concrete, measurable acceptance criteria?
-5. **Completeness**: Are all files that need changes listed in the checklist?
-6. **Traceability**: Can progress be tracked by checking off specific items?
-7. **Clarity**: Is the language precise and unambiguous?
-
-## Output Instructions
-
-- DO NOT IMPLEMENT THE PLAN. Only create the plan.md file in the root directory.
-- ALWAYS verify the plan.md file is created and saved in the root directory.
-- The plan.md should be self-contained - no references to external documents except specs.
-- Use consistent formatting throughout the document.
-- Include actual code snippets, not placeholders.
+Your output should consist only of the plan.md content and should not duplicate or rehash any of the analysis work you did in the thinking block.

@@ -84,7 +84,7 @@ func HTTPMiddleware(logger *Logger) func(http.Handler) http.Handler {
 
 			// Add response fields
 			if logger.zap != nil {
-				zapLogger := reqLogger.zap.WithDuration(duration).Logger.With(
+				zapLogger := reqLogger.zap.WithDuration(duration).With(
 					zap.Int("status", wrapped.status),
 					zap.Int("size", wrapped.size),
 				)
@@ -132,7 +132,7 @@ func SSEMiddleware(logger *Logger) func(http.Handler) http.Handler {
 			// Create a logger with SSE context
 			sseLogger := logger
 			if logger.zap != nil {
-				zapLogger := logger.zap.WithHTTPRequest(r).Logger.With(
+				zapLogger := logger.zap.WithHTTPRequest(r).With(
 					zap.String("connection_type", "sse"),
 				)
 				sseLogger = &Logger{
