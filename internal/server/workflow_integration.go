@@ -85,14 +85,14 @@ func (e *AlpineWorkflowEngine) SetServer(server *Server) {
 func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL string, runID string) (string, error) {
 	logger.Infof("Starting workflow %s for issue: %s", runID, issueURL)
 
+	// Check if workflow already exists (with limited mutex scope)
 	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	// Check if workflow already exists
 	if _, exists := e.workflows[runID]; exists {
+		e.mu.Unlock()
 		logger.Infof("Attempted to start duplicate workflow: %s", runID)
 		return "", fmt.Errorf("workflow %s already exists", runID)
 	}
+	e.mu.Unlock()
 
 	// Create workflow context with issue URL
 	workflowCtx, cancel := context.WithCancel(ctx)
@@ -113,14 +113,19 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 		clonedDirs:  make([]string, 0),
 	}
 
-	// Register instance before directory creation so cleanup tracking works
+	// Register instance before directory creation so cleanup tracking works (with mutex)
+	e.mu.Lock()
 	e.workflows[runID] = instance
+	e.mu.Unlock()
 
 	// Create isolated directory for the workflow
 	worktreeDir, err := e.createWorkflowDirectory(workflowCtx, runID, cancel)
 	if err != nil {
 		// Clean up the instance if directory creation fails
+		e.mu.Lock()
 		delete(e.workflows, runID)
+		e.mu.Unlock()
+		cancel() // Cancel the context as well
 		return "", err
 	}
 
