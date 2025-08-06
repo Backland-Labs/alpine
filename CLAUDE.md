@@ -107,7 +107,7 @@ Alpine provides a REST API for programmatic workflow management when running wit
 
 ```bash
 # Build the docker container
-docker build -t alpine-code . 
+docker build --no-cache -t alpine-code . 
 
 # Start server in the container
 docker run -d -p 3001:3001 --env-file .env alpine-code
