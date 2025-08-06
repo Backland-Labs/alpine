@@ -107,13 +107,13 @@ Alpine provides a REST API for programmatic workflow management when running wit
 
 ```bash
 # Build the docker container
-./alpine --serve "Implement user authentication"
+docker build -t alpine-code . 
 
-# Start server on custom port
-./alpine --serve --port 8080 "Add caching layer"
+# Start server in the container
+docker run -d -p 3001:3001 --env-file .env alpine-code
 
-# Start server standalone (API only, no workflow)
-./alpine --serve
+# Follow/tail logs in real-time
+docker logs -f <container_name_or_id>
 ```
 
 #### REST API Endpoints

@@ -512,10 +512,13 @@ func (e *AlpineWorkflowEngine) tryCreateClonedWorktree(ctx context.Context, runI
 		return "", false
 	}
 
-	// Create worktree in cloned repository if possible
-	if worktreeDir, err := e.createWorktreeInClonedRepo(ctx, runID, clonedDir); err == nil {
-		return worktreeDir, true
-	}
+	// Skip worktree creation in Docker environments - use branches instead
+	// Worktrees add unnecessary complexity when we already have repository isolation
+	logger.WithFields(map[string]interface{}{
+		"run_id":    runID,
+		"clone_dir": clonedDir,
+		"operation": "skip_worktree_use_branch",
+	}).Debug("Skipping worktree creation in cloned repository, will use branch instead")
 
 	// Create and publish a new branch for this workflow run
 	branchName := fmt.Sprintf("alpine-run-%s", runID)
