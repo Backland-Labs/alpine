@@ -101,12 +101,12 @@ wait
 
 ### REST API Server Usage
 
-Alpine provides a REST API for programmatic workflow management when running with the `--serve` flag. The server runs on port 3001 by default (configurable with `--port`).
+Alpine provides a REST API for programmatic workflow management when running with the `--serve` flag. The server runs on port 3001 by default (configurable with `--port`). The REST API server will only ever be run in an isolated Docker container. Consider this when making architectural decisions.
 
 #### Starting the Server
 
 ```bash
-# Start server with workflow execution
+# Build the docker container
 ./alpine --serve "Implement user authentication"
 
 # Start server on custom port

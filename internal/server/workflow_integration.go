@@ -519,13 +519,31 @@ func (e *AlpineWorkflowEngine) tryCreateClonedWorktree(ctx context.Context, runI
 
 	// Create and publish a new branch for this workflow run
 	branchName := fmt.Sprintf("alpine-run-%s", runID)
+	logger.WithFields(map[string]interface{}{
+		"run_id":      runID,
+		"branch_name": branchName,
+		"clone_dir":   clonedDir,
+		"operation":   "branch_creation_attempt",
+	}).Info("Attempting to create and publish branch for workflow")
+
 	if err := e.createAndPublishBranch(ctx, clonedDir, branchName, runID); err != nil {
-		logger.Warnf("Failed to create/publish branch %s: %v, continuing on default branch", branchName, err)
-		// Continue anyway - we can still work on the default branch
+		logger.WithFields(map[string]interface{}{
+			"run_id":      runID,
+			"branch_name": branchName,
+			"error":       err.Error(),
+			"operation":   "branch_creation_failed",
+		}).Error("Failed to create/publish branch for workflow - aborting")
+		// Cannot continue without a published branch - no way to track changes
+		return "", false
 	}
 
-	// Return cloned directory as fallback
-	logger.Infof("Using cloned repository directory directly for workflow %s: %s", runID, clonedDir)
+	logger.WithFields(map[string]interface{}{
+		"run_id":      runID,
+		"branch_name": branchName,
+		"clone_dir":   clonedDir,
+		"operation":   "branch_creation_success",
+	}).Info("Successfully created and published branch, using cloned repository for workflow")
+	
 	return clonedDir, true
 }
 
@@ -586,6 +604,7 @@ func (e *AlpineWorkflowEngine) cloneRepositoryWithLogging(ctx context.Context, r
 
 // createAndPublishBranch creates a new branch in the cloned repository and publishes it to the remote.
 // This ensures each workflow run has its own isolated branch for tracking changes.
+// Returns an error if the branch cannot be created or published, as there would be no way to track changes.
 func (e *AlpineWorkflowEngine) createAndPublishBranch(ctx context.Context, clonedDir, branchName, runID string) error {
 	branchLog := logger.WithFields(map[string]interface{}{
 		"run_id":      runID,
@@ -594,57 +613,108 @@ func (e *AlpineWorkflowEngine) createAndPublishBranch(ctx context.Context, clone
 		"operation":   "create_and_publish_branch",
 	})
 
-	branchLog.Info("Creating new branch for workflow run")
+	branchLog.Debug("Starting branch creation process for workflow run")
 
-	// Create and checkout the new branch
+	// Step 1: Create and checkout the new branch
+	branchLog.Info("Creating new branch from current HEAD")
 	createCmd := exec.CommandContext(ctx, "git", "checkout", "-b", branchName)
 	createCmd.Dir = clonedDir
 	
-	if output, err := createCmd.CombinedOutput(); err != nil {
+	createOutput, err := createCmd.CombinedOutput()
+	if err != nil {
 		branchLog.WithFields(map[string]interface{}{
 			"error":  err.Error(),
-			"output": string(output),
+			"output": string(createOutput),
+			"step":   "branch_creation",
 		}).Error("Failed to create and checkout new branch")
-		return fmt.Errorf("failed to create branch %s: %w", branchName, err)
+		return fmt.Errorf("failed to create branch %s: %w (output: %s)", branchName, err, string(createOutput))
 	}
 
-	branchLog.Info("Successfully created and checked out new branch")
+	branchLog.WithField("output", string(createOutput)).Info("Successfully created and checked out new branch")
 
-	// Configure git user for commits (required for some operations)
+	// Step 2: Configure git user for commits (required for push and commits)
+	branchLog.Debug("Configuring git user for server commits")
+	
 	configNameCmd := exec.CommandContext(ctx, "git", "config", "user.name", "Alpine Server")
 	configNameCmd.Dir = clonedDir
 	if output, err := configNameCmd.CombinedOutput(); err != nil {
-		branchLog.WithField("output", string(output)).Warn("Failed to set git user.name")
+		branchLog.WithFields(map[string]interface{}{
+			"error":  err.Error(),
+			"output": string(output),
+			"step":   "git_config_name",
+		}).Warn("Failed to set git user.name, continuing anyway")
+	} else {
+		branchLog.Debug("Set git user.name to 'Alpine Server'")
 	}
 
 	configEmailCmd := exec.CommandContext(ctx, "git", "config", "user.email", "alpine@localhost")
 	configEmailCmd.Dir = clonedDir
 	if output, err := configEmailCmd.CombinedOutput(); err != nil {
-		branchLog.WithField("output", string(output)).Warn("Failed to set git user.email")
+		branchLog.WithFields(map[string]interface{}{
+			"error":  err.Error(),
+			"output": string(output),
+			"step":   "git_config_email",
+		}).Warn("Failed to set git user.email, continuing anyway")
+	} else {
+		branchLog.Debug("Set git user.email to 'alpine@localhost'")
 	}
 
-	// Publish the branch to remote (push the new branch upstream)
+	// Step 3: Publish the branch to remote (push the new branch upstream)
+	branchLog.Info("Publishing branch to remote repository")
 	pushCmd := exec.CommandContext(ctx, "git", "push", "-u", "origin", branchName)
 	pushCmd.Dir = clonedDir
 	
-	if output, err := pushCmd.CombinedOutput(); err != nil {
+	pushOutput, err := pushCmd.CombinedOutput()
+	outputStr := string(pushOutput)
+	
+	if err != nil {
 		// Check if it's an authentication error
-		outputStr := string(output)
-		if strings.Contains(outputStr, "Authentication") || strings.Contains(outputStr, "403") || strings.Contains(outputStr, "401") {
-			branchLog.WithField("output", outputStr).Warn("Branch push failed due to authentication - continuing with local branch")
-			// This is okay - we can work locally without pushing
-			return nil
+		if strings.Contains(outputStr, "Authentication") || 
+		   strings.Contains(outputStr, "403") || 
+		   strings.Contains(outputStr, "401") ||
+		   strings.Contains(outputStr, "could not read Username") ||
+		   strings.Contains(outputStr, "terminal prompts disabled") {
+			branchLog.WithFields(map[string]interface{}{
+				"error":  err.Error(),
+				"output": outputStr,
+				"step":   "branch_push_auth_failure",
+			}).Error("Branch push failed due to authentication - cannot track changes without remote branch")
+			return fmt.Errorf("authentication failed when pushing branch %s: cannot proceed without ability to publish changes", branchName)
 		}
 		
+		// Any other push error is also fatal
 		branchLog.WithFields(map[string]interface{}{
 			"error":  err.Error(),
 			"output": outputStr,
-		}).Warn("Failed to push branch to remote, continuing with local branch")
-		// Don't fail the workflow - we can still work locally
-		return nil
+			"step":   "branch_push_failure",
+		}).Error("Failed to push branch to remote - cannot track changes")
+		return fmt.Errorf("failed to push branch %s to remote: %w (output: %s)", branchName, err, outputStr)
 	}
 
-	branchLog.Info("Successfully published branch to remote")
+	branchLog.WithFields(map[string]interface{}{
+		"branch_name": branchName,
+		"output":      outputStr,
+		"step":        "branch_push_success",
+	}).Info("Successfully published branch to remote repository")
+	
+	// Step 4: Verify the branch was created and we're on it
+	verifyCmd := exec.CommandContext(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	verifyCmd.Dir = clonedDir
+	
+	if verifyOutput, err := verifyCmd.Output(); err == nil {
+		currentBranch := strings.TrimSpace(string(verifyOutput))
+		if currentBranch != branchName {
+			branchLog.WithFields(map[string]interface{}{
+				"expected_branch": branchName,
+				"current_branch":  currentBranch,
+				"step":            "branch_verification",
+			}).Error("Branch verification failed - not on expected branch")
+			return fmt.Errorf("branch verification failed: expected to be on %s but on %s", branchName, currentBranch)
+		}
+		branchLog.WithField("current_branch", currentBranch).Debug("Verified current branch is correct")
+	}
+
+	branchLog.WithField("branch_name", branchName).Info("Branch creation and publishing completed successfully")
 	return nil
 }
 
