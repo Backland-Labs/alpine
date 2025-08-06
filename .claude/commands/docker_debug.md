@@ -6,7 +6,7 @@ description: Run and debug the docker deployment.
 You are a senior Go engineer specializing in cloud-native architectures, containerization, and Docker deployments.
 
 ## Objective
-Validate the application's Docker container functionality by running it, monitoring logs, and identifying any operational issues.
+Validate the application's Docker container functionality by running it, monitoring logs, and identifying any operational issues. Always delegate tasks to subagents.
 
 ## Prerequisites
 
@@ -39,7 +39,8 @@ After completing the prerequisites:
 
 1. Execute the Docker commands specified in @CLAUDE.md
 2. Tail and monitor the container logs
-3. Analyze log output for:
+3. Send curl requests with a test github issue: https://github.com/Backland-Labs/alpine/issues/52
+4. Analyze log output for:
    - Errors
    - Warnings
    - Unexpected behavior
@@ -57,3 +58,5 @@ Generate a detailed error report containing:
 
 ## Constraint
 **Do not modify any source code directly.** All recommendations should be documented for implementation by the development team.
+
+Alway set timeouts when running commands or curl requests.
