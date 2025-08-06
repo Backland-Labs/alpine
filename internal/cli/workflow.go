@@ -124,9 +124,23 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 			streamer = server.NewServerStreamer(httpServer)
 		}
 
-		engine, wtMgr := CreateWorkflowEngine(cfg, streamer)
+		engine, wtMgr, claudeExecutor := CreateWorkflowEngine(cfg, streamer)
 		deps.WorkflowEngine = engine
 		deps.WorktreeManager = wtMgr
+
+		// Create server workflow engine if server is running and task is provided
+		if httpServer != nil && len(args) > 0 {
+			logger.Debugf("Creating Alpine workflow engine for server with shared resources")
+
+			// Create AlpineWorkflowEngine with shared ClaudeExecutor and WorktreeManager
+			alpineEngine := server.NewAlpineWorkflowEngine(claudeExecutor, wtMgr, cfg)
+
+			// Set server reference on the AlpineWorkflowEngine
+			alpineEngine.SetServer(httpServer)
+
+			// Configure the server with the AlpineWorkflowEngine
+			httpServer.SetWorkflowEngine(alpineEngine)
+		}
 	}
 
 	// Run the workflow (generatePlan is opposite of noPlan)

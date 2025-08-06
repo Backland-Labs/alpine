@@ -66,11 +66,12 @@ func NewRealDependencies() *Dependencies {
 		WorkflowEngine:  nil, // Will be created after config is finalized
 		FileReader:      &RealFileReader{},
 		WorktreeManager: nil, // Will be created after config is finalized
+		ClaudeExecutor:  nil, // Will be created after config is finalized
 	}
 }
 
 // CreateWorkflowEngine creates the workflow engine with finalized config
-func CreateWorkflowEngine(cfg *config.Config, streamer events.Streamer) (WorkflowEngine, gitx.WorktreeManager) {
+func CreateWorkflowEngine(cfg *config.Config, streamer events.Streamer) (WorkflowEngine, gitx.WorktreeManager, workflow.ClaudeExecutor) {
 	// Get current working directory for parent repo
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -84,10 +85,15 @@ func CreateWorkflowEngine(cfg *config.Config, streamer events.Streamer) (Workflo
 		wtMgr = gitx.NewCLIWorktreeManager(cwd, cfg.Git.BaseBranch)
 	}
 
-	// Create workflow engine
-	engine := NewRealWorkflowEngine(cfg, wtMgr, streamer)
+	// Create Claude executor
+	printer := output.NewPrinter()
+	executor := claude.NewExecutorWithConfig(cfg, printer)
 
-	return engine, wtMgr
+	// Create workflow engine
+	engine := workflow.NewEngine(executor, wtMgr, cfg, streamer)
+	workflowEngine := &RealWorkflowEngine{engine: engine}
+
+	return workflowEngine, wtMgr, executor
 }
 
 // Dependencies struct for injection (moved from test file for reuse)
@@ -96,4 +102,5 @@ type Dependencies struct {
 	WorkflowEngine  WorkflowEngine
 	FileReader      FileReader
 	WorktreeManager gitx.WorktreeManager
+	ClaudeExecutor  workflow.ClaudeExecutor
 }

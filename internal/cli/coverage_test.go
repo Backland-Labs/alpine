@@ -164,7 +164,7 @@ func TestCreateWorkflowEngineWithErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			engine, wtMgr := CreateWorkflowEngine(tt.cfg, nil)
+			engine, wtMgr, _ := CreateWorkflowEngine(tt.cfg, nil)
 
 			assert.NotNil(t, engine)
 
