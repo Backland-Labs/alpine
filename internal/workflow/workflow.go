@@ -17,6 +17,7 @@ import (
 	"github.com/Backland-Labs/alpine/internal/gitx"
 	"github.com/Backland-Labs/alpine/internal/logger"
 	"github.com/Backland-Labs/alpine/internal/output"
+	"github.com/Backland-Labs/alpine/internal/prompts"
 )
 
 // ClaudeExecutor interface for executing Claude commands
@@ -371,7 +372,8 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 	var prompt string
 
 	if generatePlan {
-		prompt = "/make_plan " + taskDescription
+		// Use the embedded prompt template and replace {{TASK}} with the GitHub URL
+		prompt = strings.Replace(prompts.PromptPlan, "{{TASK}}", taskDescription, -1)
 	} else {
 		prompt = "/run_implementation_loop " + taskDescription
 	}
