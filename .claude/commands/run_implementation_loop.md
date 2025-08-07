@@ -76,19 +76,28 @@ Select ONE feature based on:
 
 For the selected feature, follow this TDD cycle:
 
-a. RED Phase - Write Failing Tests:
-
+a. RED Phase - Write MINIMAL Critical Tests:
 <reasoning>
-- What behaviors need to be tested for this feature?
-- How can I ensure comprehensive test coverage?
-- What edge cases and error conditions should I consider?
+- What is the CORE business logic that must work correctly?
+- What is the happy path for this code?
+- What would cause the most damage if it failed?
+- Can I test this with just 1-3 focused tests?
+- Skip tests for: trivial getters/setters, simple data transformation, UI rendering, configuration loading
 </reasoning>
+Write tests ONLY for:
 
-Write tests that:
-- Have clear docstrings explaining their importance
-- Document specific behaviors being tested
-- Include edge cases and error conditions
-- Are isolated and independent
+Core business logic that could fail in non-obvious ways
+Critical data validation or security checks
+Complex algorithms or calculations
+Integration points that are prone to errors
+
+Test Guidelines:
+
+Write 1-3 tests maximum for the critical path
+Focus on the "happy path" and one critical edge case
+Skip comprehensive edge case testing
+Avoid testing implementation details
+Don't test third-party libraries or framework code
 
 b. GREEN Phase - Minimal Implementation:
 
