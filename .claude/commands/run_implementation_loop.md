@@ -24,7 +24,7 @@ You are a senior software engineer tasked with implementing features from a proj
 
 Your task involves several steps, which we'll break down in detail. Before each action, wrap your planning and reasoning in <reasoning> tags. Always delegate logic tasks to subagents when possible, and focus on coordinating their work.
 
-1. Analyze the Project Plan:
+1. Analyze the Project Plan (Run in Parallel):
 
 <reasoning>
 - How should I approach reading and analyzing plan.md?
@@ -39,7 +39,7 @@ After your analysis, document:
 - Dependencies between features
 - Priority indicators or business value metrics
 
-2. Review Specifications:
+2. Review Specifications (Run in Parallel):
 
 <reasoning>
 - How should I deploy the spec-implementation-reviewer agent?
@@ -54,7 +54,22 @@ Use the spec-implementation-reviewer agent to:
 - Note architectural decisions that impact implementation
 - Document API contracts or interface definitions
 
-3. Select Feature for Implementation:
+3. Git History (Run in Parallel):
+<reasoning>
+- Have there been recent attempts to address this feature?
+- What recent changes might affect the implementation?
+- - Are there lessons from prior commits that would help us implement this more efficiently?
+</reasoning>
+
+Execute this general purpose subagent to review the recent git history to understand recent changes to the codebase.
+
+**Scope of Analysis:**
+- Recent Commits: Examine the most recent N commits to understand the chronological sequence of changes.
+- Commit Messages: Analyze the commit messages to discern the purpose and context of each change (e.g., bug fixes, new features, refactoring).
+- Files Changed: Identify the specific files and lines of code that were modified, added, or deleted in each commit.
+- Branch and Merge History: Review the branching and merging patterns to understand the development workflow (e.g., feature branches, hotfixes).
+
+4. Select Feature for Implementation:
 
 <reasoning>
 - What criteria should I use to select the highest priority unimplemented feature?
@@ -72,7 +87,7 @@ Select ONE feature based on:
 - Required architectural changes
 - Testing complexity
 
-4. Test-Driven Development Implementation:
+5. Test-Driven Development Implementation:
 
 For the selected feature, follow this TDD cycle:
 
@@ -129,7 +144,7 @@ Refactor to:
 - Add necessary documentation
 - Run the available linting or formatting tools for the codebase on the specific changes.
 
-5. Update Project Plan:
+6. Update Project Plan:
 
 <reasoning>
 - What changes need to be made to plan.md?
@@ -142,7 +157,7 @@ Modify `plan.md` to:
 - Include notes about decisions or trade-offs
 - Document discovered dependencies or follow-up tasks
 
-6. Create Commit:
+7. Create Commit:
 
 <reasoning>
 - What key information should be included in the commit message?
@@ -165,7 +180,7 @@ Technical notes:
 - [Known limitations]
 ```
 
-7. Verify Build:
+8. Verify Build:
 
 <reasoning>
 - What steps are necessary to verify the build?
@@ -178,7 +193,7 @@ For compiled languages:
 - Run the full test suite
 - Verify the feature in the built application
 
-8. Update Agent State:
+9. Update Agent State:
 
 <reasoning>
 - What information needs to be included in the agent state file?
