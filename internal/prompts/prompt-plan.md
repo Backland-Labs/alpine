@@ -68,7 +68,7 @@ Use the following structure for your plan.md file:
 - Acceptance Criteria:
   * [Clear, testable criteria]
 - Test Cases:
-  * [List of test cases to write]
+  * [List of 1 test case to write]
 - Integration Points:
   * [List any integration requirements]
 - Files to Modify/Create:
