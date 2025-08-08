@@ -161,10 +161,10 @@ func TestExecutor_Execute(t *testing.T) {
 
 func TestExecutor_buildCommand(t *testing.T) {
 	tests := []struct {
-		name           string
-		config         ExecuteConfig
-		expectedArgs   []string
-		expectedEnvSet map[string]bool
+		name            string
+		config          ExecuteConfig
+		expectedArgs    []string
+		expectedEnvSet  map[string]bool
 		expectedWorkDir string // Added to test working directory behavior
 	}{
 		{
@@ -179,7 +179,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"--append-system-prompt",
 				"-p", "test prompt",
 			},
-			expectedEnvSet: map[string]bool{},
+			expectedEnvSet:  map[string]bool{},
 			expectedWorkDir: "", // Will be set to current directory by buildCommand
 		},
 		{
@@ -197,7 +197,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"--append-system-prompt",
 				"-p", "test prompt",
 			},
-			expectedEnvSet: map[string]bool{},
+			expectedEnvSet:  map[string]bool{},
 			expectedWorkDir: "", // Will be set to current directory
 		},
 		{
@@ -213,7 +213,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"--append-system-prompt", "Custom system prompt",
 				"-p", "test prompt",
 			},
-			expectedEnvSet: map[string]bool{},
+			expectedEnvSet:  map[string]bool{},
 			expectedWorkDir: "", // Will be set to current directory
 		},
 		{
@@ -229,7 +229,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"--append-system-prompt",
 				"-p", "test prompt",
 			},
-			expectedEnvSet: map[string]bool{},
+			expectedEnvSet:  map[string]bool{},
 			expectedWorkDir: "", // Will be set to current directory
 		},
 		{
@@ -246,7 +246,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"--add-dir", ".", "--verbose",
 				"-p", "test prompt",
 			},
-			expectedEnvSet: map[string]bool{},
+			expectedEnvSet:  map[string]bool{},
 			expectedWorkDir: "", // Will be set to current directory
 		},
 		{
@@ -262,7 +262,7 @@ func TestExecutor_buildCommand(t *testing.T) {
 				"--append-system-prompt",
 				"-p", "test prompt",
 			},
-			expectedEnvSet: map[string]bool{},
+			expectedEnvSet:  map[string]bool{},
 			expectedWorkDir: "/custom/work/dir",
 		},
 		{
@@ -561,8 +561,8 @@ func TestExecutor_WorkingDirectoryIntegration(t *testing.T) {
 		// Create a mock command runner that captures the working directory
 		capturedDir := ""
 		mockRunner := &mockCommandRunnerWithDir{
-			output: "Mock execution successful",
-			err:    nil,
+			output:     "Mock execution successful",
+			err:        nil,
 			dirCapture: &capturedDir,
 		}
 
@@ -598,8 +598,8 @@ func TestExecutor_WorkingDirectoryIntegration(t *testing.T) {
 		// Test that invalid directories are cleared and don't cause execution failure
 		capturedDir := ""
 		mockRunner := &mockCommandRunnerWithDir{
-			output: "Mock execution with cleared directory",
-			err:    nil,
+			output:     "Mock execution with cleared directory",
+			err:        nil,
 			dirCapture: &capturedDir,
 		}
 
@@ -634,8 +634,8 @@ func TestExecutor_WorkingDirectoryIntegration(t *testing.T) {
 		// Test that empty WorkDir falls back to current directory
 		capturedDir := ""
 		mockRunner := &mockCommandRunnerWithDir{
-			output: "Mock execution with current directory",
-			err:    nil,
+			output:     "Mock execution with current directory",
+			err:        nil,
 			dirCapture: &capturedDir,
 		}
 
@@ -686,12 +686,12 @@ func (m *mockCommandRunnerWithDir) Run(ctx context.Context, config ExecuteConfig
 	// Create executor to simulate the actual command building process
 	executor := &Executor{}
 	cmd := executor.buildCommandWithValidation(config)
-	
+
 	// Capture the working directory that would be used
 	if m.dirCapture != nil {
 		*m.dirCapture = cmd.Dir
 	}
-	
+
 	return m.output, m.err
 }
 
@@ -972,7 +972,7 @@ func TestExecutor_ValidatesWorkingDirectory(t *testing.T) {
 
 	t.Run("preserves valid directory from config over current directory", func(t *testing.T) {
 		executor := &Executor{}
-		
+
 		// Create a valid temporary directory
 		tempDir, err := os.MkdirTemp("", "test-alpine-config-")
 		if err != nil {
@@ -1012,7 +1012,7 @@ func TestExecutor_ValidatesWorkingDirectory(t *testing.T) {
 
 	t.Run("validation does not affect other command properties", func(t *testing.T) {
 		executor := &Executor{}
-		
+
 		// Use invalid directory but verify other properties are preserved
 		config := ExecuteConfig{
 			Prompt:       "test validation prompt",
