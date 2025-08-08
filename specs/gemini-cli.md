@@ -207,7 +207,7 @@ func executeWithContext(prompt string, previousOutput string) error {
 | Feature | Claude CLI | Gemini CLI |
 |---------|-----------|------------|
 | Non-interactive flag | `--prompt` | `-p` |
-| Continue from state | `--continue` | Not supported |
+| Continue from state | Not supported | Not supported |
 | Session persistence | Built-in | Manual context |
 | Multi-turn support | Yes | No |
 | Tool confirmation | Yes | Auto-executes with `-p` |

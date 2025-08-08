@@ -62,6 +62,6 @@ func FetchIssueDescription(url string) (string, error) {
 
 	// Format task description (same format as used in plan.go)
 	taskDesc := fmt.Sprintf("Task: %s\n\n%s", issue.Title, issue.Body)
-	
+
 	return taskDesc, nil
 }

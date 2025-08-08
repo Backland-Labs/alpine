@@ -244,7 +244,6 @@ func filterEnvironment(env []string) []string {
 	return filtered
 }
 
-
 // runPlanInWorktree executes plan generation in an isolated git worktree
 func runPlanInWorktree(task string, useClaude bool, cleanup bool) error {
 	// Create printer for consistent output

@@ -336,9 +336,9 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 
 	// DEBUG: Log channel state
 	logger.WithFields(map[string]interface{}{
-		"client_id":      clientID,
-		"channel_size":   len(s.eventsChan),
-		"channel_cap":    cap(s.eventsChan),
+		"client_id":    clientID,
+		"channel_size": len(s.eventsChan),
+		"channel_cap":  cap(s.eventsChan),
 	}).Debug("SSE client connected and ready to receive events")
 
 	// Create keepalive ticker for connection health
@@ -354,11 +354,11 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 		case event := <-s.eventsChan:
 			eventCount++
 			logger.WithFields(map[string]interface{}{
-				"client_id":    clientID,
-				"event_count":  eventCount,
-				"event_size":   len(event),
+				"client_id":   clientID,
+				"event_count": eventCount,
+				"event_size":  len(event),
 			}).Debug("SSE client received event from channel")
-			
+
 			// Send event to client
 			if _, err := fmt.Fprint(w, event); err != nil {
 				// Client write failed, disconnect
@@ -371,7 +371,7 @@ func (s *Server) sseHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			flusher.Flush()
-			
+
 			logger.WithFields(map[string]interface{}{
 				"client_id":   clientID,
 				"event_count": eventCount,

@@ -16,7 +16,7 @@ import (
 )
 
 // runWorkflowWithDependencies is the testable version of runWorkflow with dependency injection
-func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, noWorktree bool, continueFlag bool, deps *Dependencies) error {
+func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool, noWorktree bool, deps *Dependencies) error {
 	// Check if we're in server-only mode
 	serve, _ := ctx.Value(serveKey).(bool)
 	if serve && len(args) == 0 {
@@ -64,25 +64,15 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 
 	var taskDescription string
 
-	// Check for --continue flag first
-	if continueFlag {
-		// Check if state file exists
-		if _, err := deps.FileReader.ReadFile("agent_state/agent_state.json"); err != nil {
-			return fmt.Errorf("no existing state file found to continue from")
+	if len(args) == 0 {
+		// Check if we're in bare mode (both flags set)
+		if !noPlan || !noWorktree {
+			return fmt.Errorf("task description is required")
 		}
-		// Continue mode: empty task description
+		// In bare mode, empty args is allowed
 		taskDescription = ""
 	} else {
-		if len(args) == 0 {
-			// Check if we're in bare mode (both flags set)
-			if !noPlan || !noWorktree {
-				return fmt.Errorf("task description is required")
-			}
-			// In bare mode, empty args is allowed
-			taskDescription = ""
-		} else {
-			taskDescription = args[0]
-		}
+		taskDescription = args[0]
 	}
 
 	// Validate task description (trim whitespace)
@@ -125,7 +115,7 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 		}
 
 		engine, wtMgr, claudeExecutor := CreateWorkflowEngine(cfg, streamer)
-		
+
 		// Connect ServerEventEmitter when --serve mode is active
 		if httpServer != nil {
 			// Create a broadcast function that converts to server's WorkflowEvent format
@@ -139,19 +129,18 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 					Data:      data,
 				})
 			}
-			
-			// Create and set the event emitter - using empty runID for now, will be set per workflow  
+
+			// Create and set the event emitter - using empty runID for now, will be set per workflow
 			eventEmitter := events.NewServerEventEmitter("", broadcastFunc)
-			
+
 			// Set the event emitter on the underlying workflow engine
 			if realEngine, ok := engine.(*RealWorkflowEngine); ok {
 				realEngine.engine.SetEventEmitter(eventEmitter)
 			}
 		}
-		
+
 		deps.WorkflowEngine = engine
 		deps.WorktreeManager = wtMgr
-
 
 		// Create server workflow engine if server is running and task is provided
 		if httpServer != nil && len(args) > 0 {

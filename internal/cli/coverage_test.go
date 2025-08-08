@@ -113,7 +113,7 @@ func TestRunWorkflowBareMode(t *testing.T) {
 
 			tt.setupMocks(deps)
 
-			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, tt.noWorktree, false, deps)
+			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, tt.noWorktree, deps)
 
 			if tt.wantErr {
 				assert.Error(t, err)

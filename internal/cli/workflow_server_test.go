@@ -41,7 +41,7 @@ func TestServeFlagStartsServer(t *testing.T) {
 	// Run workflow with serve flag in background
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- runWorkflowWithDependencies(testCtx, []string{"test task"}, false, false, false, deps)
+		errChan <- runWorkflowWithDependencies(testCtx, []string{"test task"}, false, false, deps)
 	}()
 
 	// Give the server time to start
@@ -92,7 +92,7 @@ func TestWorkflowRunsConcurrentlyWithServer(t *testing.T) {
 	ctx = context.WithValue(ctx, portKey, 0) // Use port 0 for dynamic assignment
 
 	// Run workflow
-	err := runWorkflowWithDependencies(ctx, []string{"test task"}, false, false, false, deps)
+	err := runWorkflowWithDependencies(ctx, []string{"test task"}, false, false, deps)
 	require.NoError(t, err)
 
 	// Verify the workflow was executed by checking the mock was called
@@ -120,7 +120,7 @@ func TestServerShutdownOnWorkflowComplete(t *testing.T) {
 	// Run workflow in a goroutine
 	done := make(chan bool)
 	go func() {
-		err := runWorkflowWithDependencies(ctx, []string{"test task"}, false, false, false, deps)
+		err := runWorkflowWithDependencies(ctx, []string{"test task"}, false, false, deps)
 		assert.NoError(t, err)
 		done <- true
 	}()

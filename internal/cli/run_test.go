@@ -127,7 +127,7 @@ func TestRunWorkflowWithTaskDescription(t *testing.T) {
 			tt.setupMocks(deps)
 
 			// Test the workflow execution with dependency injection
-			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, false, false, deps)
+			err := runWorkflowWithDependencies(context.Background(), tt.args, tt.noPlan, false, deps)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -165,7 +165,7 @@ func TestSignalHandling(t *testing.T) {
 		// Start the workflow in a goroutine
 		errChan := make(chan error, 1)
 		go func() {
-			err := runWorkflowWithDependencies(context.Background(), []string{"Long task"}, false, false, false, deps)
+			err := runWorkflowWithDependencies(context.Background(), []string{"Long task"}, false, false, deps)
 			errChan <- err
 		}()
 

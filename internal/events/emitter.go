@@ -209,14 +209,14 @@ func (s *ServerEventEmitter) RunError(runID string, task string, err error) {
 	if s.broadcastFunc == nil {
 		return
 	}
-	
+
 	data := map[string]interface{}{
 		"task": task,
 	}
 	if err != nil {
 		data["error"] = err.Error()
 	}
-	
+
 	s.broadcastFunc("RunError", runID, data)
 }
 

@@ -99,6 +99,6 @@ After completing your plan, review it to ensure it:
 - Avoids being overly prescriptive about implementation details
 - Strikes a balance between thoroughness and simplicity
 
-Your output should consist only of the plan.md content and should not duplicate or rehash any of the analysis work you did in the thinking block.
+Your output should consist only of the plan.md content and should not duplicate or rehash any of the analysis work you did in the thinking block. Write the content to the plan.md file. Do not ask if you should write it. Always write to file.
 
 ALWAYS WRITE THE PLAN TO plan.md IN THE PROJECT ROOT. OVERWRITE ANY EXISTING FILE.

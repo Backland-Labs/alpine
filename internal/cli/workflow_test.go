@@ -28,7 +28,7 @@ func TestServerOnlyMode(t *testing.T) {
 		// Run in a goroutine and cancel after a short delay
 		errChan := make(chan error, 1)
 		go func() {
-			errChan <- runWorkflowWithDependencies(ctx, []string{}, false, false, false, deps)
+			errChan <- runWorkflowWithDependencies(ctx, []string{}, false, false, deps)
 		}()
 
 		// Give it a moment to start, then cancel
@@ -57,7 +57,7 @@ func TestServerOnlyMode(t *testing.T) {
 		// Run in a goroutine and cancel after a short delay
 		errChan := make(chan error, 1)
 		go func() {
-			errChan <- runWorkflowWithDependencies(ctx, []string{}, false, false, false, deps)
+			errChan <- runWorkflowWithDependencies(ctx, []string{}, false, false, deps)
 		}()
 
 		// Give it a moment to start, then cancel
@@ -80,7 +80,7 @@ func TestExtractTaskDescription_BareMode(t *testing.T) {
 		}
 
 		// Call with empty args, but both flags set to true
-		err := runWorkflowWithDependencies(context.Background(), []string{}, true, true, false, deps)
+		err := runWorkflowWithDependencies(context.Background(), []string{}, true, true, deps)
 
 		// In bare mode (both flags set), empty task should be allowed
 		// This test should PASS after implementation
@@ -94,7 +94,7 @@ func TestExtractTaskDescription_BareMode(t *testing.T) {
 		}
 
 		// Call with empty args and only no-plan flag
-		err := runWorkflowWithDependencies(context.Background(), []string{}, true, false, false, deps)
+		err := runWorkflowWithDependencies(context.Background(), []string{}, true, false, deps)
 
 		// Should fail when only one flag is set
 		require.Error(t, err)
@@ -108,7 +108,7 @@ func TestExtractTaskDescription_BareMode(t *testing.T) {
 		}
 
 		// Call with empty args and only no-worktree flag
-		err := runWorkflowWithDependencies(context.Background(), []string{}, false, true, false, deps)
+		err := runWorkflowWithDependencies(context.Background(), []string{}, false, true, deps)
 
 		// Should fail when only one flag is set
 		require.Error(t, err)
@@ -123,7 +123,7 @@ func TestExtractTaskDescription_BareMode(t *testing.T) {
 		}
 
 		// Call with whitespace-only task and both flags
-		err := runWorkflowWithDependencies(context.Background(), []string{"   \n\t  "}, true, true, false, deps)
+		err := runWorkflowWithDependencies(context.Background(), []string{"   \n\t  "}, true, true, deps)
 
 		// In bare mode, whitespace-only should be treated as empty and allowed
 		assert.NoError(t, err, "bare mode should allow whitespace-only task description")
@@ -138,7 +138,7 @@ func TestExtractTaskDescription_BareMode(t *testing.T) {
 		}
 
 		// Call with no args in bare mode
-		err := runWorkflowWithDependencies(context.Background(), []string{}, true, true, false, deps)
+		err := runWorkflowWithDependencies(context.Background(), []string{}, true, true, deps)
 
 		require.NoError(t, err)
 		// Verify that empty string was passed to the engine
