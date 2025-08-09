@@ -67,9 +67,9 @@ The approach prioritizes simplicity by extending the existing `alpine-ag-ui-emit
   * ✅ internal/claude/agui_hooks.go
   * ✅ internal/config/config.go
 
-## Feature 3: Event Processing and Performance
+## Feature 3: Event Processing and Performance [IMPLEMENTED]
 
-#### Task 3.1: Implement Event Batching and Throttling System
+#### Task 3.1: Implement Event Batching and Throttling System [IMPLEMENTED]
 - Acceptance Criteria:
   * Create event batching system with configurable flush intervals (default: 1 second)
   * Implement backpressure handling to prevent memory overflow
@@ -84,7 +84,7 @@ The approach prioritizes simplicity by extending the existing `alpine-ag-ui-emit
   * internal/events/emitter.go
   * internal/server/server.go
 
-#### Task 3.2: Create POST /events/tool-calls Endpoint with Authentication
+#### Task 3.2: Create POST /events/tool-calls Endpoint with Authentication [IMPLEMENTED]
 - Acceptance Criteria:
   * Implement POST `/events/tool-calls` endpoint for hook event reception
   * Add authentication using existing server authentication mechanisms

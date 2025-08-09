@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Backland-Labs/alpine/internal/events"
 	"github.com/Backland-Labs/alpine/internal/logger"
 )
 
@@ -49,6 +50,9 @@ type Server struct {
 
 	// Run-specific event filtering
 	runEventHub *runSpecificEventHub // Hub for run-specific event subscriptions
+
+	// Tool call event batching
+	batchingEmitter events.ToolCallEventEmitter // Optional batching emitter for tool call events
 }
 
 // NewServer creates a new HTTP server instance configured to run on the specified port.
@@ -184,6 +188,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.Handle("/plans/{runId}", middleware(http.HandlerFunc(s.planGetHandler)))
 	mux.Handle("/plans/{runId}/approve", middleware(http.HandlerFunc(s.planApproveHandler)))
 	mux.Handle("/plans/{runId}/feedback", middleware(http.HandlerFunc(s.planFeedbackHandler)))
+	mux.Handle("/events/tool-calls", middleware(http.HandlerFunc(s.toolCallEventsHandler)))
 
 	logger.Debugf("Registered %d endpoints", 11)
 
@@ -241,6 +246,14 @@ func (s *Server) SetWorkflowEngine(engine WorkflowEngine) {
 	defer s.mu.Unlock()
 	s.workflowEngine = engine
 	logger.WithField("engine_nil", engine == nil).Debug("Workflow engine set")
+}
+
+// SetBatchingEmitter sets the batching emitter for tool call events
+func (s *Server) SetBatchingEmitter(emitter events.ToolCallEventEmitter) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.batchingEmitter = emitter
+	logger.WithField("emitter_nil", emitter == nil).Debug("Batching emitter set")
 }
 
 // BroadcastEvent broadcasts a workflow event to all connected SSE clients

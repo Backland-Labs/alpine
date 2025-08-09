@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Backland-Labs/alpine/internal/events"
 	"github.com/Backland-Labs/alpine/internal/logger"
 )
 
@@ -608,19 +609,23 @@ func (s *Server) planFeedbackHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"error": "Invalid JSON payload",
-		})
+		}); err != nil {
+			logger.WithField("error", err.Error()).Error("Failed to encode error response")
+		}
 		return
 	}
 
 	// TODO: Process feedback and regenerate plan
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"status": "feedback_received",
 		"runId":  runID,
-	})
+	}); err != nil {
+		logger.WithField("error", err.Error()).Error("Failed to encode response")
+	}
 }
 
 // isPlanFieldTypeError checks if a JSON unmarshal error is specifically related to
@@ -628,4 +633,219 @@ func (s *Server) planFeedbackHandler(w http.ResponseWriter, r *http.Request) {
 func isPlanFieldTypeError(err error) bool {
 	errStr := err.Error()
 	return strings.Contains(errStr, "cannot unmarshal") && strings.Contains(errStr, "into Go struct field .plan")
+}
+
+// toolCallEventsHandler handles POST /events/tool-calls endpoint for receiving tool call events from hooks
+func (s *Server) toolCallEventsHandler(w http.ResponseWriter, r *http.Request) {
+	logger.WithFields(map[string]interface{}{
+		"method":         r.Method,
+		"content_length": r.ContentLength,
+	}).Debug("Tool call events endpoint requested")
+
+	if r.Method != http.MethodPost {
+		logger.WithFields(map[string]interface{}{
+			"method":   r.Method,
+			"expected": http.MethodPost,
+		}).Debug("Invalid method for tool call events")
+		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	// Simple authentication check - require Authorization header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		logger.Debug("Missing Authorization header")
+		s.respondWithError(w, http.StatusUnauthorized, "Authorization required")
+		return
+	}
+
+	// For MVP, accept any Bearer token (in production, validate the token)
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		logger.Debug("Invalid Authorization header format")
+		s.respondWithError(w, http.StatusUnauthorized, "Invalid authorization format")
+		return
+	}
+
+	// Parse the incoming event data
+	var eventData map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&eventData); err != nil {
+		logger.WithField("error", err.Error()).Debug("Invalid JSON payload")
+		s.respondWithError(w, http.StatusBadRequest, "Invalid JSON payload")
+		return
+	}
+
+	// Validate event type
+	eventType, ok := eventData["type"].(string)
+	if !ok {
+		logger.Debug("Missing or invalid event type")
+		s.respondWithError(w, http.StatusBadRequest, "Event type is required")
+		return
+	}
+
+	if !events.IsValidAGUIEventType(eventType) {
+		logger.WithField("event_type", eventType).Debug("Invalid AG-UI event type")
+		s.respondWithError(w, http.StatusBadRequest, "Invalid event type")
+		return
+	}
+
+	// Convert to appropriate event structure based on type
+	var event events.BaseEvent
+	var err error
+
+	switch eventType {
+	case events.AGUIEventToolCallStarted:
+		event, err = s.parseToolCallStartEvent(eventData)
+	case events.AGUIEventToolCallFinished:
+		event, err = s.parseToolCallEndEvent(eventData)
+	case events.AGUIEventToolCallError:
+		event, err = s.parseToolCallErrorEvent(eventData)
+	default:
+		logger.WithField("event_type", eventType).Debug("Unsupported event type")
+		s.respondWithError(w, http.StatusBadRequest, "Unsupported event type")
+		return
+	}
+
+	if err != nil {
+		logger.WithFields(map[string]interface{}{
+			"error":      err.Error(),
+			"event_type": eventType,
+		}).Debug("Failed to parse event")
+		s.respondWithError(w, http.StatusBadRequest, "Invalid event data: "+err.Error())
+		return
+	}
+
+	// Validate the parsed event
+	if err := event.Validate(); err != nil {
+		logger.WithFields(map[string]interface{}{
+			"error":      err.Error(),
+			"event_type": eventType,
+		}).Debug("Event validation failed")
+		s.respondWithError(w, http.StatusBadRequest, "Event validation failed: "+err.Error())
+		return
+	}
+
+	// Forward to batching emitter if available
+	s.mu.Lock()
+	emitter := s.batchingEmitter
+	s.mu.Unlock()
+
+	if emitter != nil {
+		emitter.EmitToolCallEvent(event)
+		logger.WithFields(map[string]interface{}{
+			"event_type": eventType,
+			"run_id":     event.GetRunID(),
+		}).Debug("Event forwarded to batching emitter")
+	} else {
+		logger.Debug("No batching emitter configured, event dropped")
+	}
+
+	// Return success
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]string{
+		"status": "accepted",
+	}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.WithField("error", err.Error()).Error("Failed to encode response")
+	}
+}
+
+// parseToolCallStartEvent parses a tool_call_started event from raw data
+func (s *Server) parseToolCallStartEvent(data map[string]interface{}) (*events.ToolCallStartEvent, error) {
+	event := &events.ToolCallStartEvent{
+		Type: events.AGUIEventToolCallStarted,
+	}
+
+	if runID, ok := data["runId"].(string); ok {
+		event.RunID = runID
+	}
+
+	if toolCallID, ok := data["toolCallId"].(string); ok {
+		event.ToolCallID = toolCallID
+	}
+
+	if toolName, ok := data["toolName"].(string); ok {
+		event.ToolName = toolName
+	}
+
+	if timestampStr, ok := data["timestamp"].(string); ok {
+		if timestamp, err := time.Parse(time.RFC3339, timestampStr); err == nil {
+			event.Timestamp = timestamp
+		} else {
+			event.Timestamp = time.Now()
+		}
+	} else {
+		event.Timestamp = time.Now()
+	}
+
+	return event, nil
+}
+
+// parseToolCallEndEvent parses a tool_call_finished event from raw data
+func (s *Server) parseToolCallEndEvent(data map[string]interface{}) (*events.ToolCallEndEvent, error) {
+	event := &events.ToolCallEndEvent{
+		Type: events.AGUIEventToolCallFinished,
+	}
+
+	if runID, ok := data["runId"].(string); ok {
+		event.RunID = runID
+	}
+
+	if toolCallID, ok := data["toolCallId"].(string); ok {
+		event.ToolCallID = toolCallID
+	}
+
+	if toolName, ok := data["toolName"].(string); ok {
+		event.ToolName = toolName
+	}
+
+	if duration, ok := data["duration"].(string); ok {
+		event.Duration = duration
+	}
+
+	if timestampStr, ok := data["timestamp"].(string); ok {
+		if timestamp, err := time.Parse(time.RFC3339, timestampStr); err == nil {
+			event.Timestamp = timestamp
+		} else {
+			event.Timestamp = time.Now()
+		}
+	} else {
+		event.Timestamp = time.Now()
+	}
+
+	return event, nil
+}
+
+// parseToolCallErrorEvent parses a tool_call_error event from raw data
+func (s *Server) parseToolCallErrorEvent(data map[string]interface{}) (*events.ToolCallErrorEvent, error) {
+	event := &events.ToolCallErrorEvent{
+		Type: events.AGUIEventToolCallError,
+	}
+
+	if runID, ok := data["runId"].(string); ok {
+		event.RunID = runID
+	}
+
+	if toolCallID, ok := data["toolCallId"].(string); ok {
+		event.ToolCallID = toolCallID
+	}
+
+	if toolName, ok := data["toolName"].(string); ok {
+		event.ToolName = toolName
+	}
+
+	if errorMsg, ok := data["error"].(string); ok {
+		event.Error = errorMsg
+	}
+
+	if timestampStr, ok := data["timestamp"].(string); ok {
+		if timestamp, err := time.Parse(time.RFC3339, timestampStr); err == nil {
+			event.Timestamp = timestamp
+		} else {
+			event.Timestamp = time.Now()
+		}
+	} else {
+		event.Timestamp = time.Now()
+	}
+
+	return event, nil
 }
