@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Backland-Labs/alpine/internal/core"
@@ -45,4 +46,30 @@ type WorkflowEvent struct {
 
 	// Flexible event data (backward compatibility)
 	Data map[string]interface{} `json:"data,omitempty"`
+}
+
+// GetType returns the event type (BaseEvent interface implementation)
+func (e *WorkflowEvent) GetType() string {
+	return e.Type
+}
+
+// GetRunID returns the run identifier (BaseEvent interface implementation)
+func (e *WorkflowEvent) GetRunID() string {
+	return e.RunID
+}
+
+// GetTimestamp returns the event timestamp (BaseEvent interface implementation)
+func (e *WorkflowEvent) GetTimestamp() time.Time {
+	return e.Timestamp
+}
+
+// Validate checks if the event has required fields (BaseEvent interface implementation)
+func (e *WorkflowEvent) Validate() error {
+	if e.Type == "" {
+		return fmt.Errorf("type is required")
+	}
+	if e.RunID == "" {
+		return fmt.Errorf("runId is required")
+	}
+	return nil
 }

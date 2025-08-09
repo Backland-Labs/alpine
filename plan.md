@@ -1,139 +1,249 @@
 # Implementation Plan
 
 ## Overview
-This plan adds support for an optional `plan` boolean field in the REST API `/agents/run` endpoint. When `plan` is set to `false`, the workflow will execute without generating a plan.md file, directly proceeding to implementation. This addresses the need for flexibility in workflow execution modes via the REST API.
 
-#### Task 1.1: Update WorkflowEngine Interface ✓
-- Acceptance Criteria:
-  * The `StartWorkflow` method signature includes a `plan bool` parameter
-  * Documentation comments reflect the new parameter's purpose
-- Test Cases:
-  * Verify compilation with updated interface signature
-- Integration Points:
-  * All implementations of WorkflowEngine interface must be updated
-- Files to Modify/Create:
-  * /internal/server/interfaces.go
+This plan addresses GitHub Issue #62 to increase observability in the Alpine project by capturing and emitting Claude's internal tool calls to the SSE endpoint. The implementation focuses on minimal viable observability, extending existing infrastructure rather than creating new systems, and ensuring AG-UI compliance with proper performance considerations.
 
-#### Task 1.2: Update AlpineWorkflowEngine Implementation ✓
-- Acceptance Criteria:
-  * `StartWorkflow` method accepts and uses the `plan` parameter
-  * The `plan` parameter is passed to `workflow.Engine.Run` method
-  * AG-UI event metadata contains dynamic `planMode` value based on the parameter
-- Test Cases:
-  * Test workflow execution with `plan=true` creates plan.md
-- Integration Points:
-  * Workflow engine's Run method call
-  * Event emission with correct metadata
-- Files to Modify/Create:
-  * /internal/server/workflow_integration.go
+The approach prioritizes simplicity by extending the existing `alpine-ag-ui-emitter.rs` hook script, leveraging current logging infrastructure where possible, and implementing core observability features (start/end/error events) with built-in performance safeguards including event batching, throttling, and sampling.
 
-#### Task 1.3: Update REST API Handler ✓
-- Acceptance Criteria:
-  * Handler accepts optional `plan` field in JSON payload
-  * Uses pointer type for optional boolean field
-  * Defaults to `true` when field is omitted
-  * Passes plan value to WorkflowEngine.StartWorkflow
-- Test Cases:
-  * Test request with `plan: false` passes false to workflow engine
-- Integration Points:
-  * JSON decoding of request payload
-  * WorkflowEngine.StartWorkflow method call
-- Files to Modify/Create:
-  * /internal/server/handlers.go
+## Feature 1: Enhanced AG-UI Event Types and Structures [IMPLEMENTED]
 
-#### Task 1.4: Add Validation for Plan Field - COMPLETED
-- Implementation Date: 2025-08-08
-- Status: Completed
+#### Task 1.1: Extend AG-UI Event Types for Tool Calls
 - Acceptance Criteria:
-  * Non-boolean values for `plan` field return 400 Bad Request
-  * Error message clearly indicates invalid field type
-  * Follows error handling patterns from specs/error-handling.md
+  * Add PascalCase event type constants: `ToolCallStart`, `ToolCallEnd`, `ToolCallError`
+  * Define internal snake_case event types: `tool_call_started`, `tool_call_finished`, `tool_call_error`
+  * Ensure event type validation includes new tool call events
 - Test Cases:
-  * Test request with `plan: "invalid"` returns validation error
+  * Test that new event types are recognized as valid AG-UI events and map correctly between internal and external formats
 - Integration Points:
-  * JSON unmarshaling and type checking
-  * Error response handling
+  * Update ValidAGUIEventTypes map in agui_types.go
+  * Ensure backward compatibility with existing event types
 - Files to Modify/Create:
-  * /internal/server/handlers.go
+  * internal/events/agui_types.go
 
-#### Task 1.5: Update MockWorkflowEngine in server package - COMPLETED
-- Implementation Date: 2025-08-08
-- Status: Completed
+#### Task 1.2: Define Complete Tool Call Event Structures with BaseEvent Interface
 - Acceptance Criteria:
-  * Mock implementation matches new interface signature
-  * StartWorkflowFunc accepts plan parameter
+  * Create BaseEvent interface with common fields (id, timestamp, type, run_id)
+  * Implement ToolCallStartEvent, ToolCallEndEvent, and ToolCallErrorEvent structures
+  * Include essential fields: tool name, correlation ID, timing, and minimal metadata
+  * Follow AG-UI protocol specifications for event structure
 - Test Cases:
-  * Verify mock compiles with new signature
+  * Test event structure serialization, deserialization, and BaseEvent interface compliance
 - Integration Points:
-  * Test files using MockWorkflowEngine
+  * Integrate with existing WorkflowEvent structure
+  * Ensure compatibility with SSE event streaming
 - Files to Modify/Create:
-  * /internal/server/workflow_integration_test.go
+  * internal/events/agui_types.go
+  * internal/server/interfaces.go
 
-#### Task 1.6: Update mockWorkflowEngine in cli package - COMPLETED
-- Implementation Date: 2025-08-08
-- Status: Completed
-- Acceptance Criteria:
-  * Mock implementation in cli package updated for any workflow engine interface changes
-  * Maintains compatibility with existing tests
-- Test Cases:
-  * Verify existing cli tests still pass
-- Integration Points:
-  * CLI workflow tests
-- Files to Modify/Create:
-  * /internal/cli/workflow_test.go
-  * /internal/cli/workflow_server_test.go
-  * /internal/cli/run_test.go
-  * /internal/cli/coverage_test.go
-  * /internal/cli/worktree_test.go
+## Feature 2: Extend Existing Hook Infrastructure
 
-#### Task 1.7: Add API Handler Tests - COMPLETED
-- Implementation Date: 2025-08-08
-- Status: Completed
+#### Task 2.1: Extend alpine-ag-ui-emitter.rs for Tool Call Capture
 - Acceptance Criteria:
-  * Test coverage for plan field with true, false, and omitted values
-  * Test validation error for non-boolean plan values
-  * Test that plan parameter flows correctly to workflow engine
+  * Extend existing `alpine-ag-ui-emitter.rs` to handle PreToolUse and PostToolUse events
+  * Add tool call correlation ID generation and tracking
+  * Implement event batching with configurable batch size (default: 10 events)
+  * Add event sampling for high-frequency tools (configurable rate, default: 100%)
 - Test Cases:
-  * Test `plan: true` starts workflow with plan generation
+  * Test extended hook script with various Claude tools and batching behavior
 - Integration Points:
-  * Server test helpers and mocks
+  * Maintain compatibility with existing AG-UI event emission
+  * Ensure proper integration with Claude Code hook system
 - Files to Modify/Create:
-  * /internal/server/handlers_test.go
+  * hooks/alpine-ag-ui-emitter.rs
 
-#### Task 1.8: Add Integration Tests
-- Implementation Date: 2025-08-08
-- Status: Completed
+#### Task 2.2: Enhance Hook Configuration for Tool Call Events
 - Acceptance Criteria:
-  * End-to-end test verifies `plan=false` skips plan.md creation
-  * Test verifies AG-UI events contain correct planMode value
-  * Test confirms workflow executes correctly in both modes
+  * Extend existing hook configuration to capture PreToolUse and PostToolUse events
+  * Configure hooks with proper matchers for all tool types
+  * Add `ALPINE_TOOL_CALL_EVENTS_ENABLED` environment variable (default: false)
+  * Add `ALPINE_TOOL_CALL_BATCH_SIZE` and `ALPINE_TOOL_CALL_SAMPLE_RATE` configuration
 - Test Cases:
-  * Integration test for workflow without plan generation
+  * Test hook configuration with feature toggles and performance settings
 - Integration Points:
-  * Test workflow engine and event streaming
+  * Extend existing agui_hooks.go functionality
+  * Integrate with centralized configuration system
 - Files to Modify/Create:
-  * /test/integration/rest_api_integration_test.go
-  * /internal/server/workflow_integration_test.go
+  * internal/claude/agui_hooks.go
+  * internal/config/config.go
 
-#### Task 1.9: Update Error Handling Tests - COMPLETED
-- Implementation Date: 2025-08-08
-- Status: Completed
+## Feature 3: Event Processing and Performance
+
+#### Task 3.1: Implement Event Batching and Throttling System
 - Acceptance Criteria:
-  * Error handling tests include validation scenarios for plan field
-  * Tests follow patterns from existing error handling tests
+  * Create event batching system with configurable flush intervals (default: 1 second)
+  * Implement backpressure handling to prevent memory overflow
+  * Add event throttling with configurable rate limits (default: 100 events/second)
+  * Ensure acceptable overhead limits (< 5% CPU, < 10MB memory)
 - Test Cases:
-  * Test error response structure for invalid plan values
+  * Test batching behavior under high-frequency tool call scenarios
 - Integration Points:
-  * Error handling middleware and response formatting
+  * Integrate with existing EventEmitter interface
+  * Ensure compatibility with SSE broadcasting system
 - Files to Modify/Create:
-  * /internal/server/error_handling_test.go
+  * internal/events/emitter.go
+  * internal/server/server.go
+
+#### Task 3.2: Create POST /events/tool-calls Endpoint with Authentication
+- Acceptance Criteria:
+  * Implement POST `/events/tool-calls` endpoint for hook event reception
+  * Add authentication using existing server authentication mechanisms
+  * Validate incoming tool call event data against AG-UI schema
+  * Forward validated events to batching system
+- Test Cases:
+  * Test endpoint authentication, validation, and event processing
+- Integration Points:
+  * Integrate with existing HTTP server infrastructure and authentication
+  * Ensure proper error handling and logging
+- Files to Modify/Create:
+  * internal/server/handlers.go
+
+## Feature 4: Workflow Integration and Configuration
+
+#### Task 4.1: Integrate Tool Call Hooks with Workflow Execution
+- Acceptance Criteria:
+  * Enable tool call hooks during workflow execution in server mode
+  * Configure hook environment variables with proper event endpoints
+  * Ensure hooks are properly cleaned up after workflow completion
+- Test Cases:
+  * Test end-to-end workflow execution with tool call event emission
+- Integration Points:
+  * Integrate with existing workflow execution in workflow_integration.go
+  * Ensure compatibility with StreamingExecutor interface
+- Files to Modify/Create:
+  * internal/server/workflow_integration.go
+  * internal/claude/executor.go
+
+#### Task 4.2: Centralize Observability Configuration
+- Acceptance Criteria:
+  * Add observability configuration section to existing config system
+  * Implement `ALPINE_*` environment variable pattern for all tool call settings
+  * Provide sensible defaults with feature disabled by default
+  * Add CLI flags for common configuration options
+- Test Cases:
+  * Test configuration loading, validation, and environment variable handling
+- Integration Points:
+  * Integrate with existing configuration management in config.go
+  * Ensure proper validation and default values
+- Files to Modify/Create:
+  * internal/config/config.go
+  * internal/cli/root.go
+
+## Feature 5: Enhanced SSE Event Broadcasting
+
+#### Task 5.1: Extend Event Broadcasting for Tool Call Events
+- Acceptance Criteria:
+  * Extend existing BroadcastEvent functionality to handle batched tool call events
+  * Maintain event ordering and correlation with existing workflow events
+  * Implement event replay buffer with size limits (default: 1000 events)
+- Test Cases:
+  * Test tool call event broadcasting and replay functionality
+- Integration Points:
+  * Integrate with existing SSE connection management
+  * Ensure compatibility with run-specific and global SSE endpoints
+- Files to Modify/Create:
+  * internal/server/server.go
+  * internal/server/run_specific_sse.go
+
+#### Task 5.2: Implement Event Correlation and Sequencing
+- Acceptance Criteria:
+  * Correlate tool call events with workflow steps using run_id and step context
+  * Maintain proper event sequencing with timestamps and sequence numbers
+  * Handle concurrent tool calls with unique correlation IDs
+- Test Cases:
+  * Test event correlation with complex workflows and concurrent tool calls
+- Integration Points:
+  * Integrate with existing workflow state management
+  * Ensure proper handling of nested and concurrent operations
+- Files to Modify/Create:
+  * internal/server/workflow_integration.go
+
+## Feature 6: Error Handling and Resilience
+
+#### Task 6.1: Implement Robust Error Handling
+- Acceptance Criteria:
+  * Ensure workflow continues even if tool call event emission fails
+  * Implement circuit breaker pattern for hook failures (fail after 5 consecutive errors)
+  * Provide structured logging for debugging and monitoring
+  * Add graceful degradation when event system is overloaded
+- Test Cases:
+  * Test error scenarios, recovery mechanisms, and circuit breaker behavior
+- Integration Points:
+  * Integrate with existing error handling and logging systems
+  * Ensure backward compatibility and no impact on core functionality
+- Files to Modify/Create:
+  * internal/claude/agui_hooks.go
+  * hooks/alpine-ag-ui-emitter.rs
+
+#### Task 6.2: Implement Feature Toggles and Monitoring
+- Acceptance Criteria:
+  * Add runtime feature toggles for tool call event emission
+  * Implement basic metrics collection (event counts, error rates, processing times)
+  * Provide health check endpoint for observability system status
+- Test Cases:
+  * Test feature toggles, metrics collection, and health monitoring
+- Integration Points:
+  * Integrate with existing server health check infrastructure
+  * Ensure minimal performance impact when disabled
+- Files to Modify/Create:
+  * internal/server/handlers.go
+  * internal/config/config.go
+
+## Feature 7: Testing and Validation
+
+#### Task 7.1: Implement Core Unit Tests
+- Acceptance Criteria:
+  * Create unit tests for tool call event structures and BaseEvent interface
+  * Test event batching, throttling, and sampling logic
+  * Test configuration loading and validation
+- Test Cases:
+  * Test all new event types, batching behavior, and configuration options
+- Integration Points:
+  * Integrate with existing test infrastructure
+  * Ensure tests run in CI/CD pipeline
+- Files to Modify/Create:
+  * internal/events/agui_types_test.go
+  * internal/events/emitter_test.go
+  * internal/config/config_test.go
+
+#### Task 7.2: Implement Integration Tests
+- Acceptance Criteria:
+  * Create integration tests for end-to-end tool call event emission
+  * Test hook system integration with real Claude Code execution
+  * Validate AG-UI protocol compliance and SSE delivery
+- Test Cases:
+  * Test complete workflow with tool call events, batching, and SSE streaming
+- Integration Points:
+  * Integrate with existing integration test framework
+  * Ensure tests work with actual Claude Code hook execution
+- Files to Modify/Create:
+  * test/integration/tool_call_events_test.go
+  * internal/claude/agui_hooks_test.go
+
+#### Task 7.3: Implement Performance Testing
+- Acceptance Criteria:
+  * Create performance tests for high-frequency tool call scenarios
+  * Test system behavior under load with batching and throttling
+  * Validate memory usage, CPU overhead, and cleanup behavior
+- Test Cases:
+  * Test system performance with concurrent tool calls, multiple SSE clients, and various batch sizes
+- Integration Points:
+  * Integrate with existing performance testing infrastructure
+  * Ensure tests validate acceptable overhead limits
+- Files to Modify/Create:
+  * test/performance/tool_call_events_test.go
 
 ## Success Criteria
-- [x] WorkflowEngine interface updated with plan parameter
-- [x] AlpineWorkflowEngine passes plan parameter to workflow.Engine.Run
-- [x] REST API accepts optional plan field with proper validation
-- [x] AG-UI events contain dynamic planMode value
-- [x] All mock implementations updated to match new interface
-- [x] Test coverage for plan field functionality
-- [x] Error handling for invalid plan values
-- [x] Integration tests verify end-to-end behavior
+
+- [ ] Core tool call events (start/end/error) are captured for essential Claude Code tool executions
+- [ ] Events follow AG-UI protocol with proper PascalCase naming and BaseEvent interface
+- [ ] Event batching and throttling prevent system overload with configurable limits
+- [ ] POST /events/tool-calls endpoint handles authenticated hook requests
+- [ ] SSE endpoints deliver batched tool call events with proper correlation
+- [ ] Feature is disabled by default with ALPINE_* environment variable configuration
+- [ ] System maintains < 5% CPU and < 10MB memory overhead when enabled
+- [ ] Circuit breaker prevents cascade failures from hook system issues
+- [ ] Existing alpine-ag-ui-emitter.rs is extended rather than replaced
+- [ ] Configuration is centralized in existing config system with sensible defaults
+- [ ] Comprehensive test coverage validates functionality, performance, and error handling
+- [ ] Integration works seamlessly with existing StreamingExecutor and EventEmitter interfaces
