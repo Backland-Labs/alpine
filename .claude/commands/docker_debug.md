@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(grep:*), Bash(ls:*), Bash(tree), Bash(git:*), Bas (find:*), Bash(curl), Bash(docker:*)
+allowed-tools: Bash(grep:*), Bash(ls:*), Bash(tree), Bash(git:*), Bash(find:*), Bash(curl), Bash(docker:*)
 description: Run and debug the docker deployment.
 ---
 ## Role
