@@ -1,139 +1,38 @@
 # Implementation Plan
 
 ## Overview
-This plan adds support for an optional `plan` boolean field in the REST API `/agents/run` endpoint. When `plan` is set to `false`, the workflow will execute without generating a plan.md file, directly proceeding to implementation. This addresses the need for flexibility in workflow execution modes via the REST API.
+Create comprehensive documentation for all slash commands used in the Alpine system. This includes core workflow commands used by Alpine's state-driven architecture and custom Claude commands defined in the `.claude/commands/` directory.
 
-#### Task 1.1: Update WorkflowEngine Interface ✓
-- Acceptance Criteria:
-  * The `StartWorkflow` method signature includes a `plan bool` parameter
-  * Documentation comments reflect the new parameter's purpose
-- Test Cases:
-  * Verify compilation with updated interface signature
-- Integration Points:
-  * All implementations of WorkflowEngine interface must be updated
-- Files to Modify/Create:
-  * /internal/server/interfaces.go
+## Documentation Task
 
-#### Task 1.2: Update AlpineWorkflowEngine Implementation ✓
-- Acceptance Criteria:
-  * `StartWorkflow` method accepts and uses the `plan` parameter
-  * The `plan` parameter is passed to `workflow.Engine.Run` method
-  * AG-UI event metadata contains dynamic `planMode` value based on the parameter
-- Test Cases:
-  * Test workflow execution with `plan=true` creates plan.md
-- Integration Points:
-  * Workflow engine's Run method call
-  * Event emission with correct metadata
-- Files to Modify/Create:
-  * /internal/server/workflow_integration.go
-
-#### Task 1.3: Update REST API Handler ✓
-- Acceptance Criteria:
-  * Handler accepts optional `plan` field in JSON payload
-  * Uses pointer type for optional boolean field
-  * Defaults to `true` when field is omitted
-  * Passes plan value to WorkflowEngine.StartWorkflow
-- Test Cases:
-  * Test request with `plan: false` passes false to workflow engine
-- Integration Points:
-  * JSON decoding of request payload
-  * WorkflowEngine.StartWorkflow method call
-- Files to Modify/Create:
-  * /internal/server/handlers.go
-
-#### Task 1.4: Add Validation for Plan Field - COMPLETED
-- Implementation Date: 2025-08-08
+#### Task 1: Create Slash Commands Documentation - COMPLETED
+- Implementation Date: 2025-08-09
 - Status: Completed
 - Acceptance Criteria:
-  * Non-boolean values for `plan` field return 400 Bad Request
-  * Error message clearly indicates invalid field type
-  * Follows error handling patterns from specs/error-handling.md
+  * Document all core workflow slash commands (`/make_plan`, `/start`, `/continue`, `/verify_plan`, `/run_implementation_loop`) ✓
+  * Include custom Claude commands from `.claude/commands/` directory ✓
+  * Follow existing specification documentation patterns ✓
+  * Use clear descriptions, usage examples, and context for each command ✓
 - Test Cases:
-  * Test request with `plan: "invalid"` returns validation error
+  * Verify documentation completeness by cross-referencing with codebase usage ✓
 - Integration Points:
-  * JSON unmarshaling and type checking
-  * Error response handling
+  * Reference from CLAUDE.md if helpful for users
 - Files to Modify/Create:
-  * /internal/server/handlers.go
-
-#### Task 1.5: Update MockWorkflowEngine in server package - COMPLETED
-- Implementation Date: 2025-08-08
-- Status: Completed
-- Acceptance Criteria:
-  * Mock implementation matches new interface signature
-  * StartWorkflowFunc accepts plan parameter
-- Test Cases:
-  * Verify mock compiles with new signature
-- Integration Points:
-  * Test files using MockWorkflowEngine
-- Files to Modify/Create:
-  * /internal/server/workflow_integration_test.go
-
-#### Task 1.6: Update mockWorkflowEngine in cli package - COMPLETED
-- Implementation Date: 2025-08-08
-- Status: Completed
-- Acceptance Criteria:
-  * Mock implementation in cli package updated for any workflow engine interface changes
-  * Maintains compatibility with existing tests
-- Test Cases:
-  * Verify existing cli tests still pass
-- Integration Points:
-  * CLI workflow tests
-- Files to Modify/Create:
-  * /internal/cli/workflow_test.go
-  * /internal/cli/workflow_server_test.go
-  * /internal/cli/run_test.go
-  * /internal/cli/coverage_test.go
-  * /internal/cli/worktree_test.go
-
-#### Task 1.7: Add API Handler Tests - COMPLETED
-- Implementation Date: 2025-08-08
-- Status: Completed
-- Acceptance Criteria:
-  * Test coverage for plan field with true, false, and omitted values
-  * Test validation error for non-boolean plan values
-  * Test that plan parameter flows correctly to workflow engine
-- Test Cases:
-  * Test `plan: true` starts workflow with plan generation
-- Integration Points:
-  * Server test helpers and mocks
-- Files to Modify/Create:
-  * /internal/server/handlers_test.go
-
-#### Task 1.8: Add Integration Tests
-- Implementation Date: 2025-08-08
-- Status: Completed
-- Acceptance Criteria:
-  * End-to-end test verifies `plan=false` skips plan.md creation
-  * Test verifies AG-UI events contain correct planMode value
-  * Test confirms workflow executes correctly in both modes
-- Test Cases:
-  * Integration test for workflow without plan generation
-- Integration Points:
-  * Test workflow engine and event streaming
-- Files to Modify/Create:
-  * /test/integration/rest_api_integration_test.go
-  * /internal/server/workflow_integration_test.go
-
-#### Task 1.9: Update Error Handling Tests - COMPLETED
-- Implementation Date: 2025-08-08
-- Status: Completed
-- Acceptance Criteria:
-  * Error handling tests include validation scenarios for plan field
-  * Tests follow patterns from existing error handling tests
-- Test Cases:
-  * Test error response structure for invalid plan values
-- Integration Points:
-  * Error handling middleware and response formatting
-- Files to Modify/Create:
-  * /internal/server/error_handling_test.go
+  * Create: `/specs/slash-commands.md` ✓
+  * Optionally update: `/CLAUDE.md` (add reference to new spec file)
 
 ## Success Criteria
-- [x] WorkflowEngine interface updated with plan parameter
-- [x] AlpineWorkflowEngine passes plan parameter to workflow.Engine.Run
-- [x] REST API accepts optional plan field with proper validation
-- [x] AG-UI events contain dynamic planMode value
-- [x] All mock implementations updated to match new interface
-- [x] Test coverage for plan field functionality
-- [x] Error handling for invalid plan values
-- [x] Integration tests verify end-to-end behavior
+- [x] Comprehensive slash commands documentation created in `specs/slash-commands.md`
+- [x] All core workflow commands documented with clear descriptions and usage
+- [x] Custom Claude commands documented with their purposes and configurations
+- [x] Documentation follows existing spec file patterns and conventions
+- [x] Optional reference added to CLAUDE.md for discoverability
+
+## Implementation Notes
+- Created comprehensive documentation in `/specs/slash-commands.md`
+- Documented all 5 core workflow commands: `/make_plan`, `/start`, `/continue`, `/run_implementation_loop`, `/verify_plan`
+- Documented custom `/docker_debug` command from `.claude/commands/`
+- Included state management integration, workflow transitions, and technical implementation details
+- Followed existing specification patterns for structure and formatting
+- Provides clear usage examples and context for each command
+EOF < /dev/null

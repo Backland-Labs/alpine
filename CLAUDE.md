@@ -45,7 +45,7 @@ Key specifications are located in the `specs/` directory:
 - [claude-code-hooks.md](specs/claude-code-hooks.md): Specification for integrating with Claude Code hooks.
 - [server.md](specs/server.md): HTTP server functionality with Server-Sent Events for real-time updates.
 - [troubleshooting.md](specs/troubleshooting.md): A guide to common issues and their solutions.
-
+- [slash-commands.md](specs/slash-commands.md): Comprehensive documentation of all slash commands used in Alpine workflows.
 ## Development Commands
 
 ### Go Build
