@@ -160,7 +160,7 @@ func TestWorkflowDirectoryHandling(t *testing.T) {
 		// We'll test this by verifying that when clone is enabled and a GitHub URL is provided,
 		// the workflow uses a different directory than the default temp directory pattern
 		ctx := context.Background()
-		workdir, err := engine.StartWorkflow(ctx, "https://github.com/owner/repo/issues/123", "test-run-clone")
+		workdir, err := engine.StartWorkflow(ctx, "https://github.com/owner/repo/issues/123", "test-run-clone", true)
 
 		// For this test, we expect it to work even if actual cloning fails
 		// because there should be fallback behavior
@@ -204,7 +204,7 @@ func TestWorkflowDirectoryHandling(t *testing.T) {
 		engine := NewAlpineWorkflowEngine(mockExecutor, mockWtMgr, cfg)
 
 		ctx := context.Background()
-		_, err := engine.StartWorkflow(ctx, "https://github.com/owner/repo/issues/123", "test-run-fail")
+		_, err := engine.StartWorkflow(ctx, "https://github.com/owner/repo/issues/123", "test-run-fail", true)
 
 		// Should handle failure gracefully and not crash
 		assert.Error(t, err, "Should return error when worktree creation fails")
@@ -262,7 +262,7 @@ func TestWorkflowDirectoryHandling(t *testing.T) {
 				runID := fmt.Sprintf("test-run-%d", index)
 				issueURL := fmt.Sprintf("https://github.com/owner/repo/issues/%d", index+1)
 
-				workdir, err := engine.StartWorkflow(ctx, issueURL, runID)
+				workdir, err := engine.StartWorkflow(ctx, issueURL, runID, true)
 				assert.NoError(t, err)
 				assert.NotEmpty(t, workdir)
 			}(i)
@@ -333,7 +333,7 @@ func TestWorkflowDirectoryHandling(t *testing.T) {
 		engine := NewAlpineWorkflowEngine(mockExecutor, mockWtMgr, cfg)
 
 		ctx := context.Background()
-		workdir, err := engine.StartWorkflow(ctx, "https://github.com/owner/repo/issues/123", "test-state")
+		workdir, err := engine.StartWorkflow(ctx, "https://github.com/owner/repo/issues/123", "test-state", true)
 
 		require.NoError(t, err)
 		time.Sleep(300 * time.Millisecond)
@@ -390,7 +390,7 @@ func TestWorkflowDirectoryHandling(t *testing.T) {
 		server.SetWorkflowEngine(engine)
 
 		ctx := context.Background()
-		workdir, err := engine.StartWorkflow(ctx, "https://github.com/owner/repo/issues/123", "server-test")
+		workdir, err := engine.StartWorkflow(ctx, "https://github.com/owner/repo/issues/123", "server-test", true)
 
 		require.NoError(t, err)
 		assert.Equal(t, worktreeDir, workdir, "Should return correct worktree directory")
@@ -655,7 +655,7 @@ func TestGitHubCloneIntegration(t *testing.T) {
 		ctx := context.Background()
 		issueURL := "https://github.com/octocat/Hello-World/issues/1"
 
-		workdir, err := engine.StartWorkflow(ctx, issueURL, "github-clone-test")
+		workdir, err := engine.StartWorkflow(ctx, issueURL, "github-clone-test", true)
 
 		// The test verifies that GitHub URL detection works by checking that
 		// the workflow starts successfully and sets up a working directory
@@ -713,7 +713,7 @@ func TestGitHubCloneIntegration(t *testing.T) {
 		ctx := context.Background()
 		nonGitHubURL := "https://example.com/some/task"
 
-		workdir, err := engine.StartWorkflow(ctx, nonGitHubURL, "non-github-test")
+		workdir, err := engine.StartWorkflow(ctx, nonGitHubURL, "non-github-test", true)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, workdir)
@@ -769,7 +769,7 @@ func TestGitHubCloneIntegration(t *testing.T) {
 		ctx := context.Background()
 		issueURL := "https://github.com/private/repo/issues/1"
 
-		workdir, err := engine.StartWorkflow(ctx, issueURL, "fallback-test")
+		workdir, err := engine.StartWorkflow(ctx, issueURL, "fallback-test", true)
 
 		require.NoError(t, err)
 		assert.Equal(t, worktreeDir, workdir, "Should fall back to regular worktree")

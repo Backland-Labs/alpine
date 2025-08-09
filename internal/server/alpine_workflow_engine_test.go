@@ -174,7 +174,7 @@ func TestStartWorkflow(t *testing.T) {
 
 			// Start workflow
 			ctx := context.Background()
-			workdir, err := engine.StartWorkflow(ctx, tt.issueURL, tt.runID)
+			workdir, err := engine.StartWorkflow(ctx, tt.issueURL, tt.runID, true)
 
 			// Verify results
 			if tt.expectError {
@@ -745,7 +745,7 @@ func TestRunWorkflowAsync(t *testing.T) {
 		}()
 
 		// Run workflow
-		go engine.runWorkflowAsync(instance, "Test task", "run-123")
+		go engine.runWorkflowAsync(instance, "Test task", "run-123", true)
 
 		// Wait for the collector goroutine to finish (which happens when channel is closed)
 		wg.Wait()
@@ -821,7 +821,7 @@ func TestRunWorkflowAsync(t *testing.T) {
 		}()
 
 		// Run workflow
-		go engine.runWorkflowAsync(instance, "Test task", "run-456")
+		go engine.runWorkflowAsync(instance, "Test task", "run-456", true)
 
 		// Wait for error event
 		select {
@@ -933,7 +933,7 @@ func TestConcurrentOperations(t *testing.T) {
 		go func(id string) {
 			defer wg.Done()
 			_, err := engine.StartWorkflow(context.Background(),
-				"https://github.com/test/repo/issues/1", id)
+				"https://github.com/test/repo/issues/1", id, true)
 			if err != nil {
 				t.Errorf("failed to start workflow %s: %v", id, err)
 			}

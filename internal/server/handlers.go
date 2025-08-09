@@ -155,7 +155,7 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 			"issue_url": payload.IssueURL,
 		}).Debug("Starting workflow execution")
 
-		worktreeDir, err := s.workflowEngine.StartWorkflow(r.Context(), payload.IssueURL, run.ID)
+		worktreeDir, err := s.workflowEngine.StartWorkflow(r.Context(), payload.IssueURL, run.ID, true)
 		if err != nil {
 			logger.WithFields(map[string]interface{}{
 				"run_id":    run.ID,

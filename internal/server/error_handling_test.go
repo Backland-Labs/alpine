@@ -208,7 +208,7 @@ type mockWorkflowEngine struct {
 	startWorkflowError error
 }
 
-func (m *mockWorkflowEngine) StartWorkflow(ctx context.Context, issueURL, runID string) (string, error) {
+func (m *mockWorkflowEngine) StartWorkflow(ctx context.Context, issueURL, runID string, plan bool) (string, error) {
 	if m.startWorkflowError != nil {
 		return "", m.startWorkflowError
 	}

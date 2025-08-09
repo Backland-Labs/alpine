@@ -14,7 +14,7 @@ This plan adds support for an optional `plan` boolean field in the REST API `/ag
 - Files to Modify/Create:
   * /internal/server/interfaces.go
 
-#### Task 1.2: Update AlpineWorkflowEngine Implementation
+#### Task 1.2: Update AlpineWorkflowEngine Implementation ✓
 - Acceptance Criteria:
   * `StartWorkflow` method accepts and uses the `plan` parameter
   * The `plan` parameter is passed to `workflow.Engine.Run` method

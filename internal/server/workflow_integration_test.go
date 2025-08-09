@@ -39,16 +39,16 @@ func (s *ServerWithWorkflow) BroadcastEvent(event WorkflowEvent) {
 
 // MockWorkflowEngine is a mock implementation for testing
 type MockWorkflowEngine struct {
-	StartWorkflowFunc     func(ctx context.Context, issueURL string, runID string) (string, error)
+	StartWorkflowFunc     func(ctx context.Context, issueURL string, runID string, plan bool) (string, error)
 	CancelWorkflowFunc    func(ctx context.Context, runID string) error
 	GetWorkflowStateFunc  func(ctx context.Context, runID string) (*core.State, error)
 	ApprovePlanFunc       func(ctx context.Context, runID string) error
 	SubscribeToEventsFunc func(ctx context.Context, runID string) (<-chan WorkflowEvent, error)
 }
 
-func (m *MockWorkflowEngine) StartWorkflow(ctx context.Context, issueURL string, runID string) (string, error) {
+func (m *MockWorkflowEngine) StartWorkflow(ctx context.Context, issueURL string, runID string, plan bool) (string, error) {
 	if m.StartWorkflowFunc != nil {
-		return m.StartWorkflowFunc(ctx, issueURL, runID)
+		return m.StartWorkflowFunc(ctx, issueURL, runID, plan)
 	}
 	return "", fmt.Errorf("not implemented")
 }
@@ -112,7 +112,7 @@ func TestAgentsRunWorkflowIntegration(t *testing.T) {
 	t.Run("successful workflow start", func(t *testing.T) {
 		// Create mock workflow engine
 		mockEngine := &MockWorkflowEngine{
-			StartWorkflowFunc: func(ctx context.Context, issueURL string, runID string) (string, error) {
+			StartWorkflowFunc: func(ctx context.Context, issueURL string, runID string, plan bool) (string, error) {
 				// Verify correct parameters are passed
 				if issueURL != "https://github.com/owner/repo/issues/123" {
 					t.Errorf("expected issue URL https://github.com/owner/repo/issues/123, got %s", issueURL)
@@ -170,7 +170,7 @@ func TestAgentsRunWorkflowIntegration(t *testing.T) {
 	t.Run("workflow start failure", func(t *testing.T) {
 		// Create mock workflow engine that fails
 		mockEngine := &MockWorkflowEngine{
-			StartWorkflowFunc: func(ctx context.Context, issueURL string, runID string) (string, error) {
+			StartWorkflowFunc: func(ctx context.Context, issueURL string, runID string, plan bool) (string, error) {
 				return "", fmt.Errorf("failed to parse GitHub issue")
 			},
 		}
@@ -613,7 +613,7 @@ func TestConcurrentWorkflowOperations(t *testing.T) {
 		var startCount int
 		var mu sync.Mutex
 		mockEngine := &MockWorkflowEngine{
-			StartWorkflowFunc: func(ctx context.Context, issueURL string, runID string) (string, error) {
+			StartWorkflowFunc: func(ctx context.Context, issueURL string, runID string, plan bool) (string, error) {
 				mu.Lock()
 				startCount++
 				mu.Unlock()
@@ -700,7 +700,7 @@ func TestNonBlockingEventSending(t *testing.T) {
 
 		// Start the workflow but don't consume events from the channel
 		// This simulates the scenario where events might back up
-		worktreeDir, err := engine.StartWorkflow(ctx, issueURL, runID)
+		worktreeDir, err := engine.StartWorkflow(ctx, issueURL, runID, true)
 		require.NoError(t, err)
 		require.NotEmpty(t, worktreeDir)
 
@@ -745,7 +745,7 @@ func TestNonBlockingEventSending(t *testing.T) {
 		issueURL := "https://github.com/owner/repo/issues/456"
 
 		// Start workflow
-		_, err := engine.StartWorkflow(ctx, issueURL, runID)
+		_, err := engine.StartWorkflow(ctx, issueURL, runID, true)
 		require.NoError(t, err)
 
 		// Fill up the event channel by not consuming events

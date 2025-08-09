@@ -82,7 +82,7 @@ func (e *AlpineWorkflowEngine) SetServer(server *Server) {
 // StartWorkflow initiates a new workflow run with the given GitHub issue URL.
 // It creates an isolated environment (worktree or temporary directory) for the workflow
 // and starts execution in the background. Returns the workflow directory path.
-func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL string, runID string) (string, error) {
+func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL string, runID string, plan bool) (string, error) {
 	logger.Infof("Starting workflow %s for issue: %s", runID, issueURL)
 
 	// Check if workflow already exists (with limited mutex scope)
@@ -213,7 +213,7 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 	}
 
 	// Start workflow execution in background
-	go e.runWorkflowAsync(instance, issueURL, runID)
+	go e.runWorkflowAsync(instance, issueURL, runID, plan)
 
 	logger.Infof("Workflow %s started successfully in directory: %s", runID, worktreeDir)
 	return worktreeDir, nil
@@ -818,7 +818,7 @@ func (e *AlpineWorkflowEngine) createFallbackWorktree(ctx context.Context, runID
 }
 
 // runWorkflowAsync executes the workflow in a goroutine and manages event broadcasting.
-func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issueURL string, runID string) {
+func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issueURL string, runID string, plan bool) {
 	defer close(instance.events)
 
 	// Send start event (AG-UI compliant)
@@ -829,7 +829,7 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 		Data: map[string]interface{}{
 			"task":        fmt.Sprintf("Process GitHub issue: %s", issueURL),
 			"worktreeDir": instance.worktreeDir,
-			"planMode":    true,
+			"planMode":    plan,
 		},
 	}
 
@@ -842,7 +842,7 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 
 	// Run the workflow
 	logger.Infof("Executing workflow %s", runID)
-	err := instance.engine.Run(instance.ctx, issueURL, true) // Generate plan by default
+	err := instance.engine.Run(instance.ctx, issueURL, plan) // Use provided plan parameter
 
 	// Send completion event (AG-UI compliant)
 	if err != nil {
