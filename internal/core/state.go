@@ -16,9 +16,9 @@ const (
 
 // Common prompt constants
 const (
-	PromptMakePlan                = "/make_plan"
-	Promptrun_implementation_loop = "/run_implementation_loop"
-	PromptContinue                = "/continue"
+	PromptMakePlan = "/make_plan"
+	PromptStart    = "/start"
+	PromptContinue = "/continue"
 )
 
 // fileMutex provides global synchronization for state file operations
@@ -83,7 +83,7 @@ func InitializeState(issueTitle, issueDescription string, withPlan bool) *State 
 	}
 
 	// Set next prompt based on whether planning is requested
-	nextPrompt := Promptrun_implementation_loop
+	nextPrompt := PromptStart
 	if withPlan {
 		nextPrompt = PromptMakePlan
 	}

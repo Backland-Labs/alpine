@@ -421,6 +421,7 @@ func TestApprovePlan(t *testing.T) {
 
 				// Track workflow
 				ctx, cancel := context.WithCancel(context.Background())
+				ctx = context.WithValue(ctx, "issue_url", "https://github.com/owner/repo/issues/123")
 				engine.workflows["run-123"] = &workflowInstance{
 					worktreeDir: workDir,
 					events:      make(chan WorkflowEvent, 100),
@@ -468,6 +469,25 @@ func TestApprovePlan(t *testing.T) {
 			} else {
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
+				}
+
+				// For successful plan approval, verify the state was updated correctly
+				if tt.name == "successful plan approval" {
+					// Load the state and verify it contains the correct /start command
+					if instance, exists := engine.workflows[tt.runID]; exists {
+						state, loadErr := core.LoadState(instance.stateFile)
+						if loadErr != nil {
+							t.Errorf("failed to load state after approval: %v", loadErr)
+						} else {
+							expectedPrompt := "/start https://github.com/owner/repo/issues/123"
+							if state.NextStepPrompt != expectedPrompt {
+								t.Errorf("expected NextStepPrompt to be %q, got %q", expectedPrompt, state.NextStepPrompt)
+							}
+							if state.CurrentStepDescription != "Plan approved, continuing implementation" {
+								t.Errorf("expected CurrentStepDescription to be updated")
+							}
+						}
+					}
 				}
 			}
 		})
