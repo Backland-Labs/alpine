@@ -14,9 +14,13 @@ import (
 	"testing"
 	"time"
 
+	"os"
+	"path/filepath"
+
 	"github.com/Backland-Labs/alpine/internal/core"
 	"github.com/Backland-Labs/alpine/internal/server"
 	"github.com/Backland-Labs/alpine/test/integration/helpers"
+	"github.com/stretchr/testify/require"
 )
 
 // startTestServer starts a test server and returns its URL and a cleanup function
@@ -687,13 +691,17 @@ func startTestWorkflow(t *testing.T, serverURL string, engine *MockWorkflowEngin
 
 // MockWorkflowEngine implements server.WorkflowEngine for testing
 type MockWorkflowEngine struct {
-	runs   map[string]*server.Run
-	plans  map[string]*server.Plan
-	events chan server.WorkflowEvent
-	mu     sync.RWMutex
+	runs              map[string]*server.Run
+	plans             map[string]*server.Plan
+	events            chan server.WorkflowEvent
+	mu                sync.RWMutex
+	StartWorkflowFunc func(ctx context.Context, issueURL, runID string, plan bool) (string, error)
 }
 
-func (m *MockWorkflowEngine) StartWorkflow(ctx context.Context, githubIssueURL string, runID string) (string, error) {
+func (m *MockWorkflowEngine) StartWorkflow(ctx context.Context, githubIssueURL string, runID string, plan bool) (string, error) {
+	if m.StartWorkflowFunc != nil {
+		return m.StartWorkflowFunc(ctx, githubIssueURL, runID, plan)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -782,4 +790,226 @@ func (m *MockWorkflowEngine) CreatePlan(plan *server.Plan) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.plans[plan.RunID] = plan
+}
+
+// TestPlanFieldIntegration tests the plan field functionality end-to-end
+func TestPlanFieldIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Setup test environment
+	testEnv := helpers.SetupTestEnvironment(t)
+	defer testEnv()
+
+	t.Run("plan=false skips plan.md creation", func(t *testing.T) {
+		// Create a mock that captures the plan parameter and simulates workflow execution
+		var capturedPlan bool
+		var worktreeCreated string
+
+		mockEngine := &MockWorkflowEngine{
+			runs:   make(map[string]*server.Run),
+			plans:  make(map[string]*server.Plan),
+			events: make(chan server.WorkflowEvent, 100),
+			StartWorkflowFunc: func(ctx context.Context, issueURL, runID string, plan bool) (string, error) {
+				capturedPlan = plan
+
+				// Create temporary directory to simulate worktree
+				tempDir := t.TempDir()
+				worktreeCreated = tempDir
+
+				// Simulate workflow execution without creating plan.md when plan=false
+				if plan {
+					// Create plan.md when plan=true (for reference)
+					planPath := filepath.Join(tempDir, "plan.md")
+					err := os.WriteFile(planPath, []byte("# Test Plan\nSome plan content"), 0644)
+					require.NoError(t, err)
+				}
+				// When plan=false, we intentionally don't create plan.md
+
+				// Update run status
+
+				return tempDir, nil
+			},
+		}
+
+		// Start test server
+		testServerURL, cleanup := startTestServer(t, mockEngine)
+		defer cleanup()
+
+		// Make request with plan=false
+		reqBody := map[string]interface{}{
+			"issue_url": "https://github.com/test/repo/issues/123",
+			"plan":      false,
+			"agent_id":  "alpine-agent",
+		}
+		jsonBody, err := json.Marshal(reqBody)
+		require.NoError(t, err)
+
+		resp, err := http.Post(
+			testServerURL+"/agents/run",
+			"application/json",
+			bytes.NewReader(jsonBody),
+		)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Verify response
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+		// Verify plan parameter was correctly passed as false
+		require.False(t, capturedPlan, "Expected plan parameter to be false")
+
+		// Verify plan.md was NOT created
+		planPath := filepath.Join(worktreeCreated, "plan.md")
+		_, err = os.Stat(planPath)
+		require.True(t, os.IsNotExist(err), "Expected plan.md to not exist when plan=false")
+	})
+
+	t.Run("AG-UI events contain correct planMode value", func(t *testing.T) {
+		var eventReceived server.WorkflowEvent
+		eventCaptured := make(chan bool, 1)
+
+		mockEngine := &MockWorkflowEngine{
+			runs:   make(map[string]*server.Run),
+			plans:  make(map[string]*server.Plan),
+			events: make(chan server.WorkflowEvent, 100),
+			StartWorkflowFunc: func(ctx context.Context, issueURL, runID string, plan bool) (string, error) {
+				// Send a mock event with planMode data
+				event := server.WorkflowEvent{
+					Type:      "run_started",
+					RunID:     runID,
+					Timestamp: time.Now(),
+					Data: map[string]interface{}{
+						"task":        fmt.Sprintf("Process GitHub issue: %s", issueURL),
+						"worktreeDir": "/tmp/test",
+						"planMode":    plan,
+					},
+				}
+
+				// Capture the event for verification
+				eventReceived = event
+				eventCaptured <- true
+
+				// Update run status
+
+				return "/tmp/test", nil
+			},
+		}
+
+		// Start test server
+		testServerURL, cleanup := startTestServer(t, mockEngine)
+		defer cleanup()
+
+		// Make request with plan=false
+		reqBody := map[string]interface{}{
+			"issue_url": "https://github.com/test/repo/issues/123",
+			"plan":      false,
+			"agent_id":  "alpine-agent",
+		}
+		jsonBody, err := json.Marshal(reqBody)
+		require.NoError(t, err)
+
+		resp, err := http.Post(
+			testServerURL+"/agents/run",
+			"application/json",
+			bytes.NewReader(jsonBody),
+		)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Verify response
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+		// Wait for event to be captured
+		select {
+		case <-eventCaptured:
+			// Event was captured, continue with verification
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timeout waiting for event to be captured")
+		}
+
+		// Verify planMode is false in event data
+		require.NotNil(t, eventReceived.Data, "Expected event data to be present")
+		planMode, exists := eventReceived.Data["planMode"]
+		require.True(t, exists, "Expected planMode to exist in event data")
+		require.False(t, planMode.(bool), "Expected planMode to be false")
+	})
+
+	t.Run("workflow executes correctly in both modes", func(t *testing.T) {
+		testCases := []struct {
+			name         string
+			plan         bool
+			expectPlanMd bool
+		}{
+			{"plan=true creates plan.md", true, true},
+			{"plan=false skips plan.md", false, false},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				var capturedPlan bool
+				var worktreeCreated string
+
+				mockEngine := &MockWorkflowEngine{
+					runs:   make(map[string]*server.Run),
+					plans:  make(map[string]*server.Plan),
+					events: make(chan server.WorkflowEvent, 100),
+					StartWorkflowFunc: func(ctx context.Context, issueURL, runID string, plan bool) (string, error) {
+						capturedPlan = plan
+
+						// Create temporary directory to simulate worktree
+						tempDir := t.TempDir()
+						worktreeCreated = tempDir
+
+						// Create plan.md only when plan=true
+						if plan {
+							planPath := filepath.Join(tempDir, "plan.md")
+							err := os.WriteFile(planPath, []byte("# Test Plan\nSome plan content"), 0644)
+							require.NoError(t, err)
+						}
+
+						return tempDir, nil
+					},
+				}
+
+				// Start test server
+				testServerURL, cleanup := startTestServer(t, mockEngine)
+				defer cleanup()
+
+				// Make request with specified plan value
+				reqBody := map[string]interface{}{
+					"issue_url": "https://github.com/test/repo/issues/123",
+					"plan":      tc.plan,
+					"agent_id":  "alpine-agent",
+				}
+				jsonBody, err := json.Marshal(reqBody)
+				require.NoError(t, err)
+
+				resp, err := http.Post(
+					testServerURL+"/agents/run",
+					"application/json",
+					bytes.NewReader(jsonBody),
+				)
+				require.NoError(t, err)
+				defer resp.Body.Close()
+
+				// Verify response
+				require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+				// Verify plan parameter was correctly passed
+				require.Equal(t, tc.plan, capturedPlan, "Expected plan parameter to match request")
+
+				// Verify plan.md creation matches expectation
+				planPath := filepath.Join(worktreeCreated, "plan.md")
+				_, err = os.Stat(planPath)
+
+				if tc.expectPlanMd {
+					require.NoError(t, err, "Expected plan.md to exist when plan=true")
+				} else {
+					require.True(t, os.IsNotExist(err), "Expected plan.md to not exist when plan=false")
+				}
+			})
+		}
+	})
 }

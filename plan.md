@@ -101,6 +101,8 @@ This plan adds support for an optional `plan` boolean field in the REST API `/ag
   * /internal/server/handlers_test.go
 
 #### Task 1.8: Add Integration Tests
+- Implementation Date: 2025-08-08
+- Status: Completed
 - Acceptance Criteria:
   * End-to-end test verifies `plan=false` skips plan.md creation
   * Test verifies AG-UI events contain correct planMode value

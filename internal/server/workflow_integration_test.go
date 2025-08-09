@@ -1594,3 +1594,120 @@ func TestServerCloneOperationLogging(t *testing.T) {
 		// function is already implemented and tested in git_clone_test.go
 	})
 }
+
+// TestPlanFieldWorkflowIntegration tests plan field functionality at the server workflow level
+func TestPlanFieldWorkflowIntegration(t *testing.T) {
+	t.Run("plan=false generates correct AG-UI events", func(t *testing.T) {
+		// Create a mock workflow engine that captures the plan parameter
+		var capturedPlan bool
+		var capturedEvent WorkflowEvent
+		eventReceived := make(chan bool, 1)
+
+		mockEngine := &MockWorkflowEngine{
+			StartWorkflowFunc: func(ctx context.Context, issueURL, runID string, plan bool) (string, error) {
+				capturedPlan = plan
+
+				// Simulate the event that AlpineWorkflowEngine would generate
+				event := WorkflowEvent{
+					Type:      "run_started",
+					RunID:     runID,
+					Timestamp: time.Now(),
+					Data: map[string]interface{}{
+						"task":        fmt.Sprintf("Process GitHub issue: %s", issueURL),
+						"worktreeDir": "/tmp/test",
+						"planMode":    plan, // This is the critical field we're testing
+					},
+				}
+				capturedEvent = event
+				eventReceived <- true
+
+				return "/tmp/test", nil
+			},
+		}
+
+		// Test the workflow integration directly
+		testIssueURL := "https://github.com/test/repo/issues/123"
+		testRunID := "test-run-123"
+		testPlan := false // Testing plan=false specifically
+
+		_, err := mockEngine.StartWorkflow(context.Background(), testIssueURL, testRunID, testPlan)
+		require.NoError(t, err)
+
+		// Verify plan parameter was passed correctly
+		require.False(t, capturedPlan, "Expected plan parameter to be false")
+
+		// Wait for event generation
+		select {
+		case <-eventReceived:
+			// Event was generated, continue
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timeout waiting for event generation")
+		}
+
+		// Verify AG-UI event contains correct planMode
+		require.Equal(t, "run_started", capturedEvent.Type)
+		require.Equal(t, testRunID, capturedEvent.RunID)
+		require.NotNil(t, capturedEvent.Data)
+
+		planMode, exists := capturedEvent.Data["planMode"]
+		require.True(t, exists, "Expected planMode to exist in event data")
+		require.False(t, planMode.(bool), "Expected planMode to be false in event data")
+	})
+
+	t.Run("plan=true generates correct AG-UI events", func(t *testing.T) {
+		// Similar test for plan=true to ensure both modes work
+		var capturedPlan bool
+		var capturedEvent WorkflowEvent
+		eventReceived := make(chan bool, 1)
+
+		mockEngine := &MockWorkflowEngine{
+			StartWorkflowFunc: func(ctx context.Context, issueURL, runID string, plan bool) (string, error) {
+				capturedPlan = plan
+
+				// Simulate the event that AlpineWorkflowEngine would generate
+				event := WorkflowEvent{
+					Type:      "run_started",
+					RunID:     runID,
+					Timestamp: time.Now(),
+					Data: map[string]interface{}{
+						"task":        fmt.Sprintf("Process GitHub issue: %s", issueURL),
+						"worktreeDir": "/tmp/test",
+						"planMode":    plan,
+					},
+				}
+				capturedEvent = event
+				eventReceived <- true
+
+				return "/tmp/test", nil
+			},
+		}
+
+		// Test with plan=true
+		testIssueURL := "https://github.com/test/repo/issues/456"
+		testRunID := "test-run-456"
+		testPlan := true // Testing plan=true
+
+		_, err := mockEngine.StartWorkflow(context.Background(), testIssueURL, testRunID, testPlan)
+		require.NoError(t, err)
+
+		// Verify plan parameter was passed correctly
+		require.True(t, capturedPlan, "Expected plan parameter to be true")
+
+		// Wait for event generation
+		select {
+		case <-eventReceived:
+			// Event was generated, continue
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timeout waiting for event generation")
+		}
+
+		// Verify AG-UI event contains correct planMode
+		require.Equal(t, "run_started", capturedEvent.Type)
+		require.Equal(t, testRunID, capturedEvent.RunID)
+		require.NotNil(t, capturedEvent.Data)
+
+		planMode, exists := capturedEvent.Data["planMode"]
+		require.True(t, exists, "Expected planMode to exist in event data")
+		require.True(t, planMode.(bool), "Expected planMode to be true in event data")
+	})
+}

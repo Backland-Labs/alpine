@@ -123,7 +123,7 @@ func TestAlpineWorkflowEngineWithStreaming(t *testing.T) {
 	runID := "test-run"
 
 	// This will create the workflow with the server streamer
-	_, err := alpineEngine.StartWorkflow(ctx, issueURL, runID)
+	_, err := alpineEngine.StartWorkflow(ctx, issueURL, runID, true)
 	if err != nil {
 		// Expected since we don't have a real GitHub issue
 		t.Logf("Expected error starting workflow: %v", err)
