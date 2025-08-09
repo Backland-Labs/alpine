@@ -20,7 +20,9 @@ func GetTodoMonitorScript() (string, error) {
 
 	// Try different paths where the hook binary might be located
 	possiblePaths := []string{
-		// Development environment - hooks at project root
+		// Development environment - hooks at project root (from build/ directory)
+		filepath.Join(execDir, "..", "hooks", "alpine-todo-monitor"),
+		// Development environment - hooks at project root (from deeper nested directories)
 		filepath.Join(execDir, "..", "..", "hooks", "alpine-todo-monitor"),
 		// Installed environment - hooks relative to binary
 		filepath.Join(execDir, "hooks", "alpine-todo-monitor"),

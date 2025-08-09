@@ -84,9 +84,9 @@ The approach prioritizes simplicity by extending the existing `alpine-ag-ui-emit
   * internal/events/emitter.go
   * internal/server/server.go
 
-#### Task 3.2: Create POST /events/tool-calls Endpoint with Authentication [IMPLEMENTED]
+#### Task 3.2: Create POST /runs/{id}/events Endpoint with Authentication [IMPLEMENTED]
 - Acceptance Criteria:
-  * Implement POST `/events/tool-calls` endpoint for hook event reception
+  * Implement POST `/runs/{id}/events` endpoint for hook event reception
   * Add authentication using existing server authentication mechanisms
   * Validate incoming tool call event data against AG-UI schema
   * Forward validated events to batching system
@@ -238,7 +238,7 @@ The approach prioritizes simplicity by extending the existing `alpine-ag-ui-emit
 - [ ] Core tool call events (start/end/error) are captured for essential Claude Code tool executions
 - [ ] Events follow AG-UI protocol with proper PascalCase naming and BaseEvent interface
 - [ ] Event batching and throttling prevent system overload with configurable limits
-- [ ] POST /events/tool-calls endpoint handles authenticated hook requests
+- [ ] POST /runs/{id}/events endpoint handles authenticated hook requests
 - [ ] SSE endpoints deliver batched tool call events with proper correlation
 - [ ] Feature is disabled by default with ALPINE_* environment variable configuration
 - [ ] System maintains < 5% CPU and < 10MB memory overhead when enabled

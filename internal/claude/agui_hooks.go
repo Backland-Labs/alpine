@@ -80,7 +80,9 @@ func (e *Executor) GetAgUIHookScriptPath() (string, error) {
 
 	// Try different paths where the hook script might be located
 	possiblePaths := []string{
-		// Development environment - hooks at project root
+		// Development environment - hooks at project root (from build/ directory)
+		filepath.Join(execDir, "..", "hooks", "alpine-ag-ui-emitter"),
+		// Development environment - hooks at project root (from deeper nested directories)
 		filepath.Join(execDir, "..", "..", "hooks", "alpine-ag-ui-emitter"),
 		// Installed environment - hooks relative to binary
 		filepath.Join(execDir, "hooks", "alpine-ag-ui-emitter"),
