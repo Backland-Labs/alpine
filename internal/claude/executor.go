@@ -51,12 +51,13 @@ type ExecuteConfig struct {
 
 // Executor handles execution of Claude commands
 type Executor struct {
-	commandRunner CommandRunner
-	config        *config.Config
-	printer       *output.Printer
-	envVars       map[string]string // Additional environment variables to pass to Claude
-	streamer      events.Streamer   // Optional streamer for real-time output
-	runID         string            // Run ID for stream correlation
+	commandRunner      CommandRunner
+	config             *config.Config
+	printer            *output.Printer
+	envVars            map[string]string // Additional environment variables to pass to Claude
+	streamer           events.Streamer   // Optional streamer for real-time output
+	runID              string            // Run ID for stream correlation
+	hookCircuitBreaker *CircuitBreaker   // Circuit breaker for hook failures
 }
 
 // CommandRunner interface for testing

@@ -1,10 +1,12 @@
 package claude
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Backland-Labs/alpine/internal/logger"
 )
@@ -236,4 +238,58 @@ func (e *Executor) generateToolCallEventClaudeSettings(settingsPath, hookScriptP
 
 	logger.WithField("settings_path", settingsPath).Debug("Generated tool call event Claude settings file")
 	return nil
+}
+
+// ExecuteHookWithResilience executes a hook function with circuit breaker protection
+// Ensures workflow continues even if hook fails
+func (e *Executor) ExecuteHookWithResilience(ctx context.Context, hookName string, hookFunc func() error) error {
+	// Initialize circuit breaker if not exists
+	if e.hookCircuitBreaker == nil {
+		e.hookCircuitBreaker = NewCircuitBreaker(5, 30*time.Second) // 5 failures, 30s recovery
+	}
+
+	// Check if circuit breaker allows the call
+	if !e.hookCircuitBreaker.CanCall() {
+		logger.WithFields(map[string]interface{}{
+			"hook_name": hookName,
+			"state":     "circuit_open",
+		}).Debug("Hook execution blocked by circuit breaker")
+		return nil // Don't fail the workflow
+	}
+
+	// Execute the hook with timeout
+	done := make(chan error, 1)
+	go func() {
+		done <- hookFunc()
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			e.hookCircuitBreaker.RecordFailure()
+			logger.WithFields(map[string]interface{}{
+				"hook_name": hookName,
+				"error":     err.Error(),
+			}).Warn("Hook execution failed, recorded failure")
+			return nil // Don't fail the workflow
+		}
+		e.hookCircuitBreaker.RecordSuccess()
+		logger.WithFields(map[string]interface{}{
+			"hook_name": hookName,
+		}).Debug("Hook executed successfully")
+		return nil
+	case <-ctx.Done():
+		logger.WithFields(map[string]interface{}{
+			"hook_name": hookName,
+			"error":     "context_cancelled",
+		}).Debug("Hook execution cancelled")
+		return nil // Don't fail the workflow
+	case <-time.After(10 * time.Second): // Hook timeout
+		e.hookCircuitBreaker.RecordFailure()
+		logger.WithFields(map[string]interface{}{
+			"hook_name": hookName,
+			"error":     "timeout",
+		}).Warn("Hook execution timed out")
+		return nil // Don't fail the workflow
+	}
 }

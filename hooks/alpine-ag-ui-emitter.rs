@@ -13,6 +13,7 @@ use std::io::{self, Read};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -50,6 +51,12 @@ struct EventData {
 }
 
 fn main() -> io::Result<()> {
+    // Check circuit breaker first
+    if is_circuit_breaker_open() {
+        eprintln!("Circuit breaker is open, skipping hook execution");
+        return Ok(());
+    }
+
     // Read tool data from stdin
     let mut input = String::new();
     io::stdin().read_to_string(&mut input)?;
@@ -59,6 +66,7 @@ fn main() -> io::Result<()> {
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to parse tool data: {}", e);
+            record_failure();
             return Ok(()); // Don't fail the hook
         }
     };
@@ -118,19 +126,26 @@ fn main() -> io::Result<()> {
         },
     };
     
-    // Handle batching
-    if batch_size > 1 {
-        if let Err(e) = add_to_batch(&event, batch_size, &endpoint) {
-            eprintln!("Failed to add event to batch: {}", e);
-            // Fallback to direct sending
-            if let Err(e) = send_event(&endpoint, &event) {
-                eprintln!("Failed to send event directly: {}", e);
-            }
-        }
+    // Handle batching with error handling
+    let result = if batch_size > 1 {
+        add_to_batch(&event, batch_size, &endpoint)
+            .or_else(|e| {
+                eprintln!("Failed to add event to batch: {}, trying direct send", e);
+                send_event(&endpoint, &event)
+            })
     } else {
-        // Send event directly
-        if let Err(e) = send_event(&endpoint, &event) {
+        send_event(&endpoint, &event)
+    };
+
+    match result {
+        Ok(_) => {
+            record_success();
+            eprintln!("Event sent successfully");
+        }
+        Err(e) => {
             eprintln!("Failed to send event: {}", e);
+            record_failure();
+            // Don't fail the hook - workflow should continue
         }
     }
     

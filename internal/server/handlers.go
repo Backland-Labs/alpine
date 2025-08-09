@@ -727,6 +727,7 @@ func (s *Server) toolCallEventsHandler(w http.ResponseWriter, r *http.Request) {
 	// Forward to batching emitter if available
 	s.mu.Lock()
 	emitter := s.batchingEmitter
+	metrics := s.observabilityMetrics
 	s.mu.Unlock()
 
 	if emitter != nil {
@@ -735,8 +736,18 @@ func (s *Server) toolCallEventsHandler(w http.ResponseWriter, r *http.Request) {
 			"event_type": eventType,
 			"run_id":     event.GetRunID(),
 		}).Debug("Event forwarded to batching emitter")
+
+		// Update metrics
+		if metrics != nil {
+			metrics.IncrementEventCount()
+		}
 	} else {
 		logger.Debug("No batching emitter configured, event dropped")
+
+		// Update error metrics
+		if metrics != nil {
+			metrics.IncrementErrorCount()
+		}
 	}
 
 	// Return success

@@ -158,8 +158,6 @@ func generatePlan(task string) error {
 	return nil
 }
 
-
-
 // runPlanInWorktree executes plan generation in an isolated git worktree
 func runPlanInWorktree(task string, cleanup bool) error {
 	// Create printer for consistent output

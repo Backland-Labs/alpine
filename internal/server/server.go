@@ -58,6 +58,9 @@ type Server struct {
 	replayBuffer      map[string][]WorkflowEvent // runID -> ordered events
 	replayBufferLimit int                        // Maximum events per run to buffer
 	sequenceCounter   int64                      // Global sequence counter for event ordering
+
+	// Observability metrics
+	observabilityMetrics *ObservabilityMetrics // Metrics for observability system health
 }
 
 // NewServer creates a new HTTP server instance configured to run on the specified port.
@@ -76,13 +79,14 @@ func NewServer(port int) *Server {
 			Addr:    fmt.Sprintf("0.0.0.0:%d", port),
 			Handler: mux,
 		},
-		eventsChan:        make(chan string, defaultEventBufferSize),
-		runs:              make(map[string]*Run),
-		plans:             make(map[string]*Plan),
-		runEventHub:       newRunSpecificEventHub(),
-		replayBuffer:      make(map[string][]WorkflowEvent),
-		replayBufferLimit: 1000, // Default replay buffer limit
-		sequenceCounter:   0,
+		eventsChan:           make(chan string, defaultEventBufferSize),
+		runs:                 make(map[string]*Run),
+		plans:                make(map[string]*Plan),
+		runEventHub:          newRunSpecificEventHub(),
+		replayBuffer:         make(map[string][]WorkflowEvent),
+		replayBufferLimit:    1000, // Default replay buffer limit
+		sequenceCounter:      0,
+		observabilityMetrics: NewObservabilityMetrics(),
 	}
 
 	logger.Debugf("Server instance created with address: %s", server.httpServer.Addr)
@@ -112,13 +116,14 @@ func NewServerWithConfig(port int, streamBufferSize int, maxClientsPerRun int) *
 			Addr:    fmt.Sprintf("0.0.0.0:%d", port),
 			Handler: mux,
 		},
-		eventsChan:        make(chan string, bufferSize),
-		runs:              make(map[string]*Run),
-		plans:             make(map[string]*Plan),
-		runEventHub:       newRunSpecificEventHubWithConfig(bufferSize, maxClientsPerRun),
-		replayBuffer:      make(map[string][]WorkflowEvent),
-		replayBufferLimit: 1000, // Default replay buffer limit
-		sequenceCounter:   0,
+		eventsChan:           make(chan string, bufferSize),
+		runs:                 make(map[string]*Run),
+		plans:                make(map[string]*Plan),
+		runEventHub:          newRunSpecificEventHubWithConfig(bufferSize, maxClientsPerRun),
+		replayBuffer:         make(map[string][]WorkflowEvent),
+		replayBufferLimit:    1000, // Default replay buffer limit
+		sequenceCounter:      0,
+		observabilityMetrics: NewObservabilityMetrics(),
 	}
 
 	logger.Debugf("Server instance created with custom config, address: %s", server.httpServer.Addr)
@@ -200,6 +205,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.Handle("/plans/{runId}/approve", middleware(http.HandlerFunc(s.planApproveHandler)))
 	mux.Handle("/plans/{runId}/feedback", middleware(http.HandlerFunc(s.planFeedbackHandler)))
 	mux.Handle("/events/tool-calls", middleware(http.HandlerFunc(s.toolCallEventsHandler)))
+	mux.Handle("/health/observability", middleware(http.HandlerFunc(s.observabilityHealthHandler)))
 
 	logger.Debugf("Registered %d endpoints", 11)
 
