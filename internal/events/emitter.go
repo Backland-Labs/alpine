@@ -3,7 +3,11 @@
 // The package includes a mock implementation for testing and a no-op implementation for CLI mode.
 package events
 
-import "time"
+import (
+	"context"
+	"sync"
+	"time"
+)
 
 // EventEmitter defines the interface for emitting lifecycle events during Alpine workflow execution.
 // Implementations can emit events to various destinations (HTTP endpoints, logs, etc.)
@@ -19,6 +23,14 @@ type EventEmitter interface {
 
 	// StateSnapshot is called when the agent state changes
 	StateSnapshot(runID string, snapshot interface{})
+}
+
+// ToolCallEventEmitter extends EventEmitter with tool call event capabilities
+type ToolCallEventEmitter interface {
+	EventEmitter
+
+	// EmitToolCallEvent emits a tool call event (start, end, or error)
+	EmitToolCallEvent(event BaseEvent)
 }
 
 // MockCall represents a single method call to the MockEmitter
@@ -227,4 +239,174 @@ func (s *ServerEventEmitter) StateSnapshot(runID string, snapshot interface{}) {
 			"snapshot": snapshot,
 		})
 	}
+}
+
+// BatchingConfig holds configuration for the batching emitter
+type BatchingConfig struct {
+	// FlushInterval is how often to flush batched events (default: 1 second)
+	FlushInterval time.Duration
+
+	// RateLimit is the maximum events per second (default: 100)
+	RateLimit int
+
+	// BufferSize is the maximum number of events to buffer (default: 1000)
+	BufferSize int
+
+	// FlushFunc is called to process batched events
+	FlushFunc func(events []BaseEvent)
+}
+
+// BatchingEmitter implements event batching and throttling for tool call events
+type BatchingEmitter struct {
+	config      BatchingConfig
+	eventBuffer []BaseEvent
+	rateLimiter chan struct{}
+	mu          sync.Mutex
+	ctx         context.Context
+	cancel      context.CancelFunc
+}
+
+// NewBatchingEmitter creates a new batching emitter with the given configuration
+func NewBatchingEmitter(config BatchingConfig) *BatchingEmitter {
+	// Set defaults
+	if config.FlushInterval == 0 {
+		config.FlushInterval = time.Second
+	}
+	if config.RateLimit == 0 {
+		config.RateLimit = 100
+	}
+	if config.BufferSize == 0 {
+		config.BufferSize = 1000
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	emitter := &BatchingEmitter{
+		config:      config,
+		eventBuffer: make([]BaseEvent, 0, config.BufferSize),
+		rateLimiter: make(chan struct{}, config.RateLimit),
+		ctx:         ctx,
+		cancel:      cancel,
+	}
+
+	// Fill rate limiter initially
+	for i := 0; i < config.RateLimit; i++ {
+		emitter.rateLimiter <- struct{}{}
+	}
+
+	return emitter
+}
+
+// Start begins the batching emitter's background processing
+func (b *BatchingEmitter) Start(ctx context.Context) {
+	ticker := time.NewTicker(b.config.FlushInterval)
+	defer ticker.Stop()
+
+	// Rate limiter refill goroutine
+	go func() {
+		refillTicker := time.NewTicker(time.Second)
+		defer refillTicker.Stop()
+
+		for {
+			select {
+			case <-refillTicker.C:
+				// Refill rate limiter
+			refillLoop:
+				for len(b.rateLimiter) < b.config.RateLimit {
+					select {
+					case b.rateLimiter <- struct{}{}:
+					default:
+						// Channel is full, stop refilling
+						break refillLoop
+					}
+				}
+			case <-ctx.Done():
+				return
+			case <-b.ctx.Done():
+				return
+			}
+		}
+	}()
+
+	for {
+		select {
+		case <-ticker.C:
+			b.flush()
+		case <-ctx.Done():
+			b.flush() // Final flush
+			return
+		case <-b.ctx.Done():
+			b.flush() // Final flush
+			return
+		}
+	}
+}
+
+// EmitToolCallEvent adds a tool call event to the batch
+func (b *BatchingEmitter) EmitToolCallEvent(event BaseEvent) {
+	// Rate limiting - non-blocking
+	select {
+	case <-b.rateLimiter:
+		// Rate limit allows this event
+	default:
+		// Rate limit exceeded, drop event
+		return
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Backpressure handling - drop oldest events if buffer is full
+	if len(b.eventBuffer) >= b.config.BufferSize {
+		// Drop oldest event
+		b.eventBuffer = b.eventBuffer[1:]
+	}
+
+	b.eventBuffer = append(b.eventBuffer, event)
+}
+
+// flush processes all buffered events
+func (b *BatchingEmitter) flush() {
+	b.mu.Lock()
+	if len(b.eventBuffer) == 0 {
+		b.mu.Unlock()
+		return
+	}
+
+	// Copy events to process
+	events := make([]BaseEvent, len(b.eventBuffer))
+	copy(events, b.eventBuffer)
+
+	// Clear buffer
+	b.eventBuffer = b.eventBuffer[:0]
+	b.mu.Unlock()
+
+	// Process events outside of lock
+	if b.config.FlushFunc != nil {
+		b.config.FlushFunc(events)
+	}
+}
+
+// RunStarted implements EventEmitter interface
+func (b *BatchingEmitter) RunStarted(runID string, task string) {
+	// For now, just pass through to existing behavior
+	// Could be extended to emit as BaseEvent in the future
+}
+
+// RunFinished implements EventEmitter interface
+func (b *BatchingEmitter) RunFinished(runID string, task string) {
+	// For now, just pass through to existing behavior
+	// Could be extended to emit as BaseEvent in the future
+}
+
+// RunError implements EventEmitter interface
+func (b *BatchingEmitter) RunError(runID string, task string, err error) {
+	// For now, just pass through to existing behavior
+	// Could be extended to emit as BaseEvent in the future
+}
+
+// StateSnapshot implements EventEmitter interface
+func (b *BatchingEmitter) StateSnapshot(runID string, snapshot interface{}) {
+	// For now, just pass through to existing behavior
+	// Could be extended to emit as BaseEvent in the future
 }

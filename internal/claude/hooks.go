@@ -55,42 +55,39 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 		return "", nil, fmt.Errorf("failed to create .claude directory: %w", err)
 	}
 
-	// Copy hook script to .claude directory
-	hookScriptPath := filepath.Join(claudeDir, "todo-monitor.rs")
-	logger.WithField("hook_script_path", hookScriptPath).Debug("Copying hook script")
-	if err := e.copyHookScript(hookScriptPath); err != nil {
-		_ = os.Remove(todoFilePath)
-		logger.WithFields(map[string]interface{}{
-			"error":            err.Error(),
-			"hook_script_path": hookScriptPath,
-		}).Error("Failed to copy hook script")
-		return "", nil, fmt.Errorf("failed to copy hook script: %w", err)
-	}
-
-	// Make hook script executable
-	if err := os.Chmod(hookScriptPath, 0755); err != nil {
-		_ = os.Remove(todoFilePath)
-		_ = os.Remove(hookScriptPath)
-		return "", nil, fmt.Errorf("failed to make hook script executable: %w", err)
-	}
-
-	// Convert hook script path to absolute path
-	absHookScriptPath, err := filepath.Abs(hookScriptPath)
+	// Get the Go hook binary path
+	hookBinaryPath, err := hooks.GetTodoMonitorScript()
 	if err != nil {
 		_ = os.Remove(todoFilePath)
-		_ = os.Remove(hookScriptPath)
-		return "", nil, fmt.Errorf("failed to get absolute path of hook script: %w", err)
+		logger.WithFields(map[string]interface{}{
+			"error": err.Error(),
+		}).Error("Failed to get hook binary path")
+		return "", nil, fmt.Errorf("failed to get hook binary path: %w", err)
+	}
+
+	if hookBinaryPath == "" {
+		_ = os.Remove(todoFilePath)
+		logger.Error("Hook binary not found - alpine-todo-monitor binary is missing")
+		return "", nil, fmt.Errorf("hook binary not found - alpine-todo-monitor binary is missing")
+	}
+
+	logger.WithField("hook_binary_path", hookBinaryPath).Debug("Using Go hook binary")
+
+	// Convert hook binary path to absolute path
+	absHookScriptPath, err := filepath.Abs(hookBinaryPath)
+	if err != nil {
+		_ = os.Remove(todoFilePath)
+		return "", nil, fmt.Errorf("failed to get absolute path of hook binary: %w", err)
 	}
 
 	// Generate Claude settings
 	settingsPath := filepath.Join(claudeDir, "settings.local.json")
 	logger.WithFields(map[string]interface{}{
 		"settings_path": settingsPath,
-		"hook_script":   absHookScriptPath,
+		"hook_binary":   absHookScriptPath,
 	}).Debug("Generating Claude settings")
 	if err := e.generateClaudeSettings(settingsPath, absHookScriptPath); err != nil {
 		_ = os.Remove(todoFilePath)
-		_ = os.Remove(hookScriptPath)
 		logger.WithFields(map[string]interface{}{
 			"error":         err.Error(),
 			"settings_path": settingsPath,
@@ -100,7 +97,7 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 
 	logger.WithFields(map[string]interface{}{
 		"todo_file":     todoFilePath,
-		"hook_script":   absHookScriptPath,
+		"hook_binary":   absHookScriptPath,
 		"settings_file": settingsPath,
 	}).Debug("TodoWrite hook setup completed")
 
@@ -108,11 +105,11 @@ func (e *Executor) setupTodoHook() (todoFilePath string, cleanup func(), err err
 	cleanup = func() {
 		logger.WithFields(map[string]interface{}{
 			"todo_file":     todoFilePath,
-			"hook_script":   hookScriptPath,
+			"hook_binary":   absHookScriptPath,
 			"settings_file": settingsPath,
 		}).Debug("Cleaning up TodoWrite hook")
 		_ = os.Remove(todoFilePath)
-		_ = os.Remove(hookScriptPath)
+		// Note: We don't remove the hook binary since it's not copied, just referenced
 		_ = os.Remove(settingsPath)
 		// Don't remove .claude directory - may contain user's own settings
 	}

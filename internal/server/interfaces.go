@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Backland-Labs/alpine/internal/core"
@@ -32,10 +33,11 @@ type WorkflowEngine interface {
 
 // WorkflowEvent represents an event emitted during workflow execution
 type WorkflowEvent struct {
-	Type      string    `json:"type"`
-	RunID     string    `json:"runId"`               // Changed to camelCase per AG-UI spec
-	MessageID string    `json:"messageId,omitempty"` // For text message correlation
-	Timestamp time.Time `json:"timestamp"`
+	Type        string    `json:"type"`
+	RunID       string    `json:"runId"`               // Changed to camelCase per AG-UI spec
+	MessageID   string    `json:"messageId,omitempty"` // For text message correlation
+	Timestamp   time.Time `json:"timestamp"`
+	SequenceNum int64     `json:"sequenceNum,omitempty"` // Event ordering sequence number
 
 	// AG-UI streaming fields
 	Content  string `json:"content,omitempty"`  // Text chunks
@@ -45,4 +47,30 @@ type WorkflowEvent struct {
 
 	// Flexible event data (backward compatibility)
 	Data map[string]interface{} `json:"data,omitempty"`
+}
+
+// GetType returns the event type (BaseEvent interface implementation)
+func (e *WorkflowEvent) GetType() string {
+	return e.Type
+}
+
+// GetRunID returns the run identifier (BaseEvent interface implementation)
+func (e *WorkflowEvent) GetRunID() string {
+	return e.RunID
+}
+
+// GetTimestamp returns the event timestamp (BaseEvent interface implementation)
+func (e *WorkflowEvent) GetTimestamp() time.Time {
+	return e.Timestamp
+}
+
+// Validate checks if the event has required fields (BaseEvent interface implementation)
+func (e *WorkflowEvent) Validate() error {
+	if e.Type == "" {
+		return fmt.Errorf("type is required")
+	}
+	if e.RunID == "" {
+		return fmt.Errorf("runId is required")
+	}
+	return nil
 }

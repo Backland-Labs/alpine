@@ -9,9 +9,6 @@ import (
 )
 
 const (
-	// gitHubDomain is the expected domain for GitHub URLs
-	gitHubDomain = "github.com"
-
 	// gitHubIssueURLPattern matches GitHub issue URLs in the format:
 	// https://github.com/owner/repo/issues/123
 	gitHubIssueURLPattern = `^https://github\.com/([^/]+)/([^/]+)/issues/(\d+)$`

@@ -98,13 +98,21 @@ func (hub *runSpecificEventHub) broadcast(event WorkflowEvent) {
 }
 
 // enhancedRunEventsHandler provides SSE endpoint for run-specific events with global event filtering
+// It handles both GET requests (for SSE streaming) and POST requests (for tool call events)
 func (s *Server) enhancedRunEventsHandler(w http.ResponseWriter, r *http.Request, hub *runSpecificEventHub) {
+	runID := r.PathValue("id")
+
+	// Handle POST requests for tool call events
+	if r.Method == http.MethodPost {
+		s.handleRunToolCallEvent(w, r, runID)
+		return
+	}
+
+	// Handle GET requests for SSE streaming
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	runID := r.PathValue("id")
 
 	s.mu.Lock()
 	_, exists := s.runs[runID]
@@ -145,6 +153,17 @@ func (s *Server) enhancedRunEventsHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	flusher.Flush()
+
+	// Send replay buffer events for late-joining clients
+	replayEvents := s.GetReplayBuffer(runID)
+	for _, event := range replayEvents {
+		data, _ := json.Marshal(event)
+		if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, string(data)); err != nil {
+			// Write failed, client disconnected during replay
+			return
+		}
+		flusher.Flush()
+	}
 
 	// Also subscribe to workflow engine events if available
 	var workflowEvents <-chan WorkflowEvent

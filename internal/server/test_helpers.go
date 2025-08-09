@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/Backland-Labs/alpine/internal/events"
 )
 
 // TestServer provides test utilities for server testing
@@ -73,3 +75,17 @@ func (ts *TestServer) Client() *http.Client {
 		Timeout: 30 * time.Second,
 	}
 }
+
+// MockBatchingEmitter for testing
+type MockBatchingEmitter struct {
+	EmittedEvents *[]events.BaseEvent
+}
+
+func (m *MockBatchingEmitter) EmitToolCallEvent(event events.BaseEvent) {
+	*m.EmittedEvents = append(*m.EmittedEvents, event)
+}
+
+func (m *MockBatchingEmitter) RunStarted(runID string, task string)             {}
+func (m *MockBatchingEmitter) RunFinished(runID string, task string)            {}
+func (m *MockBatchingEmitter) RunError(runID string, task string, err error)    {}
+func (m *MockBatchingEmitter) StateSnapshot(runID string, snapshot interface{}) {}

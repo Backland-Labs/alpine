@@ -1190,7 +1190,7 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 		engine := NewAlpineWorkflowEngine(nil, mockWtMgr, cfg)
 
 		// Create context with GitHub issue URL (use a public repo that actually exists)
-		ctx := context.WithValue(context.Background(), "issue_url", "https://github.com/microsoft/vscode/issues/123")
+		ctx := context.WithValue(context.Background(), issueURLKey, "https://github.com/microsoft/vscode/issues/123")
 		cancel := func() {}
 
 		// Call createWorkflowDirectory - this should detect GitHub URL and clone repository
@@ -1240,7 +1240,7 @@ func TestCreateWorkflowDirectoryWithGitHubClone(t *testing.T) {
 		engine := NewAlpineWorkflowEngine(nil, mockWtMgr, cfg)
 
 		// Create context with GitHub issue URL (should be ignored when clone disabled)
-		ctx := context.WithValue(context.Background(), "issue_url", "https://github.com/owner/repo/issues/123")
+		ctx := context.WithValue(context.Background(), issueURLKey, "https://github.com/owner/repo/issues/123")
 		cancel := func() {}
 
 		// Call createWorkflowDirectory

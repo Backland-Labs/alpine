@@ -14,21 +14,16 @@ import (
 
 // TestTodoMonitorConsoleOutput tests that the todo-monitor hook outputs to stderr
 func TestTodoMonitorConsoleOutput(t *testing.T) {
-	// Get the hook script
-	script, err := hooks.GetTodoMonitorScript()
+	// Get the hook script path
+	scriptPath, err := hooks.GetTodoMonitorScript()
 	if err != nil {
 		t.Fatalf("Failed to get todo monitor script: %v", err)
 	}
 
-	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
-	scriptPath := filepath.Join(tmpDir, "todo-monitor.rs")
-
-	// Write the script to a file
-	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
-		t.Fatalf("Failed to write script: %v", err)
+	// Skip if no binary found (backward compatibility)
+	if scriptPath == "" {
+		t.Skip("Todo monitor binary not found")
 	}
-
 	// Test cases for different tool types
 	tests := []struct {
 		name           string
@@ -166,19 +161,15 @@ func TestTodoMonitorConsoleOutput(t *testing.T) {
 
 // TestTodoMonitorInvalidJSON tests that the hook handles invalid JSON gracefully
 func TestTodoMonitorInvalidJSON(t *testing.T) {
-	// Get the hook script
-	script, err := hooks.GetTodoMonitorScript()
+	// Get the hook script path
+	scriptPath, err := hooks.GetTodoMonitorScript()
 	if err != nil {
 		t.Fatalf("Failed to get todo monitor script: %v", err)
 	}
 
-	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
-	scriptPath := filepath.Join(tmpDir, "todo-monitor.rs")
-
-	// Write the script to a file
-	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
-		t.Fatalf("Failed to write script: %v", err)
+	// Skip if no binary found (backward compatibility)
+	if scriptPath == "" {
+		t.Skip("Todo monitor binary not found")
 	}
 
 	// Test with invalid JSON
@@ -193,21 +184,20 @@ func TestTodoMonitorInvalidJSON(t *testing.T) {
 
 // TestTodoMonitorFileWrite tests that the hook writes to the todo file
 func TestTodoMonitorFileWrite(t *testing.T) {
-	// Get the hook script
-	script, err := hooks.GetTodoMonitorScript()
+	// Get the hook script path
+	scriptPath, err := hooks.GetTodoMonitorScript()
 	if err != nil {
 		t.Fatalf("Failed to get todo monitor script: %v", err)
 	}
 
+	// Skip if no binary found (backward compatibility)
+	if scriptPath == "" {
+		t.Skip("Todo monitor binary not found")
+	}
+
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
-	scriptPath := filepath.Join(tmpDir, "todo-monitor.rs")
 	todoFilePath := filepath.Join(tmpDir, "current-todo.txt")
-
-	// Write the script to a file
-	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
-		t.Fatalf("Failed to write script: %v", err)
-	}
 
 	// Set the environment variable
 	_ = os.Setenv("ALPINE_TODO_FILE", todoFilePath)

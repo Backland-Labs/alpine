@@ -33,18 +33,15 @@ type Logger struct {
 var (
 	globalLogger *Logger
 	globalMu     sync.Mutex
-	useZap       bool
 )
 
 func init() {
 	// Try to initialize Zap logger from environment
 	if zapLogger, err := NewZapLoggerFromEnv(); err == nil {
 		globalLogger = &Logger{zap: zapLogger}
-		useZap = true
 	} else {
 		// Fall back to legacy logger
 		globalLogger = New(InfoLevel)
-		useZap = false
 	}
 }
 

@@ -23,10 +23,10 @@ import (
 func TestAlpineCreatesWorktree(t *testing.T) {
 	// Create test git repository
 	repo := NewGitTestRepo(t)
-	
+
 	// Build alpine binary
 	alpineBinary := BuildAlpineBinary(t)
-	
+
 	// Create mock Claude responses
 	mockClaude := MockClaudeScript(t, []MockResponse{
 		{
@@ -54,25 +54,25 @@ func TestAlpineCreatesWorktree(t *testing.T) {
 }`,
 		},
 	})
-	
+
 	// Disable auto-cleanup for inspection
 	os.Setenv("ALPINE_GIT_AUTO_CLEANUP", "false")
 	defer os.Unsetenv("ALPINE_GIT_AUTO_CLEANUP")
-	
+
 	// Run alpine with worktree enabled
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	output, err := RunAlpineWithMockClaude(ctx, t, alpineBinary, repo.RootDir, mockClaude,
 		"implement new feature")
 	t.Logf("Alpine output: %s", output)
 	require.NoError(t, err, "Alpine command failed: %s", output)
-	
+
 	// Verify worktree was created
 	worktrees := repo.GetWorktrees()
 	t.Logf("Worktrees found: %v", worktrees)
 	assert.Len(t, worktrees, 2, "Should have main repo and one worktree")
-	
+
 	// Find the worktree path (should be outside main repo)
 	var worktreePath string
 	for _, wt := range worktrees {
@@ -81,25 +81,25 @@ func TestAlpineCreatesWorktree(t *testing.T) {
 			break
 		}
 	}
-	
+
 	// If we didn't find a worktree in the list, check if it exists but wasn't listed
 	if worktreePath == "" {
 		// The worktree should be in the parent directory
 		parentDir := filepath.Dir(repo.RootDir)
 		expectedName := filepath.Base(repo.RootDir) + "-alpine-implement-new-feature"
 		worktreePath = filepath.Join(parentDir, expectedName)
-		
+
 		// Check if the directory exists
 		if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
 			t.Fatalf("Worktree directory not found at expected path: %s", worktreePath)
 		}
 	}
-	
+
 	// Verify worktree directory structure
 	t.Logf("Worktree path: %s", worktreePath)
 	expectedName := filepath.Base(repo.RootDir) + "-alpine-implement-new-feature"
 	assert.Contains(t, filepath.Base(worktreePath), expectedName)
-	
+
 	// Verify branch was created
 	branches := repo.GetBranches()
 	t.Logf("Branches found: %v", branches)
@@ -111,20 +111,20 @@ func TestAlpineCreatesWorktree(t *testing.T) {
 		}
 	}
 	assert.True(t, foundBranch, "Alpine branch not found")
-	
+
 	// Verify state file exists in worktree
 	stateDir := filepath.Join(worktreePath, "agent_state")
 	stateFile := filepath.Join(stateDir, "agent_state.json")
 	_, err = os.Stat(stateFile)
 	assert.NoError(t, err, "State file should exist in worktree")
-	
+
 	// Verify final state
 	var state core.State
 	data, err := os.ReadFile(stateFile)
 	require.NoError(t, err)
 	err = json.Unmarshal(data, &state)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "completed", state.Status)
 	assert.Equal(t, "All tests passing", state.CurrentStepDescription)
 }
@@ -133,10 +133,10 @@ func TestAlpineCreatesWorktree(t *testing.T) {
 func TestAlpineWorktreeCleanup(t *testing.T) {
 	// Create test git repository
 	repo := NewGitTestRepo(t)
-	
+
 	// Build alpine binary
 	alpineBinary := BuildAlpineBinary(t)
-	
+
 	// Test successful completion with auto-cleanup
 	t.Run("SuccessfulCompletionWithAutoCleanup", func(t *testing.T) {
 		mockClaude := MockClaudeScript(t, []MockResponse{
@@ -149,23 +149,23 @@ func TestAlpineWorktreeCleanup(t *testing.T) {
 }`,
 			},
 		})
-		
+
 		ctx := context.Background()
-		
+
 		// Run with auto-cleanup enabled (default)
 		output, err := RunAlpineWithMockClaude(ctx, t, alpineBinary, repo.RootDir, mockClaude,
 			"--no-plan",
 			"quick fix")
 		require.NoError(t, err, "Alpine command failed: %s", output)
-		
+
 		// Wait a bit for cleanup
 		time.Sleep(100 * time.Millisecond)
-		
+
 		// Verify worktree was cleaned up
 		worktrees := repo.GetWorktrees()
 		assert.Len(t, worktrees, 1, "Only main repo should remain after cleanup")
 	})
-	
+
 	// Test failure scenario
 	t.Run("FailureScenario", func(t *testing.T) {
 		// Create a script that simulates Claude failure
@@ -175,20 +175,20 @@ echo "Mock Claude: Simulating failure"
 exit 1
 `), 0755)
 		require.NoError(t, err)
-		
+
 		ctx := context.Background()
-		
+
 		// Disable auto-cleanup to ensure worktree remains
 		os.Setenv("ALPINE_GIT_AUTO_CLEANUP", "false")
 		defer os.Unsetenv("ALPINE_GIT_AUTO_CLEANUP")
-		
+
 		// Run alpine expecting failure
 		output, err := RunAlpineWithMockClaude(ctx, t, alpineBinary, repo.RootDir, failScript,
 			"--no-plan",
 			"failing task")
 		t.Logf("Alpine output (failure): %s", output)
 		assert.Error(t, err, "Expected error from failing Claude")
-		
+
 		// Verify worktree is still present (not cleaned up on failure)
 		worktrees := repo.GetWorktrees()
 		t.Logf("Worktrees after failure: %v", worktrees)
@@ -200,10 +200,10 @@ exit 1
 func TestAlpineWorktreeDisabled(t *testing.T) {
 	// Create test git repository
 	repo := NewGitTestRepo(t)
-	
+
 	// Build alpine binary
 	alpineBinary := BuildAlpineBinary(t)
-	
+
 	// Create mock Claude response
 	mockClaude := MockClaudeScript(t, []MockResponse{
 		{
@@ -215,12 +215,12 @@ func TestAlpineWorktreeDisabled(t *testing.T) {
 }`,
 		},
 	})
-	
+
 	ctx := context.Background()
-	
+
 	// Get initial branch
 	initialBranch := strings.TrimSpace(repo.runGitCommand("branch", "--show-current"))
-	
+
 	// Run with --no-worktree flag
 	output, err := RunAlpineWithMockClaude(ctx, t, alpineBinary, repo.RootDir, mockClaude,
 		"--no-plan",
@@ -228,15 +228,15 @@ func TestAlpineWorktreeDisabled(t *testing.T) {
 		"task without worktree")
 	t.Logf("Alpine output: %s", output)
 	require.NoError(t, err, "Alpine command failed: %s", output)
-	
+
 	// Verify no worktree was created
 	worktrees := repo.GetWorktrees()
 	assert.Len(t, worktrees, 1, "No additional worktree should be created")
-	
+
 	// Verify we're still on the same branch
 	currentBranch := strings.TrimSpace(repo.runGitCommand("branch", "--show-current"))
 	assert.Equal(t, initialBranch, currentBranch, "Should remain on original branch")
-	
+
 	// List files in main repo for debugging
 	files, _ := os.ReadDir(repo.RootDir)
 	var fileNames []string
@@ -244,7 +244,7 @@ func TestAlpineWorktreeDisabled(t *testing.T) {
 		fileNames = append(fileNames, f.Name())
 	}
 	t.Logf("Files in main repo: %v", fileNames)
-	
+
 	// Verify state file exists in main repo
 	stateDir := filepath.Join(repo.RootDir, "agent_state")
 	stateFile := filepath.Join(stateDir, "agent_state.json")
@@ -256,20 +256,20 @@ func TestAlpineWorktreeDisabled(t *testing.T) {
 func TestAlpineWorktreeIsolation(t *testing.T) {
 	// Create test git repository
 	repo := NewGitTestRepo(t)
-	
+
 	// Create a test file in main repo
 	testFile := "test.txt"
 	err := repo.CreateTestFile(testFile, "original content")
 	require.NoError(t, err)
 	repo.runGitCommand("add", testFile)
 	repo.runGitCommand("commit", "-m", "Add test file")
-	
+
 	// Build alpine binary
 	alpineBinary := BuildAlpineBinary(t)
-	
+
 	// Note: mockClaude is created but not used, we use modifyScript instead
 	// This is intentional as modifyScript needs to perform file modifications
-	
+
 	// Also create a script that modifies the file
 	modifyScript := filepath.Join(t.TempDir(), "modify-claude.sh")
 	err = os.WriteFile(modifyScript, []byte(fmt.Sprintf(`#!/bin/bash
@@ -294,25 +294,25 @@ EOF
 echo "Mock Claude: Modified file"
 `, testFile)), 0755)
 	require.NoError(t, err)
-	
+
 	ctx := context.Background()
-	
+
 	// Disable auto-cleanup for this test
 	os.Setenv("ALPINE_GIT_AUTO_CLEANUP", "false")
 	defer os.Unsetenv("ALPINE_GIT_AUTO_CLEANUP")
-	
+
 	// Run alpine (should create worktree)
 	output, err := RunAlpineWithMockClaude(ctx, t, alpineBinary, repo.RootDir, modifyScript,
 		"--no-plan",
 		"modify test file")
 	t.Logf("Alpine output: %s", output)
 	require.NoError(t, err, "Alpine command failed: %s", output)
-	
+
 	// Check content in main repo (should be unchanged)
 	mainContent, err := os.ReadFile(filepath.Join(repo.RootDir, testFile))
 	require.NoError(t, err)
 	assert.Equal(t, "original content", string(mainContent), "Main repo file should be unchanged")
-	
+
 	// Find worktree path
 	worktrees := repo.GetWorktrees()
 	t.Logf("Worktrees found: %v", worktrees)
@@ -324,7 +324,7 @@ echo "Mock Claude: Modified file"
 		}
 	}
 	require.NotEmpty(t, worktreePath, "Worktree path should not be empty")
-	
+
 	// Check content in worktree (should be modified)
 	wtContent, err := os.ReadFile(filepath.Join(worktreePath, testFile))
 	require.NoError(t, err)
@@ -335,10 +335,10 @@ echo "Mock Claude: Modified file"
 func TestAlpineWorktreeBranchNaming(t *testing.T) {
 	// Create test git repository
 	repo := NewGitTestRepo(t)
-	
+
 	// Build alpine binary
 	alpineBinary := BuildAlpineBinary(t)
-	
+
 	// Create mock Claude
 	mockClaude := MockClaudeScript(t, []MockResponse{
 		{
@@ -350,7 +350,7 @@ func TestAlpineWorktreeBranchNaming(t *testing.T) {
 }`,
 		},
 	})
-	
+
 	testCases := []struct {
 		name           string
 		taskDesc       string
@@ -372,21 +372,21 @@ func TestAlpineWorktreeBranchNaming(t *testing.T) {
 			expectedBranch: "alpine/this-is-a-very-long-task-description-that-should-b",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			
+
 			// Set environment to disable auto-cleanup for inspection
 			os.Setenv("ALPINE_GIT_AUTO_CLEANUP", "false")
 			defer os.Unsetenv("ALPINE_GIT_AUTO_CLEANUP")
-			
+
 			// Run alpine
 			output, err := RunAlpineWithMockClaude(ctx, t, alpineBinary, repo.RootDir, mockClaude,
 				"--no-plan",
 				tc.taskDesc)
 			require.NoError(t, err, "Alpine command failed: %s", output)
-			
+
 			// Check that expected branch was created
 			branches := repo.GetBranches()
 			found := false
@@ -405,17 +405,17 @@ func TestAlpineWorktreeBranchNaming(t *testing.T) {
 func TestAlpineWorktreeEnvironmentVariables(t *testing.T) {
 	// Create test git repository
 	repo := NewGitTestRepo(t)
-	
+
 	// Create a custom base branch
 	repo.runGitCommand("checkout", "-b", "develop")
 	repo.CreateTestFile("develop.txt", "develop branch file")
 	repo.runGitCommand("add", ".")
 	repo.runGitCommand("commit", "-m", "Add develop file")
 	repo.runGitCommand("checkout", "main")
-	
+
 	// Build alpine binary
 	alpineBinary := BuildAlpineBinary(t)
-	
+
 	// Create mock Claude
 	mockClaude := MockClaudeScript(t, []MockResponse{
 		{
@@ -427,9 +427,9 @@ func TestAlpineWorktreeEnvironmentVariables(t *testing.T) {
 }`,
 		},
 	})
-	
+
 	ctx := context.Background()
-	
+
 	// Set custom environment variables
 	os.Setenv("ALPINE_GIT_BASE_BRANCH", "develop")
 	os.Setenv("ALPINE_GIT_AUTO_CLEANUP", "false")
@@ -437,13 +437,13 @@ func TestAlpineWorktreeEnvironmentVariables(t *testing.T) {
 		os.Unsetenv("ALPINE_GIT_BASE_BRANCH")
 		os.Unsetenv("ALPINE_GIT_AUTO_CLEANUP")
 	}()
-	
+
 	// Run alpine
 	output, err := RunAlpineWithMockClaude(ctx, t, alpineBinary, repo.RootDir, mockClaude,
 		"--no-plan",
 		"test from develop")
 	require.NoError(t, err, "Alpine command failed: %s", output)
-	
+
 	// Find worktree
 	worktrees := repo.GetWorktrees()
 	var worktreePath string
@@ -454,12 +454,12 @@ func TestAlpineWorktreeEnvironmentVariables(t *testing.T) {
 		}
 	}
 	require.NotEmpty(t, worktreePath)
-	
+
 	// Verify worktree has file from develop branch
 	developFile := filepath.Join(worktreePath, "develop.txt")
 	_, err = os.Stat(developFile)
 	assert.NoError(t, err, "Worktree should be based on develop branch")
-	
+
 	// Verify worktree was not auto-cleaned (due to env var)
 	time.Sleep(100 * time.Millisecond)
 	worktrees = repo.GetWorktrees()
@@ -472,18 +472,18 @@ func TestAlpineWorktreeEnvironmentVariables(t *testing.T) {
 func TestWorktree_ClaudeExecutesInCorrectDirectory(t *testing.T) {
 	// Create test git repository
 	repo := NewGitTestRepo(t)
-	
+
 	// Build alpine binary
 	alpineBinary := BuildAlpineBinary(t)
-	
+
 	// Create a marker file in the main repo to detect wrong execution directory
 	mainRepoMarker := filepath.Join(repo.RootDir, "main-repo-marker.txt")
 	require.NoError(t, os.WriteFile(mainRepoMarker, []byte("main repo"), 0644))
-	
+
 	// Commit the marker file
 	repo.runGitCommand("add", ".")
 	repo.runGitCommand("commit", "-m", "Add marker file")
-	
+
 	// Create a custom mock Claude script that writes its working directory
 	scriptPath := filepath.Join(t.TempDir(), "mock-claude-pwd.sh")
 	script := `#!/bin/bash
@@ -519,20 +519,20 @@ esac
 `
 	err := os.WriteFile(scriptPath, []byte(script), 0755)
 	require.NoError(t, err)
-	
+
 	// Disable auto-cleanup to inspect worktree after completion
 	os.Setenv("ALPINE_GIT_AUTO_CLEANUP", "false")
 	defer os.Unsetenv("ALPINE_GIT_AUTO_CLEANUP")
-	
+
 	// Run alpine with worktree enabled (default)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	output, err := RunAlpineWithMockClaude(ctx, t, alpineBinary, repo.RootDir, scriptPath,
 		"--no-plan",
 		"Check working directory and create marker file")
 	require.NoError(t, err, "Alpine command failed: %s", output)
-	
+
 	// Find the worktree directory
 	worktrees := repo.GetWorktrees()
 	var worktreePath string
@@ -543,23 +543,23 @@ esac
 		}
 	}
 	require.NotEmpty(t, worktreePath, "No worktree found")
-	
+
 	// Read the working directory file created by Claude
 	workingDirFile := filepath.Join(worktreePath, "claude-working-dir.txt")
 	workingDirBytes, err := os.ReadFile(workingDirFile)
 	require.NoError(t, err, "Claude should have created working directory file")
-	
+
 	claudeWorkingDir := strings.TrimSpace(string(workingDirBytes))
-	
+
 	// Verify Claude executed in the worktree directory
 	assert.Equal(t, worktreePath, claudeWorkingDir,
 		"Claude should execute in worktree directory, not main repo")
-	
+
 	// Verify the marker file exists only in main repo, not in worktree
 	// (unless Claude copied it, which would be wrong)
 	_, mainErr := os.Stat(mainRepoMarker)
 	assert.NoError(t, mainErr, "Marker should exist in main repo")
-	
+
 	worktreeMarker := filepath.Join(worktreePath, "main-repo-marker.txt")
 	_, wtErr := os.Stat(worktreeMarker)
 	assert.NoError(t, wtErr, "Marker should also exist in worktree (from git)")
@@ -570,16 +570,16 @@ esac
 func TestWorktree_FileOperationsIsolated(t *testing.T) {
 	// Create test git repository
 	repo := NewGitTestRepo(t)
-	
+
 	// Build alpine binary
 	alpineBinary := BuildAlpineBinary(t)
-	
+
 	// Create initial file in main repo
 	testFile := filepath.Join(repo.RootDir, "test.txt")
 	require.NoError(t, os.WriteFile(testFile, []byte("original content"), 0644))
 	repo.runGitCommand("add", ".")
 	repo.runGitCommand("commit", "-m", "Add test file")
-	
+
 	// Create a custom mock Claude script that modifies files
 	scriptPath := filepath.Join(t.TempDir(), "mock-claude-files.sh")
 	script := `#!/bin/bash
@@ -616,20 +616,20 @@ esac
 `
 	err := os.WriteFile(scriptPath, []byte(script), 0755)
 	require.NoError(t, err)
-	
+
 	// Disable auto-cleanup to inspect worktree after completion
 	os.Setenv("ALPINE_GIT_AUTO_CLEANUP", "false")
 	defer os.Unsetenv("ALPINE_GIT_AUTO_CLEANUP")
-	
+
 	// Run alpine with worktree enabled
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	output, err := RunAlpineWithMockClaude(ctx, t, alpineBinary, repo.RootDir, scriptPath,
 		"--no-plan",
 		"Modify files to test isolation")
 	require.NoError(t, err, "Alpine command failed: %s", output)
-	
+
 	// Find the worktree directory
 	worktrees := repo.GetWorktrees()
 	var worktreePath string
@@ -640,26 +640,26 @@ esac
 		}
 	}
 	require.NotEmpty(t, worktreePath, "No worktree found")
-	
+
 	// Verify main repo file is unchanged
 	mainContent, err := os.ReadFile(testFile)
 	require.NoError(t, err)
 	assert.Equal(t, "original content", string(mainContent),
 		"Main repo file should be unchanged")
-	
+
 	// Verify worktree has modified file
 	worktreeTestFile := filepath.Join(worktreePath, "test.txt")
 	worktreeContent, err := os.ReadFile(worktreeTestFile)
 	require.NoError(t, err)
 	assert.Equal(t, "modified content\n", string(worktreeContent),
 		"Worktree file should be modified")
-	
+
 	// Verify new file exists only in worktree
 	mainNewFile := filepath.Join(repo.RootDir, "new-file.txt")
 	_, err = os.Stat(mainNewFile)
 	assert.True(t, os.IsNotExist(err),
 		"New file should not exist in main repo")
-	
+
 	worktreeNewFile := filepath.Join(worktreePath, "new-file.txt")
 	newFileContent, err := os.ReadFile(worktreeNewFile)
 	require.NoError(t, err, "New file should exist in worktree")

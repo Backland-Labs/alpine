@@ -12,6 +12,7 @@ import (
 	"github.com/Backland-Labs/alpine/internal/events"
 	"github.com/Backland-Labs/alpine/internal/gitx"
 	"github.com/Backland-Labs/alpine/internal/logger"
+	"github.com/Backland-Labs/alpine/internal/output"
 	"github.com/Backland-Labs/alpine/internal/server"
 )
 
@@ -38,8 +39,11 @@ func runWorkflowWithDependencies(ctx context.Context, args []string, noPlan bool
 
 		// Create Alpine workflow engine for REST API
 		if httpServer != nil {
-			// Create Claude executor
-			claudeExecutor := claude.NewExecutor()
+			// Create printer for output
+			printer := output.NewPrinter()
+
+			// Create Claude executor with config and printer
+			claudeExecutor := claude.NewExecutorWithConfig(cfg, printer)
 
 			// Create worktree manager
 			cwd, _ := os.Getwd()

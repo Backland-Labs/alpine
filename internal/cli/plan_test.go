@@ -185,7 +185,7 @@ func TestGeneratePlan(t *testing.T) {
 		// This test verifies that generatePlan uses Claude Code executor
 		// and handles the temporary state file creation properly
 		// We'll verify that no Gemini-specific logic is used
-		
+
 		// This is a unit test that doesn't require Claude CLI to be installed
 		// It will test the setup and configuration logic
 		t.Skip("Implementation test - requires refactoring generatePlan for better testability")

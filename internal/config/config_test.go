@@ -80,6 +80,69 @@ func TestNewConfig(t *testing.T) {
 	}
 }
 
+// TestToolCallEventConfigurationDefaults tests that tool call event configuration has correct defaults
+func TestToolCallEventConfigurationDefaults(t *testing.T) {
+	// Clear tool call event environment variables
+	envVars := []string{
+		"ALPINE_TOOL_CALL_EVENTS_ENABLED",
+		"ALPINE_TOOL_CALL_BATCH_SIZE",
+		"ALPINE_TOOL_CALL_SAMPLE_RATE",
+	}
+	for _, env := range envVars {
+		_ = os.Unsetenv(env)
+	}
+
+	cfg, err := New()
+	if err != nil {
+		t.Fatalf("New() returned unexpected error: %v", err)
+	}
+
+	// Test tool call event defaults - should be disabled by default
+	if cfg.ToolCallEvents.Enabled {
+		t.Error("ToolCallEvents.Enabled = true, want false (disabled by default)")
+	}
+
+	if cfg.ToolCallEvents.BatchSize != 10 {
+		t.Errorf("ToolCallEvents.BatchSize = %d, want 10", cfg.ToolCallEvents.BatchSize)
+	}
+
+	if cfg.ToolCallEvents.SampleRate != 100 {
+		t.Errorf("ToolCallEvents.SampleRate = %d, want 100", cfg.ToolCallEvents.SampleRate)
+	}
+}
+
+// TestToolCallEventConfigurationFromEnvironment tests loading tool call event config from environment
+func TestToolCallEventConfigurationFromEnvironment(t *testing.T) {
+	// Set up test environment
+	_ = os.Setenv("ALPINE_TOOL_CALL_EVENTS_ENABLED", "true")
+	_ = os.Setenv("ALPINE_TOOL_CALL_BATCH_SIZE", "25")
+	_ = os.Setenv("ALPINE_TOOL_CALL_SAMPLE_RATE", "50")
+
+	defer func() {
+		_ = os.Unsetenv("ALPINE_TOOL_CALL_EVENTS_ENABLED")
+		_ = os.Unsetenv("ALPINE_TOOL_CALL_BATCH_SIZE")
+		_ = os.Unsetenv("ALPINE_TOOL_CALL_SAMPLE_RATE")
+	}()
+
+	cfg, err := New()
+	if err != nil {
+		t.Fatalf("New() returned unexpected error: %v", err)
+	}
+
+	// Test that environment variables are loaded correctly
+	if !cfg.ToolCallEvents.Enabled {
+		t.Error("ToolCallEvents.Enabled = false, want true")
+	}
+
+	if cfg.ToolCallEvents.BatchSize != 25 {
+		t.Errorf("ToolCallEvents.BatchSize = %d, want 25", cfg.ToolCallEvents.BatchSize)
+	}
+
+	if cfg.ToolCallEvents.SampleRate != 50 {
+		t.Errorf("ToolCallEvents.SampleRate = %d, want 50", cfg.ToolCallEvents.SampleRate)
+	}
+}
+
 // TestConfigFromEnvironment tests loading configuration from environment variables
 func TestConfigFromEnvironment(t *testing.T) {
 	// Set up test environment

@@ -67,6 +67,27 @@ type ServerConfig struct {
 	MaxClientsPerRun int
 }
 
+// ToolCallEventsConfig holds tool call event capture configuration
+type ToolCallEventsConfig struct {
+	// Enabled controls whether tool call events are captured and emitted
+	Enabled bool
+
+	// BatchSize is the number of events to batch before sending (default: 10)
+	BatchSize int
+
+	// SampleRate is the percentage of events to capture (1-100, default: 100)
+	SampleRate int
+
+	// CircuitBreakerEnabled controls whether circuit breaker is used for hook failures
+	CircuitBreakerEnabled bool
+
+	// CircuitBreakerThreshold is the number of failures before opening the circuit (default: 5)
+	CircuitBreakerThreshold int
+
+	// CircuitBreakerTimeout is the recovery timeout in seconds (default: 30)
+	CircuitBreakerTimeout int
+}
+
 // Config holds all configuration for the Alpine CLI
 type Config struct {
 	// WorkDir is the working directory for Claude execution
@@ -95,6 +116,9 @@ type Config struct {
 
 	// Server holds server-related configuration
 	Server ServerConfig
+
+	// ToolCallEvents holds tool call event capture configuration
+	ToolCallEvents ToolCallEventsConfig
 }
 
 // New creates a new Config instance from environment variables
@@ -282,6 +306,83 @@ func New() (*Config, error) {
 		} else {
 			cfg.Server.MaxClientsPerRun = maxClients
 		}
+	}
+
+	// Load ToolCallEvents configuration
+	cfg.ToolCallEvents = ToolCallEventsConfig{}
+
+	// Load ToolCallEvents.Enabled - defaults to false
+	toolCallEventsEnabled, err := parseBoolEnv("ALPINE_TOOL_CALL_EVENTS_ENABLED", false)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ToolCallEvents.Enabled = toolCallEventsEnabled
+
+	// Load ToolCallEvents.BatchSize - defaults to 10
+	batchSizeStr := os.Getenv("ALPINE_TOOL_CALL_BATCH_SIZE")
+	if batchSizeStr == "" {
+		cfg.ToolCallEvents.BatchSize = 10
+	} else {
+		batchSize, err := strconv.Atoi(batchSizeStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ALPINE_TOOL_CALL_BATCH_SIZE: %w", err)
+		}
+		if batchSize <= 0 {
+			return nil, fmt.Errorf("ALPINE_TOOL_CALL_BATCH_SIZE must be positive, got: %d", batchSize)
+		}
+		cfg.ToolCallEvents.BatchSize = batchSize
+	}
+
+	// Load ToolCallEvents.SampleRate - defaults to 100
+	sampleRateStr := os.Getenv("ALPINE_TOOL_CALL_SAMPLE_RATE")
+	if sampleRateStr == "" {
+		cfg.ToolCallEvents.SampleRate = 100
+	} else {
+		sampleRate, err := strconv.Atoi(sampleRateStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ALPINE_TOOL_CALL_SAMPLE_RATE: %w", err)
+		}
+		if sampleRate < 1 || sampleRate > 100 {
+			return nil, fmt.Errorf("ALPINE_TOOL_CALL_SAMPLE_RATE must be between 1 and 100, got: %d", sampleRate)
+		}
+		cfg.ToolCallEvents.SampleRate = sampleRate
+	}
+
+	// Load ToolCallEvents.CircuitBreakerEnabled - defaults to true
+	circuitBreakerEnabled, err := parseBoolEnv("ALPINE_TOOL_CALL_CIRCUIT_BREAKER_ENABLED", true)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ToolCallEvents.CircuitBreakerEnabled = circuitBreakerEnabled
+
+	// Load ToolCallEvents.CircuitBreakerThreshold - defaults to 5
+	circuitBreakerThresholdStr := os.Getenv("ALPINE_TOOL_CALL_CIRCUIT_BREAKER_THRESHOLD")
+	if circuitBreakerThresholdStr == "" {
+		cfg.ToolCallEvents.CircuitBreakerThreshold = 5
+	} else {
+		circuitBreakerThreshold, err := strconv.Atoi(circuitBreakerThresholdStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ALPINE_TOOL_CALL_CIRCUIT_BREAKER_THRESHOLD: %w", err)
+		}
+		if circuitBreakerThreshold <= 0 {
+			return nil, fmt.Errorf("ALPINE_TOOL_CALL_CIRCUIT_BREAKER_THRESHOLD must be positive, got: %d", circuitBreakerThreshold)
+		}
+		cfg.ToolCallEvents.CircuitBreakerThreshold = circuitBreakerThreshold
+	}
+
+	// Load ToolCallEvents.CircuitBreakerTimeout - defaults to 30 seconds
+	circuitBreakerTimeoutStr := os.Getenv("ALPINE_TOOL_CALL_CIRCUIT_BREAKER_TIMEOUT")
+	if circuitBreakerTimeoutStr == "" {
+		cfg.ToolCallEvents.CircuitBreakerTimeout = 30
+	} else {
+		circuitBreakerTimeout, err := strconv.Atoi(circuitBreakerTimeoutStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ALPINE_TOOL_CALL_CIRCUIT_BREAKER_TIMEOUT: %w", err)
+		}
+		if circuitBreakerTimeout <= 0 {
+			return nil, fmt.Errorf("ALPINE_TOOL_CALL_CIRCUIT_BREAKER_TIMEOUT must be positive, got: %d", circuitBreakerTimeout)
+		}
+		cfg.ToolCallEvents.CircuitBreakerTimeout = circuitBreakerTimeout
 	}
 
 	return cfg, nil

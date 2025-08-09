@@ -15,10 +15,12 @@ import (
 type contextKey string
 
 const (
-	noPlanKey     contextKey = "noPlan"
-	noWorktreeKey contextKey = "noWorktree"
-	serveKey      contextKey = "serve"
-	portKey       contextKey = "port"
+	noPlanKey              contextKey = "noPlan"
+	noWorktreeKey          contextKey = "noWorktree"
+	serveKey               contextKey = "serve"
+	portKey                contextKey = "port"
+	enableObservabilityKey contextKey = "enableObservability"
+	toolCallBatchSizeKey   contextKey = "toolCallBatchSize"
 )
 
 const version = "0.2.0" // Bumped version for new implementation
@@ -35,6 +37,8 @@ func NewRootCommand() *cobra.Command {
 	var noWorktree bool
 	var serve bool
 	var port int
+	var enableObservability bool
+	var toolCallBatchSize int
 
 	cmd := &cobra.Command{
 		Use:   "alpine <task-description>",
@@ -83,6 +87,8 @@ Examples:
 	cmd.Flags().BoolVar(&noWorktree, "no-worktree", false, "Disable git worktree creation")
 	cmd.Flags().BoolVar(&serve, "serve", false, "Start HTTP server with Server-Sent Events support")
 	cmd.Flags().IntVar(&port, "port", 3001, "HTTP server port (default: 3001)")
+	cmd.Flags().BoolVar(&enableObservability, "enable-observability", false, "Enable tool call event observability")
+	cmd.Flags().IntVar(&toolCallBatchSize, "tool-call-batch-size", 10, "Batch size for tool call events (default: 10)")
 
 	// Store flags in command context for runWorkflow
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
@@ -91,6 +97,8 @@ Examples:
 		ctx = context.WithValue(ctx, noWorktreeKey, noWorktree)
 		ctx = context.WithValue(ctx, serveKey, serve)
 		ctx = context.WithValue(ctx, portKey, port)
+		ctx = context.WithValue(ctx, enableObservabilityKey, enableObservability)
+		ctx = context.WithValue(ctx, toolCallBatchSizeKey, toolCallBatchSize)
 		cmd.SetContext(ctx)
 		return nil
 	}

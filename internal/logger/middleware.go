@@ -50,7 +50,7 @@ func HTTPMiddleware(logger *Logger) func(http.Handler) http.Handler {
 			start := time.Now()
 
 			// Create a logger with request context
-			reqLogger := logger
+			var reqLogger *Logger
 			if logger.zap != nil {
 				reqLogger = &Logger{zap: logger.zap.WithHTTPRequest(r)}
 			} else {
@@ -130,7 +130,7 @@ func SSEMiddleware(logger *Logger) func(http.Handler) http.Handler {
 			start := time.Now()
 
 			// Create a logger with SSE context
-			sseLogger := logger
+			var sseLogger *Logger
 			if logger.zap != nil {
 				zapLogger := logger.zap.WithHTTPRequest(r).With(
 					zap.String("connection_type", "sse"),
