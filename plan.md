@@ -69,7 +69,9 @@ This plan adds support for an optional `plan` boolean field in the REST API `/ag
 - Files to Modify/Create:
   * /internal/server/workflow_integration_test.go
 
-#### Task 1.6: Update mockWorkflowEngine in cli package
+#### Task 1.6: Update mockWorkflowEngine in cli package - COMPLETED
+- Implementation Date: 2025-08-08
+- Status: Completed
 - Acceptance Criteria:
   * Mock implementation in cli package updated for any workflow engine interface changes
   * Maintains compatibility with existing tests
