@@ -458,7 +458,7 @@ func TestPlanApprovalWorkflowIntegration(t *testing.T) {
 			GetWorkflowStateFunc: func(ctx context.Context, runID string) (*core.State, error) {
 				return &core.State{
 					CurrentStepDescription: "Plan approved, continuing implementation",
-					NextStepPrompt:         "/run_implementation_loop",
+					NextStepPrompt:         "/start https://github.com/owner/repo/issues/123",
 					Status:                 core.StatusRunning,
 				}, nil
 			},

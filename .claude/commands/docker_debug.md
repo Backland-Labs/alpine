@@ -37,7 +37,7 @@ Execute this agent to map the application's architectural patterns:
 
 After completing the prerequisites:
 
-1. Execute the Docker commands specified in @CLAUDE.md
+1. Execute the Docker commands specified in @AGENTS.md
 2. Tail and monitor the container logs
 3. Send curl requests with a test github issue: https://github.com/Backland-Labs/alpine/issues/52
 4. Analyze log output for:

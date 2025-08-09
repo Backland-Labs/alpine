@@ -177,13 +177,13 @@ func (e *Engine) Run(ctx context.Context, taskDescription string, generatePlan b
 			e.printer.Info("Continuing from existing state file")
 			return e.runWorkflowLoop(ctx)
 		} else if os.IsNotExist(err) {
-			// Initialize with /run_implementation_loop
-			logger.WithField("state_file", e.stateFile).Info("Starting bare execution with /run_implementation_loop")
-			e.printer.Info("Starting bare execution with /run_implementation_loop")
-			if err := e.initializeWorkflow(ctx, "/run_implementation_loop", false); err != nil {
+			// Initialize with /start
+			logger.WithField("state_file", e.stateFile).Info("Starting bare execution with /start")
+			e.printer.Info("Starting bare execution with /start")
+			if err := e.initializeWorkflow(ctx, "/start", false); err != nil {
 				logger.WithFields(map[string]interface{}{
 					"error":   err.Error(),
-					"command": "/run_implementation_loop",
+					"command": "/start",
 				}).Error("Failed to initialize bare workflow")
 				return fmt.Errorf("failed to initialize bare workflow: %w", err)
 			}
@@ -396,7 +396,7 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 		// Use the embedded prompt template and replace {{TASK}} with the task description
 		prompt = strings.ReplaceAll(prompts.PromptPlan, "{{TASK}}", taskText)
 	} else {
-		prompt = "/run_implementation_loop " + taskDescription
+		prompt = "/start " + taskDescription
 	}
 
 	logger.WithFields(map[string]interface{}{
@@ -406,8 +406,8 @@ func (e *Engine) initializeWorkflow(ctx context.Context, taskDescription string,
 		"run_id":           e.runID,
 	}).Debug("Preparing initial workflow state")
 
-	// For bare mode, taskDescription is just "/run_implementation_loop"
-	if taskDescription == "/run_implementation_loop" {
+	// For bare mode, taskDescription is just "/start"
+	if taskDescription == "/start" {
 		prompt = taskDescription
 		logger.WithField("command", prompt).Info("Initializing bare workflow execution")
 		e.printer.Info("Initializing bare workflow execution")

@@ -292,9 +292,15 @@ func (e *AlpineWorkflowEngine) ApprovePlan(ctx context.Context, runID string) er
 
 	// Update state to trigger implementation
 	state.CurrentStepDescription = "Plan approved, continuing implementation"
-	state.NextStepPrompt = "/run_implementation_loop"
-	state.Status = core.StatusRunning
 
+	// Get the original issue URL from workflow instance context
+	issueURL, ok := instance.ctx.Value("issue_url").(string)
+	if ok && issueURL != "" {
+		state.NextStepPrompt = "/start " + issueURL
+	} else {
+		state.NextStepPrompt = "/start"
+	}
+	state.Status = core.StatusRunning
 	if err := state.Save(instance.stateFile); err != nil {
 		return fmt.Errorf("failed to save state: %w", err)
 	}
