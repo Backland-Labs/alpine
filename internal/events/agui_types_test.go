@@ -63,19 +63,25 @@ func TestToolCallEventSerialization(t *testing.T) {
 		t.Fatalf("Failed to marshal ToolCallStartEvent: %v", err)
 	}
 
-	// Test JSON deserialization
-	var deserializedEvent ToolCallStartEvent
-	err = json.Unmarshal(jsonData, &deserializedEvent)
+	// Test JSON format follows AG-UI protocol
+	var eventMap map[string]interface{}
+	err = json.Unmarshal(jsonData, &eventMap)
 	if err != nil {
-		t.Fatalf("Failed to unmarshal ToolCallStartEvent: %v", err)
+		t.Fatalf("Failed to unmarshal ToolCallStartEvent to map: %v", err)
 	}
 
-	// Verify critical fields
-	if deserializedEvent.Type != AGUIEventToolCallStarted {
-		t.Errorf("Expected type '%s', got '%s'", AGUIEventToolCallStarted, deserializedEvent.Type)
+	// Verify AG-UI protocol compliance
+	if eventMap["type"] != ToolCallStart {
+		t.Errorf("Expected AG-UI type '%s', got '%s'", ToolCallStart, eventMap["type"])
 	}
-	if deserializedEvent.ToolName != "bash" {
-		t.Errorf("Expected tool name 'bash', got '%s'", deserializedEvent.ToolName)
+	if eventMap["toolCallName"] != "bash" {
+		t.Errorf("Expected toolCallName 'bash', got '%s'", eventMap["toolCallName"])
+	}
+	if eventMap["runId"] != "test-run-123" {
+		t.Errorf("Expected runId 'test-run-123', got '%s'", eventMap["runId"])
+	}
+	if eventMap["toolCallId"] != "tool-call-456" {
+		t.Errorf("Expected toolCallId 'tool-call-456', got '%s'", eventMap["toolCallId"])
 	}
 }
 

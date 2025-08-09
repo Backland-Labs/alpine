@@ -1,6 +1,7 @@
 package events
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -112,6 +113,27 @@ func (e *ToolCallStartEvent) Validate() error {
 		return fmt.Errorf("toolName is required")
 	}
 	return nil
+}
+
+// MarshalJSON implements custom JSON marshaling for AG-UI protocol compliance
+func (e *ToolCallStartEvent) MarshalJSON() ([]byte, error) {
+	// Convert internal snake_case to AG-UI PascalCase format
+	type Alias ToolCallStartEvent
+	return json.Marshal(&struct {
+		Type         string    `json:"type"`
+		RunID        string    `json:"runId"`
+		Timestamp    time.Time `json:"timestamp"`
+		ToolCallID   string    `json:"toolCallId"`
+		ToolCallName string    `json:"toolCallName"` // AG-UI protocol uses toolCallName
+		*Alias
+	}{
+		Type:         ToolCallStart, // Use PascalCase constant
+		RunID:        e.RunID,
+		Timestamp:    e.Timestamp,
+		ToolCallID:   e.ToolCallID,
+		ToolCallName: e.ToolName, // Map ToolName to toolCallName
+		Alias:        (*Alias)(e),
+	})
 }
 
 // ToolCallEndEvent represents the completion of a tool execution
