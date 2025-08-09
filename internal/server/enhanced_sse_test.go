@@ -190,7 +190,7 @@ func TestRunSpecificSSEWithToolCallEvents(t *testing.T) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Verify SSE headers
 	assert.Equal(t, "text/event-stream", resp.Header.Get("Content-Type"))
@@ -289,7 +289,7 @@ func TestEventReplayOnSSEConnection(t *testing.T) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read SSE response
 	var response strings.Builder
