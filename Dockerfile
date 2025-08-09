@@ -43,7 +43,7 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install -y --no-install-recommends gh && \
     # Install global npm packages
-    npm install -g @anthropic-ai/claude-code @google/gemini-cli && \
+    npm install -g @anthropic-ai/claude-code && \
     # Clean npm cache
     npm cache clean --force && \
     # Clean apt caches and lists
@@ -78,7 +78,6 @@ USER alpine
 WORKDIR /workspace
 
 # Environment variables
-ENV GEMINI_API_KEY=""
 ENV CLAUDE_CODE_OAUTH_TOKEN=""
 ENV GITHUB_TOKEN=""
 

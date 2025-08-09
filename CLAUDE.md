@@ -43,7 +43,6 @@ Key specifications are located in the `specs/` directory:
 - [testing-strategy.md](specs/testing-strategy.md): Explains the project's testing philosophy, including unit, integration, and E2E tests.
 - [release-process.md](specs/release-process.md): Provides step-by-step instructions for publishing new releases.
 - [claude-code-hooks.md](specs/claude-code-hooks.md): Specification for integrating with Claude Code hooks.
-- [gemini-cli.md](specs/gemini-cli.md): Specification for integrating with the Gemini CLI.
 - [server.md](specs/server.md): HTTP server functionality with Server-Sent Events for real-time updates.
 - [troubleshooting.md](specs/troubleshooting.md): A guide to common issues and their solutions.
 
@@ -328,7 +327,7 @@ gosec ./...
 # Build and test basic execution
 go build -o alpine cmd/alpine/main.go && ./alpine --help
 
-# Test plan generation (requires GEMINI_API_KEY)
+# Test plan generation (uses Claude Code)
 ./alpine plan "Add error handling to file operations"
 
 # Test gh-issue plan generation (requires gh CLI and authentication)

@@ -51,12 +51,10 @@ alpine/
 │   ├── cli-commands.md
 │   ├── code-quality.md
 │   ├── error-handling.md
-│   ├── gemini-cli.md
 │   └── troubleshooting.md
 ├── agent_state/
 │   └── agent_state.json
 ├── .claude/
-├── .gemini/
 ├── .git/
 ├── .github/
 ├── prompts/

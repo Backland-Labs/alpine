@@ -29,24 +29,17 @@ func NewPlanCommand() *cobra.Command {
 // newPlanCmd creates a new plan command
 func newPlanCmd() *planCmd {
 	pc := &planCmd{}
-	var ccFlag bool
 	var worktreeFlag bool
 	var cleanupFlag bool
 
 	pc.cmd = &cobra.Command{
 		Use:   "plan <task-description>",
-		Short: "Generate an implementation plan using Gemini CLI or Claude Code",
-		Long: `Generate a detailed implementation plan for a given task using Gemini CLI (default) or Claude Code.
+		Short: "Generate an implementation plan using Claude Code",
+		Long: `Generate a detailed implementation plan for a given task using Claude Code.
 This command reads the project specifications and creates a structured plan
-that can be used with Alpine's implementation workflow.
-
-By default, the plan is generated using Gemini. Use the --cc flag to generate
-the plan using Claude Code instead.`,
-		Example: `  # Generate a plan using Gemini (default)
+that can be used with Alpine's implementation workflow.`,
+		Example: `  # Generate a plan
   alpine plan "Implement user authentication"
-  
-  # Generate a plan using Claude Code
-  alpine plan --cc "Add caching layer"
   
   # Generate a plan from a GitHub issue
   alpine plan gh-issue https://github.com/owner/repo/issues/123`,
@@ -56,21 +49,13 @@ the plan using Claude Code instead.`,
 
 			// Check if worktree flag is set
 			if worktreeFlag {
-				return runPlanInWorktree(task, ccFlag, cleanupFlag)
+				return runPlanInWorktree(task, cleanupFlag)
 			}
 
-			// Route based on --cc flag
-			if ccFlag {
-				return generatePlanWithClaude(task)
-			} else {
-				// Default to Gemini (existing behavior)
-				return generatePlan(task)
-			}
+			// Always use Claude Code for plan generation
+			return generatePlan(task)
 		},
 	}
-
-	// Add the --cc flag
-	pc.cmd.Flags().BoolVar(&ccFlag, "cc", false, "Use Claude Code instead of Gemini for plan generation")
 
 	// Add the --worktree and --cleanup flags
 	pc.cmd.Flags().BoolVar(&worktreeFlag, "worktree", false, "Generate the plan in an isolated git worktree")
@@ -87,68 +72,8 @@ func (pc *planCmd) Command() *cobra.Command {
 	return pc.cmd
 }
 
-// generatePlan generates an implementation plan using Gemini CLI
+// generatePlan generates an implementation plan using Claude Code
 func generatePlan(task string) error {
-	// Create printer for consistent output
-	printer := output.NewPrinter()
-
-	// Check if GEMINI_API_KEY is set
-	if os.Getenv("GEMINI_API_KEY") == "" {
-		printer.Error("GEMINI_API_KEY not set")
-		return fmt.Errorf("GEMINI_API_KEY not set")
-	}
-
-	// Replace placeholders in the prompt template
-	prompt := strings.ReplaceAll(prompts.PromptPlan, "{{TASK}}", task)
-
-	// Filter environment to remove CI variables that might trigger interactive mode
-	env := filterEnvironment(os.Environ())
-
-	// Try up to 3 times to generate the plan
-	for i := 1; i <= 3; i++ {
-		// Show progress messages
-		printer.Info("Attempt %d of 3...", i)
-		if i == 1 {
-			printer.Info("Generating plan...")
-		}
-
-		// Execute Gemini CLI in non-interactive mode
-		cmd := exec.Command("gemini", "--all-files", "-y", "-p", prompt)
-		cmd.Env = env
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-
-		// Execute the command
-		err := cmd.Run()
-		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				printer.Error("Gemini command failed with exit code %d", exitErr.ExitCode())
-				return fmt.Errorf("gemini command failed with exit code %d", exitErr.ExitCode())
-			}
-			printer.Error("Failed to execute gemini command: %v", err)
-			return fmt.Errorf("failed to execute gemini command: %w", err)
-		}
-
-		// Check if plan.md was created
-		if err := validatePlanFile(); err == nil {
-			// Success!
-			printer.Success("Plan generation completed")
-			return nil
-		}
-
-		// If we're not on the last attempt, show retry message
-		if i < 3 {
-			printer.Warning("plan.md was not created, retrying...")
-		}
-	}
-
-	// All attempts failed
-	printer.Error("Gemini failed to create plan")
-	return fmt.Errorf("gemini failed to create plan")
-}
-
-// generatePlanWithClaude generates an implementation plan using Claude Code
-func generatePlanWithClaude(task string) error {
 	// Create printer for progress indicator
 	printer := output.NewPrinter()
 
@@ -233,19 +158,10 @@ func generatePlanWithClaude(task string) error {
 	return nil
 }
 
-// filterEnvironment removes CI-related environment variables
-func filterEnvironment(env []string) []string {
-	filtered := make([]string, 0, len(env))
-	for _, e := range env {
-		if !strings.HasPrefix(e, "CI_") && !strings.HasPrefix(e, "CI=") {
-			filtered = append(filtered, e)
-		}
-	}
-	return filtered
-}
+
 
 // runPlanInWorktree executes plan generation in an isolated git worktree
-func runPlanInWorktree(task string, useClaude bool, cleanup bool) error {
+func runPlanInWorktree(task string, cleanup bool) error {
 	// Create printer for consistent output
 	printer := output.NewPrinter()
 
@@ -293,10 +209,7 @@ func runPlanInWorktree(task string, useClaude bool, cleanup bool) error {
 
 	printer.Info("Generating plan in worktree: %s", wt.Path)
 
-	// Call the appropriate plan generation function
-	if useClaude {
-		return generatePlanWithClaude(task)
-	}
+	// Call the plan generation function
 	return generatePlan(task)
 }
 
@@ -352,19 +265,15 @@ Requirements:
 			}
 
 			// Access parent command's flags
-			ccFlag, _ := cmd.Parent().Flags().GetBool("cc")
 			worktreeFlag, _ := cmd.Parent().Flags().GetBool("worktree")
 			cleanupFlag, _ := cmd.Parent().Flags().GetBool("cleanup")
 
 			// Check if worktree flag is set
 			if worktreeFlag {
-				return runPlanInWorktree(task, ccFlag, cleanupFlag)
+				return runPlanInWorktree(task, cleanupFlag)
 			}
 
-			// Route to appropriate plan generation
-			if ccFlag {
-				return generatePlanWithClaude(task)
-			}
+			// Always use Claude Code for plan generation
 			return generatePlan(task)
 		},
 	}
