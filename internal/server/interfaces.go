@@ -9,8 +9,13 @@ import (
 
 // WorkflowEngine interface represents the integration point with Alpine's workflow engine
 type WorkflowEngine interface {
-	// StartWorkflow initiates a new workflow run with the given GitHub issue URL
-	StartWorkflow(ctx context.Context, issueURL string, runID string) (string, error)
+	// StartWorkflow initiates a new workflow run with the given GitHub issue URL and plan generation setting.
+	// Parameters:
+	//   - ctx: Context for cancellation and timeouts
+	//   - issueURL: GitHub issue URL to process
+	//   - runID: Unique identifier for the workflow run
+	//   - plan: Whether to generate a plan.md file before implementation (true) or skip directly to implementation (false)
+	StartWorkflow(ctx context.Context, issueURL string, runID string, plan bool) (string, error)
 
 	// CancelWorkflow cancels an active workflow run
 	CancelWorkflow(ctx context.Context, runID string) error
