@@ -60,7 +60,7 @@ Related specs and documentation
 2. Follow standard structure template
 3. Cross-reference related specs
 4. Include code examples
-5. Update this CLAUDE.md file
+5. Update this AGENTS.md file
 
 ### Updating Existing Specs
 1. Maintain version history in spec

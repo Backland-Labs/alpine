@@ -23,7 +23,7 @@ When presented with test failure data, you will:
 
 3. **Review Project Context**: Before making changes:
    - Consult the specs directory for relevant specifications
-   - Review CLAUDE.md and other project documentation for coding standards
+   - Review AGENTS.md and other project documentation for coding standards
    - Examine existing code patterns and conventions in the codebase
    - Ensure your fixes align with the project's architecture
 

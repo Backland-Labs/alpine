@@ -112,7 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Data models** - Added `Agent`, `Run`, and `Plan` structs with full validation in `internal/server/models.go`
 - **WorkflowEngine abstraction** - Created interface for clean separation between API and workflow execution
 - **Event broadcasting** - Enhanced SSE system to support both global and run-specific event streams
-- **Documentation updates** - Updated `CLAUDE.md`, `specs/server.md`, and `specs/cli-commands.md` with REST API documentation
+- **Documentation updates** - Updated `AGENTS.md`, `specs/server.md`, and `specs/cli-commands.md` with REST API documentation
 
 #### Configuration
 - **Removed StateFile customization** - State file path is no longer configurable via environment variable

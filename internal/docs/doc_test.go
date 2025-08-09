@@ -6,11 +6,11 @@ import (
 	"testing"
 )
 
-// TestCLAUDEDocumentationComplete verifies that CLAUDE.md contains all required REST API documentation
+// TestCLAUDEDocumentationComplete verifies that AGENTS.md contains all required REST API documentation
 func TestCLAUDEDocumentationComplete(t *testing.T) {
-	content, err := os.ReadFile("../../CLAUDE.md")
+	content, err := os.ReadFile("../../AGENTS.md")
 	if err != nil {
-		t.Fatal("Failed to read CLAUDE.md:", err)
+		t.Fatal("Failed to read AGENTS.md:", err)
 	}
 
 	doc := string(content)
@@ -18,7 +18,7 @@ func TestCLAUDEDocumentationComplete(t *testing.T) {
 	// Test 1: REST API Server Usage section exists
 	t.Run("REST API Server Usage Section", func(t *testing.T) {
 		if !strings.Contains(doc, "## REST API Server Usage") && !strings.Contains(doc, "### REST API Server Usage") {
-			t.Error("CLAUDE.md missing REST API Server Usage section")
+			t.Error("AGENTS.md missing REST API Server Usage section")
 		}
 	})
 
@@ -31,7 +31,7 @@ func TestCLAUDEDocumentationComplete(t *testing.T) {
 		}
 		for _, example := range requiredExamples {
 			if !strings.Contains(doc, example) {
-				t.Errorf("CLAUDE.md missing server startup example with: %s", example)
+				t.Errorf("AGENTS.md missing server startup example with: %s", example)
 			}
 		}
 	})
@@ -64,7 +64,7 @@ func TestCLAUDEDocumentationComplete(t *testing.T) {
 				}
 			}
 			if !found {
-				t.Errorf("CLAUDE.md missing documentation for endpoint: %s", ep.endpoint)
+				t.Errorf("AGENTS.md missing documentation for endpoint: %s", ep.endpoint)
 			}
 		}
 	})
@@ -78,7 +78,7 @@ func TestCLAUDEDocumentationComplete(t *testing.T) {
 		}
 		for _, example := range requiredExamples {
 			if !strings.Contains(doc, example) {
-				t.Errorf("CLAUDE.md missing curl example element: %s", example)
+				t.Errorf("AGENTS.md missing curl example element: %s", example)
 			}
 		}
 	})
@@ -86,7 +86,7 @@ func TestCLAUDEDocumentationComplete(t *testing.T) {
 	// Test 5: Integration patterns
 	t.Run("Integration Patterns", func(t *testing.T) {
 		if !strings.Contains(doc, "Python") || !strings.Contains(doc, "JavaScript") {
-			t.Error("CLAUDE.md missing integration examples in multiple languages")
+			t.Error("AGENTS.md missing integration examples in multiple languages")
 		}
 	})
 }
@@ -131,7 +131,7 @@ func TestCLICommandsDocumentationComplete(t *testing.T) {
 
 // TestDocumentationConsistency verifies that documentation is consistent across files
 func TestDocumentationConsistency(t *testing.T) {
-	claudeContent, err1 := os.ReadFile("../../CLAUDE.md")
+	claudeContent, err1 := os.ReadFile("../../AGENTS.md")
 	cliContent, err2 := os.ReadFile("../../specs/cli-commands.md")
 
 	if err1 != nil || err2 != nil {
@@ -146,7 +146,7 @@ func TestDocumentationConsistency(t *testing.T) {
 		if strings.Contains(claudeDoc, "3001") && strings.Contains(cliDoc, "3001") {
 			// Good - both use same default port
 		} else {
-			t.Error("Port numbers are inconsistent between CLAUDE.md and cli-commands.md")
+			t.Error("Port numbers are inconsistent between AGENTS.md and cli-commands.md")
 		}
 	})
 
@@ -163,9 +163,9 @@ func TestDocumentationConsistency(t *testing.T) {
 
 // TestRESTAPIWorkflowExamples verifies complete workflow examples exist
 func TestRESTAPIWorkflowExamples(t *testing.T) {
-	content, err := os.ReadFile("../../CLAUDE.md")
+	content, err := os.ReadFile("../../AGENTS.md")
 	if err != nil {
-		t.Fatal("Failed to read CLAUDE.md:", err)
+		t.Fatal("Failed to read AGENTS.md:", err)
 	}
 
 	doc := string(content)
@@ -187,7 +187,7 @@ func TestRESTAPIWorkflowExamples(t *testing.T) {
 		}
 
 		if len(missingSteps) > 0 {
-			t.Errorf("CLAUDE.md missing workflow steps: %v", missingSteps)
+			t.Errorf("AGENTS.md missing workflow steps: %v", missingSteps)
 		}
 	})
 }

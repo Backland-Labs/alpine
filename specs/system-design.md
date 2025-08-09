@@ -65,7 +65,7 @@ alpine/
 ├── go.mod
 ├── go.sum
 ├── README.md
-└── CLAUDE.md
+└── AGENTS.md
 ```
 
 ### 2.2. Naming Conventions
@@ -88,7 +88,7 @@ alpine/
 #### Documentation Files
 - Specifications use kebab-case: `system-design.md`
 - All specs go in the `specs/` directory
-- README files are uppercase: `README.md`, `CLAUDE.md`
+- README files are uppercase: `README.md`, `AGENTS.md`
 
 #### Configuration and State
 - State files use snake_case: `agent_state.json`
@@ -119,7 +119,7 @@ alpine/
 
 ### 2.4. Special Files
 
-#### CLAUDE.md
+#### AGENTS.md
 - Project-specific instructions for Claude Code
 - Kept at repository root
 - Contains context and conventions for AI assistance
