@@ -56,7 +56,9 @@ This plan adds support for an optional `plan` boolean field in the REST API `/ag
 - Files to Modify/Create:
   * /internal/server/handlers.go
 
-#### Task 1.5: Update MockWorkflowEngine in server package
+#### Task 1.5: Update MockWorkflowEngine in server package - COMPLETED
+- Implementation Date: 2025-08-08
+- Status: Completed
 - Acceptance Criteria:
   * Mock implementation matches new interface signature
   * StartWorkflowFunc accepts plan parameter
