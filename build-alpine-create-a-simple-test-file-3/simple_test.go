@@ -2,7 +2,12 @@ package main
 
 import "testing"
 
-// TestAdd tests the basic addition function using table-driven tests
+// Add function for testing
+func Add(a, b int) int {
+	return a + b
+}
+
+// TestAdd demonstrates a simple test with table-driven pattern
 func TestAdd(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -10,8 +15,10 @@ func TestAdd(t *testing.T) {
 		expected int
 	}{
 		{"positive numbers", 2, 3, 5},
-		{"addition with zero", 5, 0, 5},
-		{"negative numbers", -2, -3, -5},
+		{"negative numbers", -1, -2, -3},
+		{"mixed numbers", -5, 10, 5},
+		{"zero values", 0, 0, 0},
+		{"one zero", 5, 0, 5},
 	}
 
 	for _, tt := range tests {
@@ -24,7 +31,19 @@ func TestAdd(t *testing.T) {
 	}
 }
 
-// Add performs basic addition of two integers
-func Add(a, b int) int {
-	return a + b
+// TestAddBoundaryConditions tests edge cases
+func TestAddBoundaryConditions(t *testing.T) {
+	// Test with large numbers
+	result := Add(1000000, 2000000)
+	expected := 3000000
+	if result != expected {
+		t.Errorf("Add(1000000, 2000000) = %d; expected %d", result, expected)
+	}
+
+	// Test with negative boundary
+	result = Add(-1000, 1000)
+	expected = 0
+	if result != expected {
+		t.Errorf("Add(-1000, 1000) = %d; expected %d", result, expected)
+	}
 }
