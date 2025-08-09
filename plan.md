@@ -36,36 +36,36 @@ The approach prioritizes simplicity by extending the existing `alpine-ag-ui-emit
   * internal/events/agui_types.go
   * internal/server/interfaces.go
 
-## Feature 2: Extend Existing Hook Infrastructure
+## Feature 2: Extend Existing Hook Infrastructure [IMPLEMENTED]
 
-#### Task 2.1: Extend alpine-ag-ui-emitter.rs for Tool Call Capture
+#### Task 2.1: Extend alpine-ag-ui-emitter.rs for Tool Call Capture [IMPLEMENTED]
 - Acceptance Criteria:
-  * Extend existing `alpine-ag-ui-emitter.rs` to handle PreToolUse and PostToolUse events
-  * Add tool call correlation ID generation and tracking
-  * Implement event batching with configurable batch size (default: 10 events)
-  * Add event sampling for high-frequency tools (configurable rate, default: 100%)
+  * ✅ Extend existing `alpine-ag-ui-emitter.rs` to handle PreToolUse and PostToolUse events
+  * ✅ Add tool call correlation ID generation and tracking
+  * ✅ Implement event batching with configurable batch size (default: 10 events)
+  * ✅ Add event sampling for high-frequency tools (configurable rate, default: 100%)
 - Test Cases:
-  * Test extended hook script with various Claude tools and batching behavior
+  * ✅ Test extended hook script with various Claude tools and batching behavior
 - Integration Points:
-  * Maintain compatibility with existing AG-UI event emission
-  * Ensure proper integration with Claude Code hook system
+  * ✅ Maintain compatibility with existing AG-UI event emission
+  * ✅ Ensure proper integration with Claude Code hook system
 - Files to Modify/Create:
-  * hooks/alpine-ag-ui-emitter.rs
+  * ✅ hooks/alpine-ag-ui-emitter.rs
 
-#### Task 2.2: Enhance Hook Configuration for Tool Call Events
+#### Task 2.2: Enhance Hook Configuration for Tool Call Events [IMPLEMENTED]
 - Acceptance Criteria:
-  * Extend existing hook configuration to capture PreToolUse and PostToolUse events
-  * Configure hooks with proper matchers for all tool types
-  * Add `ALPINE_TOOL_CALL_EVENTS_ENABLED` environment variable (default: false)
-  * Add `ALPINE_TOOL_CALL_BATCH_SIZE` and `ALPINE_TOOL_CALL_SAMPLE_RATE` configuration
+  * ✅ Extend existing hook configuration to capture PreToolUse and PostToolUse events
+  * ✅ Configure hooks with proper matchers for all tool types
+  * ✅ Add `ALPINE_TOOL_CALL_EVENTS_ENABLED` environment variable (default: false)
+  * ✅ Add `ALPINE_TOOL_CALL_BATCH_SIZE` and `ALPINE_TOOL_CALL_SAMPLE_RATE` configuration
 - Test Cases:
-  * Test hook configuration with feature toggles and performance settings
+  * ✅ Test hook configuration with feature toggles and performance settings
 - Integration Points:
-  * Extend existing agui_hooks.go functionality
-  * Integrate with centralized configuration system
+  * ✅ Extend existing agui_hooks.go functionality
+  * ✅ Integrate with centralized configuration system
 - Files to Modify/Create:
-  * internal/claude/agui_hooks.go
-  * internal/config/config.go
+  * ✅ internal/claude/agui_hooks.go
+  * ✅ internal/config/config.go
 
 ## Feature 3: Event Processing and Performance
 

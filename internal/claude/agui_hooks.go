@@ -99,6 +99,68 @@ func (e *Executor) GetAgUIHookScriptPath() (string, error) {
 	return "", fmt.Errorf("ag-ui hook script not found in any expected location")
 }
 
+// SetupToolCallEventHooks sets up hooks for tool call event capture with PreToolUse and PostToolUse
+// Returns a cleanup function and error
+func (e *Executor) SetupToolCallEventHooks(eventEndpoint, runID string, batchSize, sampleRate int) (cleanup func(), err error) {
+	logger.Debug("Setting up tool call event hooks")
+
+	// Create .claude directory in current working directory
+	claudeDir := ".claude"
+	if err := os.MkdirAll(claudeDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create .claude directory: %w", err)
+	}
+
+	// Get absolute path to ag-ui hook script
+	hookScriptPath, err := e.GetAgUIHookScriptPath()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ag-ui hook script path: %w", err)
+	}
+
+	// Verify hook script exists
+	if _, err := os.Stat(hookScriptPath); err != nil {
+		return nil, fmt.Errorf("ag-ui hook script not found at %s: %w", hookScriptPath, err)
+	}
+
+	// Generate Claude settings with both PreToolUse and PostToolUse hooks
+	settingsPath := filepath.Join(claudeDir, "settings.json")
+	if err := e.generateToolCallEventClaudeSettings(settingsPath, hookScriptPath); err != nil {
+		return nil, fmt.Errorf("failed to generate Claude settings: %w", err)
+	}
+
+	// Store environment variables needed for hooks in executor
+	if e.envVars == nil {
+		e.envVars = make(map[string]string)
+	}
+	e.envVars["ALPINE_EVENTS_ENDPOINT"] = eventEndpoint
+	e.envVars["ALPINE_RUN_ID"] = runID
+	e.envVars["ALPINE_TOOL_CALL_BATCH_SIZE"] = fmt.Sprintf("%d", batchSize)
+	e.envVars["ALPINE_TOOL_CALL_SAMPLE_RATE"] = fmt.Sprintf("%d", sampleRate)
+
+	logger.WithFields(map[string]interface{}{
+		"hook_script":    hookScriptPath,
+		"settings_file":  settingsPath,
+		"event_endpoint": eventEndpoint,
+		"run_id":         runID,
+		"batch_size":     batchSize,
+		"sample_rate":    sampleRate,
+	}).Debug("tool call event hooks setup completed")
+
+	// Return cleanup function
+	cleanup = func() {
+		logger.Debug("Cleaning up tool call event hooks")
+		_ = os.Remove(settingsPath)
+		// Don't remove .claude directory - may contain user's own settings
+
+		// Clear environment variables
+		delete(e.envVars, "ALPINE_EVENTS_ENDPOINT")
+		delete(e.envVars, "ALPINE_RUN_ID")
+		delete(e.envVars, "ALPINE_TOOL_CALL_BATCH_SIZE")
+		delete(e.envVars, "ALPINE_TOOL_CALL_SAMPLE_RATE")
+	}
+
+	return cleanup, nil
+}
+
 // generateAgUIClaudeSettings creates the Claude Code settings.json file with ag-ui hook configuration
 func (e *Executor) generateAgUIClaudeSettings(settingsPath, hookScriptPath string) error {
 	settings := hookSettings{
@@ -129,5 +191,49 @@ func (e *Executor) generateAgUIClaudeSettings(settingsPath, hookScriptPath strin
 	}
 
 	logger.WithField("settings_path", settingsPath).Debug("Generated ag-ui Claude settings file")
+	return nil
+}
+
+// generateToolCallEventClaudeSettings creates Claude settings with both PreToolUse and PostToolUse hooks
+func (e *Executor) generateToolCallEventClaudeSettings(settingsPath, hookScriptPath string) error {
+	settings := hookSettings{
+		Hooks: map[string]interface{}{
+			"PreToolUse": []toolMatcher{
+				{
+					Matcher: ".*",
+					Hooks: []map[string]interface{}{
+						{
+							"command": hookScriptPath,
+							"type":    "command",
+						},
+					},
+				},
+			},
+			"PostToolUse": []toolMatcher{
+				{
+					Matcher: ".*",
+					Hooks: []map[string]interface{}{
+						{
+							"command": hookScriptPath,
+							"type":    "command",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Marshal to JSON
+	settingsJSON, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal settings: %w", err)
+	}
+
+	// Write settings file
+	if err := os.WriteFile(settingsPath, settingsJSON, 0644); err != nil {
+		return fmt.Errorf("failed to write settings file: %w", err)
+	}
+
+	logger.WithField("settings_path", settingsPath).Debug("Generated tool call event Claude settings file")
 	return nil
 }

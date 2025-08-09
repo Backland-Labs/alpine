@@ -67,6 +67,18 @@ type ServerConfig struct {
 	MaxClientsPerRun int
 }
 
+// ToolCallEventsConfig holds tool call event capture configuration
+type ToolCallEventsConfig struct {
+	// Enabled controls whether tool call events are captured and emitted
+	Enabled bool
+
+	// BatchSize is the number of events to batch before sending (default: 10)
+	BatchSize int
+
+	// SampleRate is the percentage of events to capture (1-100, default: 100)
+	SampleRate int
+}
+
 // Config holds all configuration for the Alpine CLI
 type Config struct {
 	// WorkDir is the working directory for Claude execution
@@ -95,6 +107,9 @@ type Config struct {
 
 	// Server holds server-related configuration
 	Server ServerConfig
+
+	// ToolCallEvents holds tool call event capture configuration
+	ToolCallEvents ToolCallEventsConfig
 }
 
 // New creates a new Config instance from environment variables
@@ -282,6 +297,46 @@ func New() (*Config, error) {
 		} else {
 			cfg.Server.MaxClientsPerRun = maxClients
 		}
+	}
+
+	// Load ToolCallEvents configuration
+	cfg.ToolCallEvents = ToolCallEventsConfig{}
+
+	// Load ToolCallEvents.Enabled - defaults to false
+	toolCallEventsEnabled, err := parseBoolEnv("ALPINE_TOOL_CALL_EVENTS_ENABLED", false)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ToolCallEvents.Enabled = toolCallEventsEnabled
+
+	// Load ToolCallEvents.BatchSize - defaults to 10
+	batchSizeStr := os.Getenv("ALPINE_TOOL_CALL_BATCH_SIZE")
+	if batchSizeStr == "" {
+		cfg.ToolCallEvents.BatchSize = 10
+	} else {
+		batchSize, err := strconv.Atoi(batchSizeStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ALPINE_TOOL_CALL_BATCH_SIZE: %w", err)
+		}
+		if batchSize <= 0 {
+			return nil, fmt.Errorf("ALPINE_TOOL_CALL_BATCH_SIZE must be positive, got: %d", batchSize)
+		}
+		cfg.ToolCallEvents.BatchSize = batchSize
+	}
+
+	// Load ToolCallEvents.SampleRate - defaults to 100
+	sampleRateStr := os.Getenv("ALPINE_TOOL_CALL_SAMPLE_RATE")
+	if sampleRateStr == "" {
+		cfg.ToolCallEvents.SampleRate = 100
+	} else {
+		sampleRate, err := strconv.Atoi(sampleRateStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ALPINE_TOOL_CALL_SAMPLE_RATE: %w", err)
+		}
+		if sampleRate < 1 || sampleRate > 100 {
+			return nil, fmt.Errorf("ALPINE_TOOL_CALL_SAMPLE_RATE must be between 1 and 100, got: %d", sampleRate)
+		}
+		cfg.ToolCallEvents.SampleRate = sampleRate
 	}
 
 	return cfg, nil
