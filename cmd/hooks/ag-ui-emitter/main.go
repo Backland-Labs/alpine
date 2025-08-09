@@ -9,7 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -48,42 +48,141 @@ type CircuitBreakerState struct {
 	IsOpen       bool      `json:"is_open"`
 }
 
+// Logger provides structured logging for the hook
+type Logger struct {
+	runID   string
+	verbose bool
+}
+
+func newLogger(runID string) *Logger {
+	verbose := os.Getenv("ALPINE_HOOK_VERBOSE") == "true"
+	return &Logger{
+		runID:   runID,
+		verbose: verbose,
+	}
+}
+
+func (l *Logger) logJSON(level string, message string, data map[string]interface{}) {
+	logEntry := map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"level":     level,
+		"component": "ag-ui-emitter",
+		"run_id":    l.runID,
+		"message":   message,
+	}
+
+	// Add additional data
+	for k, v := range data {
+		logEntry[k] = v
+	}
+
+	jsonBytes, _ := json.Marshal(logEntry)
+	fmt.Fprintln(os.Stderr, string(jsonBytes))
+}
+
+func (l *Logger) Info(message string, data map[string]interface{}) {
+	l.logJSON("INFO", message, data)
+}
+
+func (l *Logger) Debug(message string, data map[string]interface{}) {
+	if l.verbose {
+		l.logJSON("DEBUG", message, data)
+	}
+}
+
+func (l *Logger) Error(message string, data map[string]interface{}) {
+	l.logJSON("ERROR", message, data)
+}
+
+func (l *Logger) Warn(message string, data map[string]interface{}) {
+	l.logJSON("WARN", message, data)
+}
+
 func main() {
+	startTime := time.Now()
+
+	// Initialize logger (will get run ID later)
+	logger := newLogger("unknown")
+
+	logger.Info("Hook execution started", map[string]interface{}{
+		"hook_type": "ag-ui-emitter",
+		"pid":       os.Getpid(),
+	})
+
 	// Check circuit breaker first
 	if isCircuitBreakerOpen() {
-		fmt.Fprintln(os.Stderr, "Circuit breaker is open, skipping hook execution")
+		logger.Warn("Circuit breaker is open, skipping hook execution", map[string]interface{}{
+			"circuit_breaker_file": circuitBreakerFile,
+		})
 		return
 	}
 
 	// Read tool data from stdin
 	input, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to read input: %v\n", err)
+		logger.Error("Failed to read input from stdin", map[string]interface{}{
+			"error": err.Error(),
+		})
 		recordFailure()
 		return
 	}
+
+	logger.Debug("Raw input received", map[string]interface{}{
+		"input_size":    len(input),
+		"input_preview": string(input)[:min(len(input), 200)] + "...",
+	})
 
 	// Parse the JSON data
 	var toolData ToolData
 	if err = json.Unmarshal(input, &toolData); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to parse tool data: %v\n", err)
+		logger.Error("Failed to parse tool data JSON", map[string]interface{}{
+			"error": err.Error(),
+			"input": string(input),
+		})
 		recordFailure()
 		return
 	}
 
-	// Log that hook was called
-	fmt.Fprintf(os.Stderr, "HOOK CALLED: tool=%s\n", toolData.ToolName)
-
 	// Get environment variables
 	endpoint := os.Getenv("ALPINE_EVENTS_ENDPOINT")
-	if endpoint == "" {
-		fmt.Fprintln(os.Stderr, "ALPINE_EVENTS_ENDPOINT not set, skipping event emission")
-		return
-	}
-
 	runID := os.Getenv("ALPINE_RUN_ID")
 	if runID == "" {
 		runID = "unknown"
+	}
+
+	// Update logger with actual run ID
+	logger.runID = runID
+
+	// Log detailed tool call information
+	logger.Info("Tool call hook triggered", map[string]interface{}{
+		"tool_name":    toolData.ToolName,
+		"event_type":   toolData.Event,
+		"tool_call_id": toolData.ToolCallID,
+		"timestamp":    toolData.Timestamp,
+		"has_input":    len(toolData.ToolInput) > 0,
+		"has_output":   len(toolData.ToolOutput) > 0,
+		"input_size":   len(toolData.ToolInput),
+		"output_size":  len(toolData.ToolOutput),
+	})
+
+	// Log tool input/output (sanitized)
+	if len(toolData.ToolInput) > 0 {
+		logger.Debug("Tool input data", map[string]interface{}{
+			"tool_input": sanitizeToolData(toolData.ToolInput),
+		})
+	}
+
+	if len(toolData.ToolOutput) > 0 {
+		logger.Debug("Tool output data", map[string]interface{}{
+			"tool_output": sanitizeToolData(toolData.ToolOutput),
+		})
+	}
+
+	if endpoint == "" {
+		logger.Warn("ALPINE_EVENTS_ENDPOINT not set, skipping event emission", map[string]interface{}{
+			"available_env_vars": getAvailableEnvVars(),
+		})
+		return
 	}
 
 	batchSize := 10
@@ -96,20 +195,37 @@ func main() {
 		fmt.Sscanf(sr, "%d", &sampleRate)
 	}
 
+	logger.Info("Hook configuration loaded", map[string]interface{}{
+		"endpoint":    endpoint,
+		"batch_size":  batchSize,
+		"sample_rate": sampleRate,
+	})
+
 	// Apply sampling - skip event if random number is above sample rate
 	if sampleRate < 100 {
 		rand.Seed(time.Now().UnixNano())
 		randomValue := rand.Intn(100) + 1
 		if randomValue > sampleRate {
-			fmt.Fprintf(os.Stderr, "Event sampled out (%d%% rate)\n", sampleRate)
+			logger.Info("Event sampled out", map[string]interface{}{
+				"sample_rate":  sampleRate,
+				"random_value": randomValue,
+				"tool_name":    toolData.ToolName,
+			})
 			return
 		}
+		logger.Debug("Event passed sampling", map[string]interface{}{
+			"sample_rate":  sampleRate,
+			"random_value": randomValue,
+		})
 	}
 
 	// Generate or use existing tool call ID
 	toolCallID := toolData.ToolCallID
 	if toolCallID == "" {
 		toolCallID = uuid.New().String()
+		logger.Debug("Generated new tool call ID", map[string]interface{}{
+			"tool_call_id": toolCallID,
+		})
 	}
 
 	// Determine event type based on whether we have tool output
@@ -117,6 +233,12 @@ func main() {
 	if len(toolData.ToolOutput) > 0 && string(toolData.ToolOutput) != "null" {
 		eventType = "ToolCallEnd"
 	}
+
+	logger.Info("Creating AG-UI event", map[string]interface{}{
+		"event_type":   eventType,
+		"tool_call_id": toolCallID,
+		"tool_name":    toolData.ToolName,
+	})
 
 	// Create event
 	event := AgUIEvent{
@@ -138,25 +260,42 @@ func main() {
 	// Handle batching with error handling
 	var sendErr error
 	if batchSize > 1 {
-		sendErr = addToBatch(&event, batchSize, endpoint)
+		logger.Debug("Attempting to add event to batch", map[string]interface{}{
+			"batch_size": batchSize,
+			"batch_file": batchFile,
+		})
+		sendErr = addToBatch(&event, batchSize, endpoint, logger)
 		if sendErr != nil {
-			fmt.Fprintf(os.Stderr, "Failed to add event to batch: %v, trying direct send\n", sendErr)
-			sendErr = sendEvent(endpoint, &event)
+			logger.Warn("Failed to add event to batch, trying direct send", map[string]interface{}{
+				"error": sendErr.Error(),
+			})
+			sendErr = sendEvent(endpoint, &event, logger)
 		}
 	} else {
-		sendErr = sendEvent(endpoint, &event)
+		logger.Debug("Sending event directly (batch size = 1)", nil)
+		sendErr = sendEvent(endpoint, &event, logger)
 	}
 
+	duration := time.Since(startTime)
+
 	if sendErr != nil {
-		fmt.Fprintf(os.Stderr, "Failed to send event: %v\n", sendErr)
+		logger.Error("Failed to send event", map[string]interface{}{
+			"error":    sendErr.Error(),
+			"duration": duration.String(),
+		})
 		recordFailure()
 	} else {
 		recordSuccess()
-		fmt.Fprintln(os.Stderr, "Event sent successfully")
+		logger.Info("Hook execution completed successfully", map[string]interface{}{
+			"duration":     duration.String(),
+			"event_type":   eventType,
+			"tool_name":    toolData.ToolName,
+			"tool_call_id": toolCallID,
+		})
 	}
 }
 
-func addToBatch(event *AgUIEvent, batchSize int, endpoint string) error {
+func addToBatch(event *AgUIEvent, batchSize int, endpoint string, logger *Logger) error {
 	// Read existing batch or create new one
 	var events []AgUIEvent
 
@@ -168,20 +307,33 @@ func addToBatch(event *AgUIEvent, batchSize int, endpoint string) error {
 				events = append(events, e)
 			}
 		}
+		logger.Debug("Loaded existing batch", map[string]interface{}{
+			"existing_events": len(events),
+		})
 	}
 
 	// Add current event to batch
 	events = append(events, *event)
+	logger.Debug("Added event to batch", map[string]interface{}{
+		"batch_size":     len(events),
+		"max_batch_size": batchSize,
+	})
 
 	// Check if batch is full
 	if len(events) >= batchSize {
+		logger.Info("Batch is full, sending batch", map[string]interface{}{
+			"batch_size": len(events),
+			"endpoint":   endpoint,
+		})
+
 		// Send batch
-		if err := sendBatch(endpoint, events); err != nil {
+		if err := sendBatch(endpoint, events, logger); err != nil {
 			return fmt.Errorf("failed to send batch: %w", err)
 		}
 
 		// Clear batch file
 		os.Remove(batchFile)
+		logger.Debug("Cleared batch file after successful send", nil)
 	} else {
 		// Write updated batch back to file
 		file, err := os.Create(batchFile)
@@ -197,12 +349,17 @@ func addToBatch(event *AgUIEvent, batchSize int, endpoint string) error {
 			}
 			fmt.Fprintln(file, string(data))
 		}
+
+		logger.Debug("Updated batch file", map[string]interface{}{
+			"events_in_batch": len(events),
+			"batch_file":      batchFile,
+		})
 	}
 
 	return nil
 }
 
-func sendBatch(endpoint string, events []AgUIEvent) error {
+func sendBatch(endpoint string, events []AgUIEvent, logger *Logger) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -216,21 +373,40 @@ func sendBatch(endpoint string, events []AgUIEvent) error {
 		return fmt.Errorf("failed to marshal batch: %w", err)
 	}
 
+	logger.Debug("Sending batch HTTP request", map[string]interface{}{
+		"endpoint":     endpoint,
+		"event_count":  len(events),
+		"payload_size": len(data),
+	})
+
 	resp, err := client.Post(endpoint, "application/json", bytes.NewReader(data))
 	if err != nil {
+		logger.Error("HTTP request failed", map[string]interface{}{
+			"error":    err.Error(),
+			"endpoint": endpoint,
+		})
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
+		logger.Error("HTTP error response", map[string]interface{}{
+			"status_code": resp.StatusCode,
+			"status":      resp.Status,
+			"endpoint":    endpoint,
+		})
 		return fmt.Errorf("HTTP error: %d", resp.StatusCode)
 	}
 
-	fmt.Fprintf(os.Stderr, "Sent batch of %d events\n", len(events))
+	logger.Info("Batch sent successfully", map[string]interface{}{
+		"event_count": len(events),
+		"status_code": resp.StatusCode,
+		"endpoint":    endpoint,
+	})
 	return nil
 }
 
-func sendEvent(endpoint string, event *AgUIEvent) error {
+func sendEvent(endpoint string, event *AgUIEvent, logger *Logger) error {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
@@ -240,16 +416,36 @@ func sendEvent(endpoint string, event *AgUIEvent) error {
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
+	logger.Debug("Sending single event HTTP request", map[string]interface{}{
+		"endpoint":     endpoint,
+		"event_type":   event.EventType,
+		"payload_size": len(data),
+	})
+
 	resp, err := client.Post(endpoint, "application/json", bytes.NewReader(data))
 	if err != nil {
+		logger.Error("HTTP request failed", map[string]interface{}{
+			"error":    err.Error(),
+			"endpoint": endpoint,
+		})
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
+		logger.Error("HTTP error response", map[string]interface{}{
+			"status_code": resp.StatusCode,
+			"status":      resp.Status,
+			"endpoint":    endpoint,
+		})
 		return fmt.Errorf("HTTP error: %d", resp.StatusCode)
 	}
 
+	logger.Info("Event sent successfully", map[string]interface{}{
+		"event_type":  event.EventType,
+		"status_code": resp.StatusCode,
+		"endpoint":    endpoint,
+	})
 	return nil
 }
 
@@ -278,6 +474,7 @@ func isCircuitBreakerOpen() bool {
 func recordFailure() {
 	var state CircuitBreakerState
 
+	// Load existing state
 	if data, err := os.ReadFile(circuitBreakerFile); err == nil {
 		json.Unmarshal(data, &state)
 	}
@@ -296,16 +493,16 @@ func recordFailure() {
 func recordSuccess() {
 	var state CircuitBreakerState
 
+	// Load existing state
 	if data, err := os.ReadFile(circuitBreakerFile); err == nil {
 		json.Unmarshal(data, &state)
 	}
 
 	// Reset failure count on success
-	if state.FailureCount > 0 {
-		state.FailureCount = 0
-		state.IsOpen = false
-		saveCircuitBreakerState(&state)
-	}
+	state.FailureCount = 0
+	state.IsOpen = false
+
+	saveCircuitBreakerState(&state)
 }
 
 func saveCircuitBreakerState(state *CircuitBreakerState) {
@@ -314,7 +511,50 @@ func saveCircuitBreakerState(state *CircuitBreakerState) {
 		return
 	}
 
-	dir := filepath.Dir(circuitBreakerFile)
-	os.MkdirAll(dir, 0755)
 	os.WriteFile(circuitBreakerFile, data, 0644)
+}
+
+// sanitizeToolData removes sensitive information from tool data for logging
+func sanitizeToolData(data json.RawMessage) interface{} {
+	var parsed interface{}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return string(data)[:min(len(data), 100)] + "..."
+	}
+
+	// If it's a map, sanitize sensitive fields
+	if m, ok := parsed.(map[string]interface{}); ok {
+		sanitized := make(map[string]interface{})
+		for k, v := range m {
+			key := strings.ToLower(k)
+			if strings.Contains(key, "password") ||
+				strings.Contains(key, "token") ||
+				strings.Contains(key, "secret") ||
+				strings.Contains(key, "key") {
+				sanitized[k] = "[REDACTED]"
+			} else {
+				sanitized[k] = v
+			}
+		}
+		return sanitized
+	}
+
+	return parsed
+}
+
+// getAvailableEnvVars returns a list of available ALPINE_* environment variables
+func getAvailableEnvVars() []string {
+	var alpineVars []string
+	for _, env := range os.Environ() {
+		if strings.HasPrefix(env, "ALPINE_") {
+			alpineVars = append(alpineVars, env)
+		}
+	}
+	return alpineVars
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

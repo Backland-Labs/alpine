@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -38,167 +39,381 @@ type ToolInput struct {
 	Description string `json:"description"`
 }
 
+// Logger provides structured logging for the TODO monitor hook
+type Logger struct {
+	runID   string
+	verbose bool
+}
+
+func newLogger() *Logger {
+	runID := os.Getenv("ALPINE_RUN_ID")
+	if runID == "" {
+		runID = "unknown"
+	}
+	verbose := os.Getenv("ALPINE_HOOK_VERBOSE") == "true"
+	return &Logger{
+		runID:   runID,
+		verbose: verbose,
+	}
+}
+
+func (l *Logger) logJSON(level string, message string, data map[string]interface{}) {
+	logEntry := map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"level":     level,
+		"component": "todo-monitor",
+		"run_id":    l.runID,
+		"message":   message,
+	}
+
+	// Add additional data
+	for k, v := range data {
+		logEntry[k] = v
+	}
+
+	jsonBytes, _ := json.Marshal(logEntry)
+	fmt.Fprintln(os.Stderr, string(jsonBytes))
+}
+
+func (l *Logger) Info(message string, data map[string]interface{}) {
+	l.logJSON("INFO", message, data)
+}
+
+func (l *Logger) Debug(message string, data map[string]interface{}) {
+	if l.verbose {
+		l.logJSON("DEBUG", message, data)
+	}
+}
+
+func (l *Logger) Error(message string, data map[string]interface{}) {
+	l.logJSON("ERROR", message, data)
+}
+
+func (l *Logger) Warn(message string, data map[string]interface{}) {
+	l.logJSON("WARN", message, data)
+}
+
 func main() {
+	startTime := time.Now()
+	logger := newLogger()
+
+	logger.Info("TODO monitor hook execution started", map[string]interface{}{
+		"hook_type": "todo-monitor",
+		"pid":       os.Getpid(),
+	})
+
 	// Read JSON input from Claude Code
 	input, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		return // Exit gracefully
+		logger.Error("Failed to read input from stdin", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return
 	}
+
+	logger.Debug("Raw input received", map[string]interface{}{
+		"input_size":    len(input),
+		"input_preview": string(input)[:min(len(input), 200)] + "...",
+	})
 
 	var data HookData
 	if err := json.Unmarshal(input, &data); err != nil {
-		return // Exit gracefully on invalid JSON
-	}
-
-	// Get timestamp
-	timestamp := time.Now().Format("15:04:05")
-
-	// Check if this is a subagent:stop event
-	if data.HookEventName == "SubagentStop" {
-		handleSubagentStop(&data, timestamp)
+		logger.Error("Failed to parse hook data JSON", map[string]interface{}{
+			"error": err.Error(),
+			"input": string(input),
+		})
 		return
 	}
 
-	// Get tool name from either field
+	logger.Info("Hook data parsed successfully", map[string]interface{}{
+		"hook_event_name":  data.HookEventName,
+		"tool_name":        data.ToolName,
+		"tool":             data.Tool,
+		"session_id":       data.SessionID,
+		"transcript_path":  data.TranscriptPath,
+		"stop_hook_active": data.StopHookActive,
+		"has_tool_input":   len(data.ToolInput) > 0,
+		"has_args":         len(data.Args) > 0,
+	})
+
+	// Handle subagent:stop events
+	if data.HookEventName == "subagent:stop" {
+		logger.Info("Subagent stop event received", map[string]interface{}{
+			"session_id": data.SessionID,
+		})
+		fmt.Fprintln(os.Stderr, "🔄 Subagent completed")
+		duration := time.Since(startTime)
+		logger.Info("TODO monitor hook completed", map[string]interface{}{
+			"duration":   duration.String(),
+			"event_type": "subagent_stop",
+		})
+		return
+	}
+
+	// Process tool-specific events
 	toolName := data.ToolName
 	if toolName == "" {
-		toolName = data.Tool
+		toolName = data.Tool // Fallback to legacy field
 	}
 
-	// Get tool input from either field
-	var toolInputRaw json.RawMessage
-	if len(data.ToolInput) > 0 {
-		toolInputRaw = data.ToolInput
-	} else if len(data.Args) > 0 {
-		toolInputRaw = data.Args
-	}
-
-	// Process and display all tool calls
-	switch toolName {
-	case "TodoWrite":
-		handleTodoWrite(toolInputRaw, timestamp)
-	case "Read":
-		var input ToolInput
-		if err := json.Unmarshal(toolInputRaw, &input); err == nil && input.FilePath != "" {
-			fmt.Fprintf(os.Stderr, "[%s] [READ] Reading file: %s\n", timestamp, input.FilePath)
-		}
-	case "Write":
-		var input ToolInput
-		if err := json.Unmarshal(toolInputRaw, &input); err == nil && input.FilePath != "" {
-			fmt.Fprintf(os.Stderr, "[%s] [WRITE] Writing file: %s\n", timestamp, input.FilePath)
-		}
-	case "Edit", "MultiEdit":
-		var input ToolInput
-		if err := json.Unmarshal(toolInputRaw, &input); err == nil && input.FilePath != "" {
-			fmt.Fprintf(os.Stderr, "[%s] [EDIT] Editing file: %s\n", timestamp, input.FilePath)
-		}
-	case "Bash":
-		var input ToolInput
-		if err := json.Unmarshal(toolInputRaw, &input); err == nil && input.Command != "" {
-			fmt.Fprintf(os.Stderr, "[%s] [BASH] Executing: %s\n", timestamp, input.Command)
-		}
-	case "Grep":
-		var input ToolInput
-		if err := json.Unmarshal(toolInputRaw, &input); err == nil && input.Pattern != "" {
-			path := input.Path
-			if path == "" {
-				path = "."
-			}
-			fmt.Fprintf(os.Stderr, "[%s] [GREP] Searching for '%s' in %s\n", timestamp, input.Pattern, path)
-		}
-	case "Glob":
-		var input ToolInput
-		if err := json.Unmarshal(toolInputRaw, &input); err == nil && input.Pattern != "" {
-			path := input.Path
-			if path == "" {
-				path = "."
-			}
-			fmt.Fprintf(os.Stderr, "[%s] [GLOB] Finding files matching '%s' in %s\n", timestamp, input.Pattern, path)
-		}
-	case "LS":
-		var input ToolInput
-		if err := json.Unmarshal(toolInputRaw, &input); err == nil && input.Path != "" {
-			fmt.Fprintf(os.Stderr, "[%s] [LS] Listing directory: %s\n", timestamp, input.Path)
-		}
-	case "WebFetch":
-		var input ToolInput
-		if err := json.Unmarshal(toolInputRaw, &input); err == nil && input.URL != "" {
-			fmt.Fprintf(os.Stderr, "[%s] [WEB] Fetching: %s\n", timestamp, input.URL)
-		}
-	case "WebSearch":
-		var input ToolInput
-		if err := json.Unmarshal(toolInputRaw, &input); err == nil && input.Query != "" {
-			fmt.Fprintf(os.Stderr, "[%s] [SEARCH] Searching web for: %s\n", timestamp, input.Query)
-		}
-	case "Task":
-		var input ToolInput
-		if err := json.Unmarshal(toolInputRaw, &input); err == nil && input.Description != "" {
-			fmt.Fprintf(os.Stderr, "[%s] [TASK] Launching agent: %s\n", timestamp, input.Description)
-		}
-	case "":
-		// No tool name, ignore
-	default:
-		// Other tools - show generic message
-		fmt.Fprintf(os.Stderr, "[%s] [TOOL] Using: %s\n", timestamp, toolName)
-	}
-}
-
-func handleTodoWrite(toolInputRaw json.RawMessage, timestamp string) {
-	var input TodoWriteInput
-	if err := json.Unmarshal(toolInputRaw, &input); err != nil {
+	if toolName == "" {
+		logger.Debug("No tool name found, skipping processing", nil)
 		return
 	}
 
-	// Count todo statuses
-	var pending, inProgress, completed int
-	var currentTask string
+	logger.Info("Processing tool event", map[string]interface{}{
+		"tool_name":  toolName,
+		"event_name": data.HookEventName,
+	})
 
-	for _, todo := range input.Todos {
-		switch todo.Status {
-		case "pending":
-			pending++
-		case "in_progress":
-			inProgress++
-			if currentTask == "" {
-				currentTask = todo.Content
-			}
-		case "completed":
-			completed++
-		}
+	// Handle TodoWrite tool specifically
+	if toolName == "todowrite" {
+		handleTodoWrite(data, logger)
+	} else {
+		// Handle other tools with general monitoring
+		handleGeneralTool(data, logger)
 	}
 
-	// Display todo summary
-	fmt.Fprintf(os.Stderr, "[%s] [TODO] Updated - Completed: %d, In Progress: %d, Pending: %d\n",
-		timestamp, completed, inProgress, pending)
+	duration := time.Since(startTime)
+	logger.Info("TODO monitor hook completed", map[string]interface{}{
+		"duration":  duration.String(),
+		"tool_name": toolName,
+	})
+}
 
-	// Display current task if any
-	if currentTask != "" {
-		fmt.Fprintf(os.Stderr, "[%s] [TODO] Current task: %s\n", timestamp, currentTask)
+func handleTodoWrite(data HookData, logger *Logger) {
+	logger.Debug("Processing TodoWrite tool", map[string]interface{}{
+		"tool_input_size": len(data.ToolInput),
+		"args_size":       len(data.Args),
+	})
 
-		// Write to todo file if environment variable is set
-		if todoFile := os.Getenv("ALPINE_TODO_FILE"); todoFile != "" {
-			os.WriteFile(todoFile, []byte(currentTask), 0644)
+	// Parse tool input to extract todos
+	var input TodoWriteInput
+	var inputData json.RawMessage
+
+	// Try tool_input first, then args (for backward compatibility)
+	if len(data.ToolInput) > 0 {
+		inputData = data.ToolInput
+	} else if len(data.Args) > 0 {
+		inputData = data.Args
+	} else {
+		logger.Debug("No input data found for TodoWrite", nil)
+		return
+	}
+
+	if err := json.Unmarshal(inputData, &input); err != nil {
+		logger.Error("Failed to parse TodoWrite input", map[string]interface{}{
+			"error": err.Error(),
+			"input": string(inputData),
+		})
+		return
+	}
+
+	logger.Info("TodoWrite input parsed", map[string]interface{}{
+		"todo_count": len(input.Todos),
+	})
+
+	// Display current task progress
+	if len(input.Todos) > 0 {
+		displayTaskProgress(input.Todos, logger)
+
+		// Write current task to file if configured
+		if taskFile := os.Getenv("ALPINE_TODO_FILE"); taskFile != "" {
+			writeCurrentTaskToFile(input.Todos, taskFile, logger)
 		}
 	}
 }
 
-func handleSubagentStop(data *HookData, timestamp string) {
-	// Extract subagent stop information
-	sessionID := data.SessionID
-	if sessionID == "" {
-		sessionID = "unknown"
+func handleGeneralTool(data HookData, logger *Logger) {
+	logger.Debug("Processing general tool", map[string]interface{}{
+		"tool_name": data.ToolName,
+		"tool":      data.Tool,
+	})
+
+	// Parse tool input for context
+	var toolInput ToolInput
+	var inputData json.RawMessage
+
+	if len(data.ToolInput) > 0 {
+		inputData = data.ToolInput
+	} else if len(data.Args) > 0 {
+		inputData = data.Args
 	}
 
-	transcriptPath := data.TranscriptPath
-	if transcriptPath == "" {
-		transcriptPath = "unknown"
+	if len(inputData) > 0 {
+		if err := json.Unmarshal(inputData, &toolInput); err == nil {
+			logger.Debug("Tool input parsed", map[string]interface{}{
+				"file_path":   toolInput.FilePath,
+				"command":     toolInput.Command,
+				"pattern":     toolInput.Pattern,
+				"path":        toolInput.Path,
+				"url":         toolInput.URL,
+				"query":       toolInput.Query,
+				"description": toolInput.Description,
+			})
+
+			// Display tool usage information
+			displayToolUsage(data.ToolName, toolInput, logger)
+		} else {
+			logger.Debug("Failed to parse tool input as ToolInput struct", map[string]interface{}{
+				"error":     err.Error(),
+				"raw_input": sanitizeToolData(inputData),
+			})
+		}
+	}
+}
+
+func displayTaskProgress(todos []TodoItem, logger *Logger) {
+	inProgress := 0
+	completed := 0
+	pending := 0
+
+	for _, todo := range todos {
+		switch strings.ToLower(todo.Status) {
+		case "in_progress":
+			inProgress++
+		case "completed":
+			completed++
+		case "pending":
+			pending++
+		}
 	}
 
-	fmt.Fprintf(os.Stderr, "[%s] [AGENT] Subagent completed - Session: %s\n", timestamp, sessionID)
+	logger.Info("Task progress summary", map[string]interface{}{
+		"total_tasks":     len(todos),
+		"in_progress":     inProgress,
+		"completed":       completed,
+		"pending":         pending,
+		"completion_rate": float64(completed) / float64(len(todos)) * 100,
+	})
 
-	// Only process transcript if stop_hook_active is false to prevent loops
-	if !data.StopHookActive && transcriptPath != "unknown" {
-		// Could process the transcript file here if needed
-		fmt.Fprintf(os.Stderr, "[%s] [AGENT] Transcript saved to: %s\n", timestamp, transcriptPath)
+	// Display current task to console
+	for _, todo := range todos {
+		if strings.ToLower(todo.Status) == "in_progress" {
+			fmt.Fprintf(os.Stderr, "🔄 Current Task: %s\n", todo.Content)
+			logger.Info("Current active task", map[string]interface{}{
+				"task_content": todo.Content,
+				"status":       todo.Status,
+			})
+			break
+		}
 	}
+
+	// Show progress bar
+	progressBar := createProgressBar(completed, len(todos))
+	fmt.Fprintf(os.Stderr, "📊 Progress: %s (%d/%d)\n", progressBar, completed, len(todos))
+}
+
+func displayToolUsage(toolName string, input ToolInput, logger *Logger) {
+	var displayText string
+
+	switch toolName {
+	case "read":
+		if input.FilePath != "" {
+			displayText = fmt.Sprintf("📖 Reading: %s", input.FilePath)
+		}
+	case "write":
+		if input.FilePath != "" {
+			displayText = fmt.Sprintf("✏️  Writing: %s", input.FilePath)
+		}
+	case "bash":
+		if input.Command != "" {
+			displayText = fmt.Sprintf("⚡ Running: %s", truncateString(input.Command, 50))
+		}
+	case "grep":
+		if input.Pattern != "" && input.Path != "" {
+			displayText = fmt.Sprintf("🔍 Searching: %s in %s", input.Pattern, input.Path)
+		}
+	case "glob":
+		if input.Pattern != "" {
+			displayText = fmt.Sprintf("📁 Finding: %s", input.Pattern)
+		}
+	case "webfetch":
+		if input.URL != "" {
+			displayText = fmt.Sprintf("🌐 Fetching: %s", input.URL)
+		}
+	default:
+		displayText = fmt.Sprintf("🔧 Using: %s", toolName)
+	}
+
+	if displayText != "" {
+		fmt.Fprintln(os.Stderr, displayText)
+		logger.Info("Tool usage displayed", map[string]interface{}{
+			"tool_name":    toolName,
+			"display_text": displayText,
+		})
+	}
+}
+
+func writeCurrentTaskToFile(todos []TodoItem, filename string, logger *Logger) {
+	for _, todo := range todos {
+		if strings.ToLower(todo.Status) == "in_progress" {
+			if err := os.WriteFile(filename, []byte(todo.Content), 0644); err != nil {
+				logger.Error("Failed to write current task to file", map[string]interface{}{
+					"error":    err.Error(),
+					"filename": filename,
+					"task":     todo.Content,
+				})
+			} else {
+				logger.Debug("Current task written to file", map[string]interface{}{
+					"filename": filename,
+					"task":     todo.Content,
+				})
+			}
+			break
+		}
+	}
+}
+
+func createProgressBar(completed, total int) string {
+	if total == 0 {
+		return "▓▓▓▓▓▓▓▓▓▓"
+	}
+
+	barLength := 10
+	filledLength := int(float64(completed) / float64(total) * float64(barLength))
+
+	bar := strings.Repeat("▓", filledLength) + strings.Repeat("░", barLength-filledLength)
+	return bar
+}
+
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
+}
+
+// sanitizeToolData removes sensitive information from tool data for logging
+func sanitizeToolData(data json.RawMessage) interface{} {
+	var parsed interface{}
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return string(data)[:min(len(data), 100)] + "..."
+	}
+
+	// If it's a map, sanitize sensitive fields
+	if m, ok := parsed.(map[string]interface{}); ok {
+		sanitized := make(map[string]interface{})
+		for k, v := range m {
+			key := strings.ToLower(k)
+			if strings.Contains(key, "password") ||
+				strings.Contains(key, "token") ||
+				strings.Contains(key, "secret") ||
+				strings.Contains(key, "key") {
+				sanitized[k] = "[REDACTED]"
+			} else {
+				sanitized[k] = v
+			}
+		}
+		return sanitized
+	}
+
+	return parsed
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
