@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Backland-Labs/alpine/internal/logger"
@@ -98,10 +99,14 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Debug("Decoding agent run payload")
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		logger.Infof("Invalid JSON payload in agentsRunHandler: %v", err)
+		// Check if the error is related to plan field type validation
+		if isPlanFieldTypeError(err) {
+			s.respondWithError(w, http.StatusBadRequest, "plan field must be a boolean value")
+			return
+		}
 		s.respondWithError(w, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
-
 	logger.WithFields(map[string]interface{}{
 		"issue_url": payload.IssueURL,
 		"agent_id":  payload.AgentID,
@@ -616,4 +621,11 @@ func (s *Server) planFeedbackHandler(w http.ResponseWriter, r *http.Request) {
 		"status": "feedback_received",
 		"runId":  runID,
 	})
+}
+
+// isPlanFieldTypeError checks if a JSON unmarshal error is specifically related to
+// the plan field having an invalid type (non-boolean)
+func isPlanFieldTypeError(err error) bool {
+	errStr := err.Error()
+	return strings.Contains(errStr, "cannot unmarshal") && strings.Contains(errStr, "into Go struct field .plan")
 }

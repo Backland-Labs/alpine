@@ -41,7 +41,9 @@ This plan adds support for an optional `plan` boolean field in the REST API `/ag
 - Files to Modify/Create:
   * /internal/server/handlers.go
 
-#### Task 1.4: Add Validation for Plan Field
+#### Task 1.4: Add Validation for Plan Field - COMPLETED
+- Implementation Date: 2025-08-08
+- Status: Completed
 - Acceptance Criteria:
   * Non-boolean values for `plan` field return 400 Bad Request
   * Error message clearly indicates invalid field type
