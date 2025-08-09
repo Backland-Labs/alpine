@@ -129,11 +129,11 @@ This plan adds support for an optional `plan` boolean field in the REST API `/ag
   * /internal/server/error_handling_test.go
 
 ## Success Criteria
-- [ ] WorkflowEngine interface updated with plan parameter
-- [ ] AlpineWorkflowEngine passes plan parameter to workflow.Engine.Run
-- [ ] REST API accepts optional plan field with proper validation
-- [ ] AG-UI events contain dynamic planMode value
-- [ ] All mock implementations updated to match new interface
-- [ ] Test coverage for plan field functionality
-- [ ] Error handling for invalid plan values
-- [ ] Integration tests verify end-to-end behavior
+- [x] WorkflowEngine interface updated with plan parameter
+- [x] AlpineWorkflowEngine passes plan parameter to workflow.Engine.Run
+- [x] REST API accepts optional plan field with proper validation
+- [x] AG-UI events contain dynamic planMode value
+- [x] All mock implementations updated to match new interface
+- [x] Test coverage for plan field functionality
+- [x] Error handling for invalid plan values
+- [x] Integration tests verify end-to-end behavior
