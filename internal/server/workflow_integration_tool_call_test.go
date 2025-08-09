@@ -45,7 +45,7 @@ func TestWorkflowIntegrationWithToolCallHooks(t *testing.T) {
 		// Should not error and should have called hook setup
 		require.NoError(t, err)
 		assert.True(t, mockExecutor.setupHooksCalled, "Tool call hooks should be set up when feature is enabled")
-		assert.Contains(t, mockExecutor.eventEndpoint, "/events/tool-calls", "Event endpoint should be configured")
+		assert.Contains(t, mockExecutor.eventEndpoint, "/runs/test-run/events", "Event endpoint should be configured with run ID")
 		assert.Equal(t, "test-run", mockExecutor.runID, "Run ID should be passed to hooks")
 	})
 

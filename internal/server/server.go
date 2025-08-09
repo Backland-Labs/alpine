@@ -204,10 +204,9 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.Handle("/plans/{runId}", middleware(http.HandlerFunc(s.planGetHandler)))
 	mux.Handle("/plans/{runId}/approve", middleware(http.HandlerFunc(s.planApproveHandler)))
 	mux.Handle("/plans/{runId}/feedback", middleware(http.HandlerFunc(s.planFeedbackHandler)))
-	mux.Handle("/events/tool-calls", middleware(http.HandlerFunc(s.toolCallEventsHandler)))
 	mux.Handle("/health/observability", middleware(http.HandlerFunc(s.observabilityHealthHandler)))
 
-	logger.Debugf("Registered %d endpoints", 11)
+	logger.Debugf("Registered %d endpoints", 10)
 
 	s.httpServer = &http.Server{
 		Handler: mux,

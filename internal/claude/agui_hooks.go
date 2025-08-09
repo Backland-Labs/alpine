@@ -86,10 +86,6 @@ func (e *Executor) GetAgUIHookScriptPath() (string, error) {
 		filepath.Join(execDir, "hooks", "alpine-ag-ui-emitter"),
 		// Current working directory (for testing)
 		filepath.Join("hooks", "alpine-ag-ui-emitter"),
-		// Legacy Rust script paths for backward compatibility
-		filepath.Join(execDir, "..", "..", "hooks", "alpine-ag-ui-emitter.rs"),
-		filepath.Join(execDir, "hooks", "alpine-ag-ui-emitter.rs"),
-		filepath.Join("hooks", "alpine-ag-ui-emitter.rs"),
 	}
 
 	for _, path := range possiblePaths {

@@ -98,13 +98,21 @@ func (hub *runSpecificEventHub) broadcast(event WorkflowEvent) {
 }
 
 // enhancedRunEventsHandler provides SSE endpoint for run-specific events with global event filtering
+// It handles both GET requests (for SSE streaming) and POST requests (for tool call events)
 func (s *Server) enhancedRunEventsHandler(w http.ResponseWriter, r *http.Request, hub *runSpecificEventHub) {
+	runID := r.PathValue("id")
+
+	// Handle POST requests for tool call events
+	if r.Method == http.MethodPost {
+		s.handleRunToolCallEvent(w, r, runID)
+		return
+	}
+
+	// Handle GET requests for SSE streaming
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	runID := r.PathValue("id")
 
 	s.mu.Lock()
 	_, exists := s.runs[runID]

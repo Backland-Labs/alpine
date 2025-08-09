@@ -199,7 +199,7 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 		if hookExecutor, ok := e.claudeExecutor.(interface {
 			SetupToolCallEventHooks(eventEndpoint, runID string, batchSize, sampleRate int) (func(), error)
 		}); ok {
-			eventEndpoint := fmt.Sprintf("http://localhost:%d/events/tool-calls", e.server.port)
+			eventEndpoint := fmt.Sprintf("http://localhost:%d/runs/%s/events", e.server.port, runID)
 			cleanup, err := hookExecutor.SetupToolCallEventHooks(
 				eventEndpoint,
 				runID,
@@ -222,7 +222,6 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 			}
 		}
 	}
-
 	// CRITICAL FIX: Forward instance events to server's broadcast system
 	if e.server != nil {
 		go func() {

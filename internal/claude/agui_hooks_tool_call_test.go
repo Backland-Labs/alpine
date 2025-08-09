@@ -37,8 +37,8 @@ func TestSetupToolCallEventHooks(t *testing.T) {
 		createMockHookScript(tmpDir)
 
 		// Setup tool call event hooks
-		eventEndpoint := "http://localhost:9090/events/tool-calls"
 		runID := "test-run-123"
+		eventEndpoint := "http://localhost:9090/runs/" + runID + "/events"
 		cleanup, err := e.SetupToolCallEventHooks(eventEndpoint, runID, 10, 100)
 		require.NoError(t, err)
 		defer cleanup()
@@ -95,8 +95,8 @@ func TestSetupToolCallEventHooks(t *testing.T) {
 		// Create mock hook script in current directory
 		createMockHookScript(tmpDir)
 
-		eventEndpoint := "http://localhost:8080/events/tool-calls"
 		runID := "unique-run-456"
+		eventEndpoint := "http://localhost:8080/runs/" + runID + "/events"
 		batchSize := 25
 		sampleRate := 75
 

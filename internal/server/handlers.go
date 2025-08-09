@@ -635,21 +635,14 @@ func isPlanFieldTypeError(err error) bool {
 	return strings.Contains(errStr, "cannot unmarshal") && strings.Contains(errStr, "into Go struct field .plan")
 }
 
-// toolCallEventsHandler handles POST /events/tool-calls endpoint for receiving tool call events from hooks
-func (s *Server) toolCallEventsHandler(w http.ResponseWriter, r *http.Request) {
+// handleRunToolCallEvent handles POST /runs/{id}/events endpoint for receiving tool call events from hooks
+// This is the run-specific version of the tool call events handler
+func (s *Server) handleRunToolCallEvent(w http.ResponseWriter, r *http.Request, runID string) {
 	logger.WithFields(map[string]interface{}{
 		"method":         r.Method,
+		"run_id":         runID,
 		"content_length": r.ContentLength,
-	}).Debug("Tool call events endpoint requested")
-
-	if r.Method != http.MethodPost {
-		logger.WithFields(map[string]interface{}{
-			"method":   r.Method,
-			"expected": http.MethodPost,
-		}).Debug("Invalid method for tool call events")
-		s.respondWithError(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
+	}).Debug("Run-specific tool call events endpoint requested")
 
 	// Simple authentication check - require Authorization header
 	authHeader := r.Header.Get("Authorization")
@@ -671,6 +664,17 @@ func (s *Server) toolCallEventsHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&eventData); err != nil {
 		logger.WithField("error", err.Error()).Debug("Invalid JSON payload")
 		s.respondWithError(w, http.StatusBadRequest, "Invalid JSON payload")
+		return
+	}
+
+	// Validate that the event is for the correct run
+	eventRunID, ok := eventData["runId"].(string)
+	if !ok || eventRunID != runID {
+		logger.WithFields(map[string]interface{}{
+			"expected_run_id": runID,
+			"event_run_id":    eventRunID,
+		}).Debug("Run ID mismatch")
+		s.respondWithError(w, http.StatusBadRequest, "Run ID mismatch")
 		return
 	}
 
@@ -734,20 +738,13 @@ func (s *Server) toolCallEventsHandler(w http.ResponseWriter, r *http.Request) {
 		emitter.EmitToolCallEvent(event)
 		logger.WithFields(map[string]interface{}{
 			"event_type": eventType,
-			"run_id":     event.GetRunID(),
-		}).Debug("Event forwarded to batching emitter")
+			"run_id":     runID,
+		}).Debug("Tool call event forwarded to batching emitter")
+	}
 
-		// Update metrics
-		if metrics != nil {
-			metrics.IncrementEventCount()
-		}
-	} else {
-		logger.Debug("No batching emitter configured, event dropped")
-
-		// Update error metrics
-		if metrics != nil {
-			metrics.IncrementErrorCount()
-		}
+	// Update observability metrics
+	if metrics != nil {
+		metrics.IncrementEventCount()
 	}
 
 	// Return success
