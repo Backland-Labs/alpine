@@ -240,3 +240,159 @@ func (m *mockWorkflowEngine) ApprovePlan(ctx context.Context, runID string) erro
 func (m *mockWorkflowEngine) Cleanup() error {
 	return nil
 }
+
+// Test that agentsRunHandler returns appropriate HTTP status codes for plan field validation errors
+func TestAgentsRunHandler_PlanFieldValidationErrors(t *testing.T) {
+	tests := []struct {
+		name           string
+		planValue      interface{}
+		expectedStatus int
+		expectedError  string
+		description    string
+	}{
+		{
+			name:           "String plan value returns 400",
+			planValue:      "invalid",
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "plan field must be a boolean value",
+			description:    "When plan field is a string, API should return 400 Bad Request with validation message",
+		},
+		{
+			name:           "Number plan value returns 400",
+			planValue:      123,
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "plan field must be a boolean value",
+			description:    "When plan field is a number, API should return 400 Bad Request with validation message",
+		},
+		{
+			name:           "Object plan value returns 400",
+			planValue:      map[string]string{"invalid": "object"},
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "plan field must be a boolean value",
+			description:    "When plan field is an object, API should return 400 Bad Request with validation message",
+		},
+		{
+			name:           "Array plan value returns 400",
+			planValue:      []string{"invalid", "array"},
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "plan field must be a boolean value",
+			description:    "When plan field is an array, API should return 400 Bad Request with validation message",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := createMockServerForValidation()
+
+			// Create test request with invalid plan field
+			payload := map[string]interface{}{
+				"issue_url": "https://github.com/owner/repo/issues/123",
+				"agent_id":  "alpine-agent",
+				"plan":      tt.planValue,
+			}
+			body, _ := json.Marshal(payload)
+			req := httptest.NewRequest("POST", "/agents/run", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+
+			// Create response recorder
+			w := httptest.NewRecorder()
+
+			// Call handler
+			server.agentsRunHandler(w, req)
+
+			// Verify status code
+			if w.Code != tt.expectedStatus {
+				t.Errorf("%s: expected status %d, got %d", tt.description, tt.expectedStatus, w.Code)
+			}
+
+			// Verify error message structure
+			var response map[string]interface{}
+			if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+				t.Fatalf("Failed to decode response: %v", err)
+			}
+
+			// Check if response contains the expected error message
+			if errorMsg, exists := response["error"]; !exists {
+				t.Errorf("%s: response should contain error field", tt.description)
+			} else if errorMsg != tt.expectedError {
+				t.Errorf("%s: expected error '%s', got '%s'", tt.description, tt.expectedError, errorMsg.(string))
+			}
+		})
+	}
+}
+
+// Test that plan field validation occurs before workflow engine is called
+func TestAgentsRunHandler_PlanFieldValidationPrecedence(t *testing.T) {
+	server := createMockServerForValidation()
+	mockEngine := server.workflowEngine.(*mockValidationWorkflowEngine)
+
+	// Create test request with invalid plan field
+	payload := map[string]interface{}{
+		"issue_url": "https://github.com/owner/repo/issues/123",
+		"agent_id":  "alpine-agent",
+		"plan":      "should_not_reach_engine",
+	}
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest("POST", "/agents/run", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	server.agentsRunHandler(w, req)
+
+	// Verify that validation error occurs before workflow engine is called
+	if mockEngine.startWorkflowCalled {
+		t.Error("Workflow engine should not be called when plan field validation fails")
+	}
+
+	// Verify proper error response
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+// Helper functions for plan field validation tests
+
+// createMockServerForValidation creates a server with a mock workflow engine that tracks calls
+func createMockServerForValidation() *Server {
+	server := NewServer(0)
+	server.workflowEngine = &mockValidationWorkflowEngine{
+		startWorkflowCalled: false,
+	}
+	return server
+}
+
+// mockValidationWorkflowEngine tracks whether StartWorkflow was called for validation testing
+type mockValidationWorkflowEngine struct {
+	startWorkflowCalled bool
+}
+
+func (m *mockValidationWorkflowEngine) StartWorkflow(ctx context.Context, issueURL, runID string, plan bool) (string, error) {
+	m.startWorkflowCalled = true
+	return "/tmp/test-worktree", nil
+}
+
+func (m *mockValidationWorkflowEngine) GetWorkflowState(ctx context.Context, runID string) (*core.State, error) {
+	return &core.State{
+		CurrentStepDescription: "test step",
+		NextStepPrompt:         "test prompt",
+		Status:                 "running",
+	}, nil
+}
+
+func (m *mockValidationWorkflowEngine) SubscribeToEvents(ctx context.Context, runID string) (<-chan WorkflowEvent, error) {
+	events := make(chan WorkflowEvent)
+	close(events)
+	return events, nil
+}
+
+func (m *mockValidationWorkflowEngine) CancelWorkflow(ctx context.Context, runID string) error {
+	return nil
+}
+
+func (m *mockValidationWorkflowEngine) ApprovePlan(ctx context.Context, runID string) error {
+	return nil
+}
+
+func (m *mockValidationWorkflowEngine) Cleanup() error {
+	return nil
+}
