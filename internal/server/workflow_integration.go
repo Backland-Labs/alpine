@@ -59,6 +59,7 @@ type workflowInstance struct {
 	stateFile   string             // Path to the workflow state file
 	createdAt   time.Time          // Timestamp when the workflow was created
 	clonedDirs  []string           // Directories of cloned repositories for cleanup
+	hookCleanup func()             // Function to cleanup tool call hooks
 }
 
 // NewAlpineWorkflowEngine creates a new workflow engine integration.
@@ -185,6 +186,36 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 	// Update the instance with the engine and state file
 	instance.engine = engine
 	instance.stateFile = workflowCfg.StateFile
+
+	// Setup tool call hooks if enabled and server is available
+	if e.cfg.ToolCallEvents.Enabled && e.server != nil {
+		// Check if the executor supports tool call hooks
+		if hookExecutor, ok := e.claudeExecutor.(interface {
+			SetupToolCallEventHooks(eventEndpoint, runID string, batchSize, sampleRate int) (func(), error)
+		}); ok {
+			eventEndpoint := fmt.Sprintf("http://localhost:%d/events/tool-calls", e.server.port)
+			cleanup, err := hookExecutor.SetupToolCallEventHooks(
+				eventEndpoint,
+				runID,
+				e.cfg.ToolCallEvents.BatchSize,
+				e.cfg.ToolCallEvents.SampleRate,
+			)
+			if err != nil {
+				logger.WithFields(map[string]interface{}{
+					"run_id": runID,
+					"error":  err.Error(),
+				}).Warn("Failed to setup tool call hooks, continuing without them")
+			} else {
+				instance.hookCleanup = cleanup
+				logger.WithFields(map[string]interface{}{
+					"run_id":         runID,
+					"event_endpoint": eventEndpoint,
+					"batch_size":     e.cfg.ToolCallEvents.BatchSize,
+					"sample_rate":    e.cfg.ToolCallEvents.SampleRate,
+				}).Info("Tool call hooks enabled for workflow")
+			}
+		}
+	}
 
 	// CRITICAL FIX: Forward instance events to server's broadcast system
 	if e.server != nil {
@@ -422,6 +453,12 @@ func (e *AlpineWorkflowEngine) Cleanup(runID string) {
 			"cloned_dirs_count":    clonedDirsCount,
 			"auto_cleanup_enabled": e.cfg.Git.AutoCleanupWT,
 		}).Debug("Skipping cloned repository cleanup (disabled by configuration)")
+	}
+
+	// Cleanup tool call hooks if they were set up
+	if instance.hookCleanup != nil {
+		logger.WithField("run_id", runID).Debug("Cleaning up tool call hooks during workflow cleanup")
+		instance.hookCleanup()
 	}
 
 	// Cancel workflow context and remove from active workflows
@@ -897,6 +934,12 @@ func (e *AlpineWorkflowEngine) runWorkflowAsync(instance *workflowInstance, issu
 		}).Debug("Sending completion event to instance channel")
 
 		e.sendEventNonBlocking(instance, completionEvent)
+	}
+
+	// Cleanup tool call hooks if they were set up
+	if instance.hookCleanup != nil {
+		logger.WithField("run_id", runID).Debug("Cleaning up tool call hooks")
+		instance.hookCleanup()
 	}
 }
 

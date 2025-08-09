@@ -98,36 +98,36 @@ The approach prioritizes simplicity by extending the existing `alpine-ag-ui-emit
 - Files to Modify/Create:
   * internal/server/handlers.go
 
-## Feature 4: Workflow Integration and Configuration
+## Feature 4: Workflow Integration and Configuration [IMPLEMENTED]
 
-#### Task 4.1: Integrate Tool Call Hooks with Workflow Execution
+#### Task 4.1: Integrate Tool Call Hooks with Workflow Execution [IMPLEMENTED]
 - Acceptance Criteria:
-  * Enable tool call hooks during workflow execution in server mode
-  * Configure hook environment variables with proper event endpoints
-  * Ensure hooks are properly cleaned up after workflow completion
+  * ✅ Enable tool call hooks during workflow execution in server mode
+  * ✅ Configure hook environment variables with proper event endpoints
+  * ✅ Ensure hooks are properly cleaned up after workflow completion
 - Test Cases:
-  * Test end-to-end workflow execution with tool call event emission
+  * ✅ Test end-to-end workflow execution with tool call event emission
 - Integration Points:
-  * Integrate with existing workflow execution in workflow_integration.go
-  * Ensure compatibility with StreamingExecutor interface
+  * ✅ Integrate with existing workflow execution in workflow_integration.go
+  * ✅ Ensure compatibility with StreamingExecutor interface
 - Files to Modify/Create:
-  * internal/server/workflow_integration.go
-  * internal/claude/executor.go
+  * ✅ internal/server/workflow_integration.go
+  * ✅ internal/claude/executor.go
 
-#### Task 4.2: Centralize Observability Configuration
+#### Task 4.2: Centralize Observability Configuration [IMPLEMENTED]
 - Acceptance Criteria:
-  * Add observability configuration section to existing config system
-  * Implement `ALPINE_*` environment variable pattern for all tool call settings
-  * Provide sensible defaults with feature disabled by default
-  * Add CLI flags for common configuration options
+  * ✅ Add observability configuration section to existing config system
+  * ✅ Implement `ALPINE_*` environment variable pattern for all tool call settings
+  * ✅ Provide sensible defaults with feature disabled by default
+  * ✅ Add CLI flags for common configuration options
 - Test Cases:
-  * Test configuration loading, validation, and environment variable handling
+  * ✅ Test configuration loading, validation, and environment variable handling
 - Integration Points:
-  * Integrate with existing configuration management in config.go
-  * Ensure proper validation and default values
+  * ✅ Integrate with existing configuration management in config.go
+  * ✅ Ensure proper validation and default values
 - Files to Modify/Create:
-  * internal/config/config.go
-  * internal/cli/root.go
+  * ✅ internal/config/config.go
+  * ✅ internal/cli/root.go
 
 ## Feature 5: Enhanced SSE Event Broadcasting
 
