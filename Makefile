@@ -3,12 +3,18 @@
 # Default target
 all: build
 
-# Build the Alpine binary
-build:
+# Build the Alpine binary and hooks
+build: build-hooks
 	@echo "Building Alpine..."
 	@mkdir -p build
 	@go build -o build/alpine cmd/alpine/main.go
 	@echo "Build complete: ./build/alpine"
+
+# Build hook binaries
+build-hooks:
+	@echo "Building hook binaries..."
+	@$(MAKE) -C hooks all
+	@echo "Hooks built successfully"
 
 # Run all tests (unit + integration)
 test: test-unit test-integration
@@ -49,6 +55,7 @@ clean:
 	@rm -rf build
 	@rm -f coverage.out coverage.html
 	@rm -f claude_state.json
+	@$(MAKE) -C hooks clean
 	@echo "Clean complete"
 
 # Install the binary to GOPATH/bin

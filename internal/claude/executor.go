@@ -108,7 +108,7 @@ func (e *Executor) Execute(ctx context.Context, config ExecuteConfig) (string, e
 	}).Info("Starting Claude execution")
 
 	// Merge executor's environment variables into config
-	if e.envVars != nil && len(e.envVars) > 0 {
+	if len(e.envVars) > 0 {
 		logger.WithField("env_var_count", len(e.envVars)).Debug("Merging executor environment variables")
 		if config.EnvironmentVariables == nil {
 			config.EnvironmentVariables = make(map[string]string)
@@ -366,13 +366,11 @@ func (e *Executor) executeWithStderrCapture(ctx context.Context, cmd *exec.Cmd) 
 		defer wg.Done()
 
 		// Create writers based on streaming configuration
-		var writer io.Writer = &stdoutBuf
-
 		// If streaming is enabled, use MultiWriter to stream and capture
 		if e.streamer != nil && e.runID != "" && messageID != "" {
 			streamWriter := NewStreamWriter(e.streamer, e.runID, messageID)
 			multiWriter := newMultiWriterWithFlush(&stdoutBuf, streamWriter)
-			writer = multiWriter
+			writer := multiWriter
 
 			// Use TeeReader to read and write simultaneously
 			reader := io.TeeReader(stdoutPipe, writer)
@@ -575,7 +573,7 @@ func (e *Executor) buildCommand(config ExecuteConfig) *exec.Cmd {
 	cmd.Env = os.Environ()
 
 	// Add any additional environment variables from config
-	if config.EnvironmentVariables != nil && len(config.EnvironmentVariables) > 0 {
+	if len(config.EnvironmentVariables) > 0 {
 		logger.WithField("env_var_count", len(config.EnvironmentVariables)).Debug("Adding additional environment variables")
 		for key, value := range config.EnvironmentVariables {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))

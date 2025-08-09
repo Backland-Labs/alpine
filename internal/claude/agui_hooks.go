@@ -81,10 +81,14 @@ func (e *Executor) GetAgUIHookScriptPath() (string, error) {
 	// Try different paths where the hook script might be located
 	possiblePaths := []string{
 		// Development environment - hooks at project root
-		filepath.Join(execDir, "..", "..", "hooks", "alpine-ag-ui-emitter.rs"),
+		filepath.Join(execDir, "..", "..", "hooks", "alpine-ag-ui-emitter"),
 		// Installed environment - hooks relative to binary
-		filepath.Join(execDir, "hooks", "alpine-ag-ui-emitter.rs"),
+		filepath.Join(execDir, "hooks", "alpine-ag-ui-emitter"),
 		// Current working directory (for testing)
+		filepath.Join("hooks", "alpine-ag-ui-emitter"),
+		// Legacy Rust script paths for backward compatibility
+		filepath.Join(execDir, "..", "..", "hooks", "alpine-ag-ui-emitter.rs"),
+		filepath.Join(execDir, "hooks", "alpine-ag-ui-emitter.rs"),
 		filepath.Join("hooks", "alpine-ag-ui-emitter.rs"),
 	}
 

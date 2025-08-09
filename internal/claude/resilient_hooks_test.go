@@ -34,8 +34,8 @@ func TestResilientHookExecution_CircuitBreakerTrips(t *testing.T) {
 	}
 
 	// Execute failing hook multiple times
-	executor.ExecuteHookWithResilience(context.Background(), "test-hook", failingHook)
-	executor.ExecuteHookWithResilience(context.Background(), "test-hook", failingHook)
+	_ = executor.ExecuteHookWithResilience(context.Background(), "test-hook", failingHook)
+	_ = executor.ExecuteHookWithResilience(context.Background(), "test-hook", failingHook)
 
 	// Circuit should now be open
 	if executor.hookCircuitBreaker.CanCall() {
@@ -44,7 +44,7 @@ func TestResilientHookExecution_CircuitBreakerTrips(t *testing.T) {
 
 	// Further executions should be fast-failed
 	start := time.Now()
-	executor.ExecuteHookWithResilience(context.Background(), "test-hook", failingHook)
+	_ = executor.ExecuteHookWithResilience(context.Background(), "test-hook", failingHook)
 	duration := time.Since(start)
 
 	// Should be very fast (< 10ms) due to circuit breaker

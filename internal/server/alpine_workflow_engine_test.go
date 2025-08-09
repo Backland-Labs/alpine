@@ -421,7 +421,7 @@ func TestApprovePlan(t *testing.T) {
 
 				// Track workflow
 				ctx, cancel := context.WithCancel(context.Background())
-				ctx = context.WithValue(ctx, "issue_url", "https://github.com/owner/repo/issues/123")
+				ctx = context.WithValue(ctx, issueURLKey, "https://github.com/owner/repo/issues/123")
 				engine.workflows["run-123"] = &workflowInstance{
 					worktreeDir: workDir,
 					events:      make(chan WorkflowEvent, 100),

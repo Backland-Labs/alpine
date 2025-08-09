@@ -20,7 +20,13 @@ import (
 	"github.com/Backland-Labs/alpine/internal/workflow"
 )
 
+// contextKey is a type for context keys to avoid collisions
+type contextKey string
+
 const (
+	// issueURLKey is the context key for storing the GitHub issue URL
+	issueURLKey contextKey = "issue_url"
+
 	// defaultEventChannelSize is the buffer size for workflow event channels
 	defaultEventChannelSize = 100
 
@@ -99,7 +105,7 @@ func (e *AlpineWorkflowEngine) StartWorkflow(ctx context.Context, issueURL strin
 	// Use context.Background() for long-running workflows to avoid premature cancellation
 	// when the HTTP request context is cancelled after the handler returns
 	workflowCtx, cancel := context.WithCancel(context.Background())
-	workflowCtx = context.WithValue(workflowCtx, "issue_url", issueURL)
+	workflowCtx = context.WithValue(workflowCtx, issueURLKey, issueURL)
 
 	// Create custom config for this workflow
 	workflowCfg := *e.cfg // Copy config
@@ -814,23 +820,6 @@ func (e *AlpineWorkflowEngine) createAndPublishBranch(ctx context.Context, clone
 
 	branchLog.WithField("branch_name", branchName).Info("Branch creation and publishing completed successfully")
 	return nil
-}
-
-// createWorktreeInClonedRepo creates a worktree within a cloned repository.
-func (e *AlpineWorkflowEngine) createWorktreeInClonedRepo(ctx context.Context, runID, clonedDir string) (string, error) {
-	if e.wtMgr == nil || !e.cfg.Git.WorktreeEnabled {
-		return "", fmt.Errorf("worktree manager not available")
-	}
-
-	// Create worktree name to indicate clone context
-	worktreeName := fmt.Sprintf("cloned-%s%s", worktreeNamePrefix, runID)
-	wt, err := e.wtMgr.Create(ctx, worktreeName)
-	if err != nil {
-		return "", fmt.Errorf("failed to create worktree in cloned repository: %w", err)
-	}
-
-	logger.Infof("Created worktree in cloned repository for workflow %s at: %s", runID, wt.Path)
-	return wt.Path, nil
 }
 
 // createFallbackWorktree creates a regular worktree or temporary directory as fallback.
