@@ -86,7 +86,9 @@ This plan adds support for an optional `plan` boolean field in the REST API `/ag
   * /internal/cli/coverage_test.go
   * /internal/cli/worktree_test.go
 
-#### Task 1.7: Add API Handler Tests
+#### Task 1.7: Add API Handler Tests - COMPLETED
+- Implementation Date: 2025-08-08
+- Status: Completed
 - Acceptance Criteria:
   * Test coverage for plan field with true, false, and omitted values
   * Test validation error for non-boolean plan values

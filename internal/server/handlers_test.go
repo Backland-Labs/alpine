@@ -521,3 +521,136 @@ func TestAgentsRunHandler_PlanField(t *testing.T) {
 		})
 	}
 }
+
+// TestAgentsRunHandler_PlanFieldComprehensive provides comprehensive test coverage for Task 1.7 requirements
+func TestAgentsRunHandler_PlanFieldComprehensive(t *testing.T) {
+	tests := []struct {
+		name           string
+		payload        map[string]interface{}
+		expectedPlan   bool
+		expectError    bool
+		expectedStatus int
+		expectedError  string
+	}{
+		{
+			name: "plan field true flows correctly to workflow engine",
+			payload: map[string]interface{}{
+				"issue_url": "https://github.com/owner/repo/issues/123",
+				"agent_id":  "alpine-agent",
+				"plan":      true,
+			},
+			expectedPlan:   true,
+			expectError:    false,
+			expectedStatus: http.StatusCreated,
+		},
+		{
+			name: "plan field false flows correctly to workflow engine",
+			payload: map[string]interface{}{
+				"issue_url": "https://github.com/owner/repo/issues/124",
+				"agent_id":  "alpine-agent",
+				"plan":      false,
+			},
+			expectedPlan:   false,
+			expectError:    false,
+			expectedStatus: http.StatusCreated,
+		},
+		{
+			name: "omitted plan field defaults to true and flows to workflow engine",
+			payload: map[string]interface{}{
+				"issue_url": "https://github.com/owner/repo/issues/125",
+				"agent_id":  "alpine-agent",
+			},
+			expectedPlan:   true,
+			expectError:    false,
+			expectedStatus: http.StatusCreated,
+		},
+		{
+			name: "non-boolean string plan value returns validation error",
+			payload: map[string]interface{}{
+				"issue_url": "https://github.com/owner/repo/issues/126",
+				"agent_id":  "alpine-agent",
+				"plan":      "invalid",
+			},
+			expectError:    true,
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "plan field must be a boolean value",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedPlan bool
+			var workflowEngineCalled bool
+
+			// Create mock workflow engine to capture plan parameter
+			mockEngine := &MockWorkflowEngine{
+				StartWorkflowFunc: func(ctx context.Context, issueURL, runID string, plan bool) (string, error) {
+					workflowEngineCalled = true
+					capturedPlan = plan
+					return "/tmp/worktree", nil
+				},
+			}
+
+			server := NewServer(0)
+			server.SetWorkflowEngine(mockEngine)
+
+			body, _ := json.Marshal(tt.payload)
+			req := httptest.NewRequest(http.MethodPost, "/agents/run", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			server.agentsRunHandler(w, req)
+
+			// Verify HTTP status code
+			if w.Code != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+
+			if tt.expectError {
+				// For error cases, verify error response
+				var response map[string]string
+				if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+					t.Fatalf("failed to decode error response: %v", err)
+				}
+
+				if response["error"] == "" {
+					t.Error("expected error message in response")
+				}
+
+				if tt.expectedError != "" && !strings.Contains(response["error"], tt.expectedError) {
+					t.Errorf("expected error message to contain '%s', got '%s'", tt.expectedError, response["error"])
+				}
+
+				// Workflow engine should not be called for validation errors
+				if workflowEngineCalled {
+					t.Error("workflow engine should not be called when validation fails")
+				}
+			} else {
+				// For success cases, verify workflow engine was called with correct plan parameter
+				if !workflowEngineCalled {
+					t.Error("workflow engine should have been called")
+				}
+
+				if capturedPlan != tt.expectedPlan {
+					t.Errorf("expected plan parameter %v, got %v", tt.expectedPlan, capturedPlan)
+				}
+
+				// Verify successful response structure
+				var run Run
+				if err := json.NewDecoder(w.Body).Decode(&run); err != nil {
+					t.Fatalf("failed to decode response: %v", err)
+				}
+
+				if run.ID == "" {
+					t.Error("expected run ID to be set")
+				}
+				if run.Status != "running" {
+					t.Errorf("expected status 'running', got %s", run.Status)
+				}
+				if run.Issue != tt.payload["issue_url"] {
+					t.Errorf("expected issue URL %s, got %s", tt.payload["issue_url"], run.Issue)
+				}
+			}
+		})
+	}
+}
