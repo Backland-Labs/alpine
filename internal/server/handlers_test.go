@@ -454,3 +454,70 @@ func TestJSONErrorResponses(t *testing.T) {
 		t.Error("expected error message in response")
 	}
 }
+
+// TestAgentsRunHandler_PlanField tests the optional plan field functionality
+func TestAgentsRunHandler_PlanField(t *testing.T) {
+	tests := []struct {
+		name         string
+		payload      map[string]interface{}
+		expectedPlan bool
+	}{
+		{
+			name: "plan field set to true",
+			payload: map[string]interface{}{
+				"issue_url": "https://github.com/owner/repo/issues/123",
+				"agent_id":  "alpine-agent",
+				"plan":      true,
+			},
+			expectedPlan: true,
+		},
+		{
+			name: "plan field set to false",
+			payload: map[string]interface{}{
+				"issue_url": "https://github.com/owner/repo/issues/123",
+				"agent_id":  "alpine-agent",
+				"plan":      false,
+			},
+			expectedPlan: false,
+		},
+		{
+			name: "plan field omitted defaults to true",
+			payload: map[string]interface{}{
+				"issue_url": "https://github.com/owner/repo/issues/123",
+				"agent_id":  "alpine-agent",
+			},
+			expectedPlan: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock workflow engine to capture plan parameter
+			var capturedPlan bool
+			mockEngine := &MockWorkflowEngine{
+				StartWorkflowFunc: func(ctx context.Context, issueURL, runID string, plan bool) (string, error) {
+					capturedPlan = plan
+					return "/tmp/worktree", nil
+				},
+			}
+
+			server := NewServer(0)
+			server.SetWorkflowEngine(mockEngine)
+
+			body, _ := json.Marshal(tt.payload)
+			req := httptest.NewRequest(http.MethodPost, "/agents/run", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			server.agentsRunHandler(w, req)
+
+			if w.Code != http.StatusCreated {
+				t.Errorf("expected status 201, got %d", w.Code)
+			}
+
+			if capturedPlan != tt.expectedPlan {
+				t.Errorf("expected plan parameter %v, got %v", tt.expectedPlan, capturedPlan)
+			}
+		})
+	}
+}

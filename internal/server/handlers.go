@@ -91,6 +91,7 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 
 	var payload struct {
 		IssueURL string `json:"issue_url"`
+		Plan     *bool  `json:"plan,omitempty"`
 		AgentID  string `json:"agent_id"`
 	}
 
@@ -148,6 +149,12 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 		"total_runs": runCount,
 	}).Debug("Run stored")
 
+	// Default plan to true if not specified
+	plan := true
+	if payload.Plan != nil {
+		plan = *payload.Plan
+	}
+
 	// Start workflow if engine is available
 	if s.workflowEngine != nil {
 		logger.WithFields(map[string]interface{}{
@@ -155,7 +162,7 @@ func (s *Server) agentsRunHandler(w http.ResponseWriter, r *http.Request) {
 			"issue_url": payload.IssueURL,
 		}).Debug("Starting workflow execution")
 
-		worktreeDir, err := s.workflowEngine.StartWorkflow(r.Context(), payload.IssueURL, run.ID, true)
+		worktreeDir, err := s.workflowEngine.StartWorkflow(r.Context(), payload.IssueURL, run.ID, plan)
 		if err != nil {
 			logger.WithFields(map[string]interface{}{
 				"run_id":    run.ID,

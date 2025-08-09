@@ -27,7 +27,7 @@ This plan adds support for an optional `plan` boolean field in the REST API `/ag
 - Files to Modify/Create:
   * /internal/server/workflow_integration.go
 
-#### Task 1.3: Update REST API Handler
+#### Task 1.3: Update REST API Handler ✓
 - Acceptance Criteria:
   * Handler accepts optional `plan` field in JSON payload
   * Uses pointer type for optional boolean field
