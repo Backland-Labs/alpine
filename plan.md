@@ -129,34 +129,34 @@ The approach prioritizes simplicity by extending the existing `alpine-ag-ui-emit
   * ✅ internal/config/config.go
   * ✅ internal/cli/root.go
 
-## Feature 5: Enhanced SSE Event Broadcasting
+## Feature 5: Enhanced SSE Event Broadcasting [IMPLEMENTED]
 
-#### Task 5.1: Extend Event Broadcasting for Tool Call Events
+#### Task 5.1: Extend Event Broadcasting for Tool Call Events [IMPLEMENTED]
 - Acceptance Criteria:
-  * Extend existing BroadcastEvent functionality to handle batched tool call events
-  * Maintain event ordering and correlation with existing workflow events
-  * Implement event replay buffer with size limits (default: 1000 events)
+  * ✅ Extend existing BroadcastEvent functionality to handle batched tool call events
+  * ✅ Maintain event ordering and correlation with existing workflow events
+  * ✅ Implement event replay buffer with size limits (default: 1000 events)
 - Test Cases:
-  * Test tool call event broadcasting and replay functionality
+  * ✅ Test tool call event broadcasting and replay functionality
 - Integration Points:
-  * Integrate with existing SSE connection management
-  * Ensure compatibility with run-specific and global SSE endpoints
+  * ✅ Integrate with existing SSE connection management
+  * ✅ Ensure compatibility with run-specific and global SSE endpoints
 - Files to Modify/Create:
-  * internal/server/server.go
-  * internal/server/run_specific_sse.go
+  * ✅ internal/server/server.go
+  * ✅ internal/server/run_specific_sse.go
 
-#### Task 5.2: Implement Event Correlation and Sequencing
+#### Task 5.2: Implement Event Correlation and Sequencing [IMPLEMENTED]
 - Acceptance Criteria:
-  * Correlate tool call events with workflow steps using run_id and step context
-  * Maintain proper event sequencing with timestamps and sequence numbers
-  * Handle concurrent tool calls with unique correlation IDs
+  * ✅ Correlate tool call events with workflow steps using run_id and step context
+  * ✅ Maintain proper event sequencing with timestamps and sequence numbers
+  * ✅ Handle concurrent tool calls with unique correlation IDs
 - Test Cases:
-  * Test event correlation with complex workflows and concurrent tool calls
+  * ✅ Test event correlation with complex workflows and concurrent tool calls
 - Integration Points:
-  * Integrate with existing workflow state management
-  * Ensure proper handling of nested and concurrent operations
+  * ✅ Integrate with existing workflow state management
+  * ✅ Ensure proper handling of nested and concurrent operations
 - Files to Modify/Create:
-  * internal/server/workflow_integration.go
+  * ✅ internal/server/workflow_integration.go
 
 ## Feature 6: Error Handling and Resilience
 

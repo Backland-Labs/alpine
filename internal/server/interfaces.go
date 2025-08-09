@@ -33,10 +33,11 @@ type WorkflowEngine interface {
 
 // WorkflowEvent represents an event emitted during workflow execution
 type WorkflowEvent struct {
-	Type      string    `json:"type"`
-	RunID     string    `json:"runId"`               // Changed to camelCase per AG-UI spec
-	MessageID string    `json:"messageId,omitempty"` // For text message correlation
-	Timestamp time.Time `json:"timestamp"`
+	Type        string    `json:"type"`
+	RunID       string    `json:"runId"`               // Changed to camelCase per AG-UI spec
+	MessageID   string    `json:"messageId,omitempty"` // For text message correlation
+	Timestamp   time.Time `json:"timestamp"`
+	SequenceNum int64     `json:"sequenceNum,omitempty"` // Event ordering sequence number
 
 	// AG-UI streaming fields
 	Content  string `json:"content,omitempty"`  // Text chunks

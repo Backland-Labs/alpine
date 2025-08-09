@@ -53,6 +53,11 @@ type Server struct {
 
 	// Tool call event batching
 	batchingEmitter events.ToolCallEventEmitter // Optional batching emitter for tool call events
+
+	// Event replay buffer for late-joining clients
+	replayBuffer      map[string][]WorkflowEvent // runID -> ordered events
+	replayBufferLimit int                        // Maximum events per run to buffer
+	sequenceCounter   int64                      // Global sequence counter for event ordering
 }
 
 // NewServer creates a new HTTP server instance configured to run on the specified port.
@@ -71,10 +76,13 @@ func NewServer(port int) *Server {
 			Addr:    fmt.Sprintf("0.0.0.0:%d", port),
 			Handler: mux,
 		},
-		eventsChan:  make(chan string, defaultEventBufferSize),
-		runs:        make(map[string]*Run),
-		plans:       make(map[string]*Plan),
-		runEventHub: newRunSpecificEventHub(),
+		eventsChan:        make(chan string, defaultEventBufferSize),
+		runs:              make(map[string]*Run),
+		plans:             make(map[string]*Plan),
+		runEventHub:       newRunSpecificEventHub(),
+		replayBuffer:      make(map[string][]WorkflowEvent),
+		replayBufferLimit: 1000, // Default replay buffer limit
+		sequenceCounter:   0,
 	}
 
 	logger.Debugf("Server instance created with address: %s", server.httpServer.Addr)
@@ -104,10 +112,13 @@ func NewServerWithConfig(port int, streamBufferSize int, maxClientsPerRun int) *
 			Addr:    fmt.Sprintf("0.0.0.0:%d", port),
 			Handler: mux,
 		},
-		eventsChan:  make(chan string, bufferSize),
-		runs:        make(map[string]*Run),
-		plans:       make(map[string]*Plan),
-		runEventHub: newRunSpecificEventHubWithConfig(bufferSize, maxClientsPerRun),
+		eventsChan:        make(chan string, bufferSize),
+		runs:              make(map[string]*Run),
+		plans:             make(map[string]*Plan),
+		runEventHub:       newRunSpecificEventHubWithConfig(bufferSize, maxClientsPerRun),
+		replayBuffer:      make(map[string][]WorkflowEvent),
+		replayBufferLimit: 1000, // Default replay buffer limit
+		sequenceCounter:   0,
 	}
 
 	logger.Debugf("Server instance created with custom config, address: %s", server.httpServer.Addr)
@@ -269,14 +280,26 @@ func (s *Server) BroadcastEvent(event WorkflowEvent) {
 		}
 	}()
 
+	// Assign sequence number for event ordering
+	s.mu.Lock()
+	s.sequenceCounter++
+	event.SequenceNum = s.sequenceCounter
+	s.mu.Unlock()
+
 	// DEBUG: Add comprehensive logging to trace event flow
 	logger.WithFields(map[string]interface{}{
-		"type":      event.Type,
-		"run_id":    event.RunID,
-		"source":    event.Source,
-		"timestamp": event.Timestamp,
-		"data":      event.Data,
+		"type":         event.Type,
+		"run_id":       event.RunID,
+		"source":       event.Source,
+		"timestamp":    event.Timestamp,
+		"sequence_num": event.SequenceNum,
+		"data":         event.Data,
 	}).Debug("Broadcasting event - ENTRY POINT")
+
+	// Add to replay buffer for late-joining clients
+	if event.RunID != "" {
+		s.addToReplayBuffer(event)
+	}
 
 	// Convert event to JSON for SSE
 	data, err := json.Marshal(event)
@@ -490,4 +513,60 @@ func (s *Server) countRunsByStatus(status string) int {
 		}
 	}
 	return count
+}
+
+// GetReplayBuffer returns the replay buffer for a specific run
+func (s *Server) GetReplayBuffer(runID string) []WorkflowEvent {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	events, exists := s.replayBuffer[runID]
+	if !exists {
+		return []WorkflowEvent{}
+	}
+
+	// Return a copy to prevent external modification
+	result := make([]WorkflowEvent, len(events))
+	copy(result, events)
+	return result
+}
+
+// GetReplayBufferLimit returns the current replay buffer limit
+func (s *Server) GetReplayBufferLimit() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.replayBufferLimit
+}
+
+// SetReplayBufferLimit sets the replay buffer limit
+func (s *Server) SetReplayBufferLimit(limit int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.replayBufferLimit = limit
+}
+
+// addToReplayBuffer adds an event to the replay buffer with size limits
+func (s *Server) addToReplayBuffer(event WorkflowEvent) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	runID := event.RunID
+	if runID == "" {
+		return
+	}
+
+	// Initialize buffer for this run if it doesn't exist
+	if s.replayBuffer[runID] == nil {
+		s.replayBuffer[runID] = make([]WorkflowEvent, 0, s.replayBufferLimit)
+	}
+
+	// Add event to buffer
+	s.replayBuffer[runID] = append(s.replayBuffer[runID], event)
+
+	// Enforce buffer size limit by removing oldest events
+	if len(s.replayBuffer[runID]) > s.replayBufferLimit {
+		// Remove oldest events to maintain limit
+		excess := len(s.replayBuffer[runID]) - s.replayBufferLimit
+		s.replayBuffer[runID] = s.replayBuffer[runID][excess:]
+	}
 }

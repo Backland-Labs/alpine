@@ -146,6 +146,17 @@ func (s *Server) enhancedRunEventsHandler(w http.ResponseWriter, r *http.Request
 	}
 	flusher.Flush()
 
+	// Send replay buffer events for late-joining clients
+	replayEvents := s.GetReplayBuffer(runID)
+	for _, event := range replayEvents {
+		data, _ := json.Marshal(event)
+		if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event.Type, string(data)); err != nil {
+			// Write failed, client disconnected during replay
+			return
+		}
+		flusher.Flush()
+	}
+
 	// Also subscribe to workflow engine events if available
 	var workflowEvents <-chan WorkflowEvent
 	if s.workflowEngine != nil {
