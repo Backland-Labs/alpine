@@ -29,11 +29,8 @@ alpine --serve --port 8080 "Add search functionality"
 # Run server standalone (no workflow)
 alpine --serve
 
-# Generate plan using Gemini (default)
-alpine plan "Implement caching layer"
-
 # Generate plan using Claude Code
-alpine plan --cc "Implement caching layer"
+alpine plan "Implement caching layer"
 
 # Generate plans in parallel using worktrees
 alpine plan --worktree gh-issue https://github.com/owner/repo/issues/123 &
@@ -60,14 +57,13 @@ alpine --version
 - `--version` - Show version information
 
 ### alpine plan command
-- `--cc` - Use Claude Code instead of Gemini for plan generation
 - `--worktree` - Generate the plan in an isolated git worktree (default: false)
 - `--cleanup` - Automatically clean up (remove) the worktree after plan generation (default: true)
 - `--help` - Show help message
 
 ### alpine plan gh-issue subcommand
 - Accepts a GitHub issue URL as the sole argument
-- Inherits `--cc`, `--worktree`, and `--cleanup` flags from parent `plan` command
+- Inherits `--worktree`, and `--cleanup` flags from parent `plan` command
 - `--help` - Show help message
 
 ## Behavior
@@ -160,16 +156,15 @@ See the full REST API documentation in the [server specification](server.md#rest
 
 ### alpine plan command
 1. Accepts task description from command line
-2. By default, uses Gemini CLI for plan generation (requires GEMINI_API_KEY)
-3. With `--cc` flag, uses Claude Code for plan generation
-4. Reads prompt template from `prompts/prompt-plan.md`
-5. Outputs plan.md file in the current directory
-6. Claude Code execution includes:
+2. Uses Claude Code for plan generation
+3. Reads prompt template from `prompts/prompt-plan.md`
+4. Outputs plan.md file in the current directory
+5. Claude Code execution includes:
    - Read-only tools (Read, Grep, Glob, LS, WebSearch, WebFetch)
    - Full codebase context via `--add-dir .`
    - 5-minute timeout
    - Planning-specific system prompt
-7. With `--worktree` flag:
+6. With `--worktree` flag:
    - Creates an isolated git worktree for plan generation
    - Worktree named with sanitized task description
    - Changes to worktree directory before generating plan
@@ -184,10 +179,9 @@ See the full REST API documentation in the [server specification](server.md#rest
 2. Uses `gh issue view <url> --json title,body` to fetch issue data
 3. Requires `gh` CLI to be installed and authenticated
 4. Combines issue title and body into a task description format: `Task: <title>\n\n<body>`
-5. Passes the combined task description to the plan generation engine
-6. Respects the `--cc` flag from parent command for engine selection
-7. Outputs plan.md file based on the GitHub issue content
-8. Error handling includes:
+5. Passes the combined task description to Claude Code for plan generation
+6. Outputs plan.md file based on the GitHub issue content
+7. Error handling includes:
    - Clear message if `gh` CLI is not found
    - Proper error propagation from `gh` command failures
    - JSON parsing error handling

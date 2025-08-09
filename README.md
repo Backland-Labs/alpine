@@ -15,15 +15,14 @@ Think of Alpine as a conductor for AI coding agents - orchestrating complex deve
 Alpine orchestrates AI coding agents through a two-phase approach:
 
 ### Planning Phase
-- **Gemini** (default): Fast, lightweight plan generation via API
-- **Claude Code** (optional): Deep codebase analysis with full context via `--cc` flag
+- **Claude Code**: Deep codebase analysis with full context for comprehensive plan generation
 
 ### Execution Phase
 - **Claude Code**: Executes the plan iteratively with full tool access
 - **State Management**: JSON-based state tracking ensures progress persistence
 - **Worktree Isolation**: Git worktrees provide safe, isolated execution environments
 
-The architecture allows different AI models to play to their strengths - Gemini for rapid ideation, Claude for deep implementation work.
+Alpine leverages Claude Code's advanced capabilities for both planning and execution, providing consistent, context-aware development assistance.
 
 ## Installation
 
@@ -38,9 +37,6 @@ go build -o alpine cmd/alpine/main.go
 # Install Claude Code CLI (required)
 curl -fsSL https://claude.ai/code/install.sh | sh
 claude auth login
-
-# Set up Gemini API key (for plan generation)
-export GEMINI_API_KEY="your-api-key"
 
 # Run your first task
 ./alpine "Add a hello world endpoint to main.go"

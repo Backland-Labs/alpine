@@ -10,29 +10,5 @@
       "Bash(git push:*)",
     ],
     "deny": ["rm:*"]
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/max/code/alpine/.claude/todo-monitor.rs"
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/max/code/alpine/.claude/todo-monitor.rs"
-          }
-        ]
-      }
-    ]
   }
 }

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,89 +28,92 @@ func TestPlanCommand(t *testing.T) {
 		}
 	})
 
-	// TestPlanCommand_CCFlagExists: Verify the flag is registered on the command
-	t.Run("cc flag exists", func(t *testing.T) {
+	// TestPlanCommand_NoGeminiReferences: Verify no Gemini references remain
+	t.Run("no gemini references in help", func(t *testing.T) {
 		rootCmd := NewRootCommand()
 		planCmd, _, err := rootCmd.Find([]string{"plan"})
 		if err != nil {
 			t.Fatalf("failed to find plan command: %v", err)
 		}
 
+		// Verify no --cc flag exists
 		ccFlag := planCmd.Flag("cc")
-		if ccFlag == nil {
-			t.Error("--cc flag not found on plan command")
-			return
+		if ccFlag != nil {
+			t.Error("--cc flag should not exist on plan command")
 		}
 
-		if ccFlag.Usage != "Use Claude Code instead of Gemini for plan generation" {
-			t.Errorf("incorrect usage text for --cc flag: %s", ccFlag.Usage)
+		// Verify help text doesn't mention Gemini
+		if strings.Contains(planCmd.Long, "Gemini") {
+			t.Error("plan command Long description should not mention Gemini")
+		}
+		if strings.Contains(planCmd.Short, "Gemini") {
+			t.Error("plan command Short description should not mention Gemini")
 		}
 	})
 
-	// TestPlanCommand_CCFlagDefault: Verify flag defaults to false
-	t.Run("cc flag defaults to false", func(t *testing.T) {
+	// TestPlanCommand_ClaudeOnly: Verify Claude Code is the only option
+	t.Run("claude code is the only option", func(t *testing.T) {
 		rootCmd := NewRootCommand()
 		planCmd, _, err := rootCmd.Find([]string{"plan"})
 		if err != nil {
 			t.Fatalf("failed to find plan command: %v", err)
 		}
 
-		ccFlag := planCmd.Flag("cc")
-		if ccFlag == nil {
-			t.Fatal("--cc flag not found on plan command")
+		// Verify help text mentions Claude Code
+		if !strings.Contains(planCmd.Short, "Claude Code") {
+			t.Error("plan command Short description should mention Claude Code")
 		}
-
-		if ccFlag.DefValue != "false" {
-			t.Errorf("--cc flag should default to false, got: %s", ccFlag.DefValue)
+		if !strings.Contains(planCmd.Long, "Claude Code") {
+			t.Error("plan command Long description should mention Claude Code")
 		}
 	})
 
-	// TestPlanCommand_ParsesCCFlag: Test that the flag value is correctly parsed
-	t.Run("parses cc flag correctly", func(t *testing.T) {
-		// Test with --cc flag set to true
+	// TestPlanCommand_RejectsUnknownFlags: Test that unknown flags are rejected
+	t.Run("rejects unknown flags", func(t *testing.T) {
+		// Test that --cc flag is rejected
 		rootCmd := NewRootCommand()
 		output := &bytes.Buffer{}
 		rootCmd.SetOut(output)
 		rootCmd.SetErr(output)
 
-		// We can't test the actual execution without implementing the feature
-		// but we can verify the flag is parsed by the command
 		planCmd, _, err := rootCmd.Find([]string{"plan"})
 		if err != nil {
 			t.Fatalf("failed to find plan command: %v", err)
 		}
 
-		// Parse the flag
+		// Parse the --cc flag - should fail
 		err = planCmd.ParseFlags([]string{"--cc"})
-		if err != nil {
-			t.Errorf("failed to parse --cc flag: %v", err)
+		if err == nil {
+			t.Fatal("parsing --cc flag should fail")
 		}
 
-		ccFlag := planCmd.Flag("cc")
-		if ccFlag == nil {
-			t.Fatal("--cc flag not found after parsing")
-		}
-
-		if ccFlag.Value.String() != "true" {
-			t.Errorf("--cc flag should be true when set, got: %s", ccFlag.Value.String())
+		if !strings.Contains(err.Error(), "unknown flag: --cc") {
+			t.Errorf("expected error about unknown flag --cc, got: %v", err)
 		}
 	})
 
-	// TestPlanCommand_HelpText: Verify help text includes both Gemini and Claude options
-	t.Run("help text mentions both engines", func(t *testing.T) {
+	// TestPlanCommand_HelpText: Verify help text mentions only Claude Code
+	t.Run("help text mentions only claude code", func(t *testing.T) {
 		rootCmd := NewRootCommand()
 		planCmd, _, err := rootCmd.Find([]string{"plan"})
 		if err != nil {
 			t.Fatalf("failed to find plan command: %v", err)
 		}
 
-		// Check that the Long description mentions both Gemini and Claude
-		if !strings.Contains(planCmd.Long, "Gemini") {
-			t.Error("plan command Long description should mention Gemini")
+		// Check that Long description mentions Claude Code only
+		if strings.Contains(planCmd.Long, "Gemini") {
+			t.Error("plan command Long description should not mention Gemini")
+		}
+		if !strings.Contains(planCmd.Long, "Claude Code") {
+			t.Error("plan command Long description should mention Claude Code")
 		}
 
-		if !strings.Contains(planCmd.Long, "Claude") {
-			t.Error("plan command Long description should mention Claude Code option")
+		// Check that examples don't mention Gemini or --cc flag
+		if strings.Contains(planCmd.Example, "Gemini") {
+			t.Error("plan command examples should not mention Gemini")
+		}
+		if strings.Contains(planCmd.Example, "--cc") {
+			t.Error("plan command examples should not mention --cc flag")
 		}
 	})
 
@@ -156,223 +158,88 @@ func TestPlanCommand(t *testing.T) {
 
 // TestGeneratePlan tests the generatePlan function
 func TestGeneratePlan(t *testing.T) {
-	// Test that generatePlan returns error if GEMINI_API_KEY is not set
-	t.Run("error when GEMINI_API_KEY not set", func(t *testing.T) {
-		// Save original env var and restore after test
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() {
-			_ = os.Setenv("GEMINI_API_KEY", originalKey)
-		}()
+	// Test that generatePlan works with Claude Code (integration test)
+	t.Run("claude code integration", func(t *testing.T) {
+		// This is an integration test that requires Claude CLI to be installed
+		// Skip if we're in CI or if Claude CLI is not available
+		if os.Getenv("CI") == "true" {
+			t.Skip("Skipping Claude CLI integration test in CI")
+		}
 
-		// Unset the API key
-		_ = os.Unsetenv("GEMINI_API_KEY")
+		// Check if Claude CLI is available
+		if _, err := exec.LookPath("claude"); err != nil {
+			t.Skip("Claude CLI not found, skipping integration test")
+		}
 
+		// Test that generatePlan creates necessary state files and calls Claude
+		// This will fail gracefully if there are configuration issues
 		err := generatePlan("test task")
-		if err == nil {
-			t.Error("expected error when GEMINI_API_KEY not set")
-		}
-
-		if !strings.Contains(err.Error(), "GEMINI_API_KEY not set") {
-			t.Errorf("expected error about GEMINI_API_KEY not set, got: %v", err)
+		// We expect this to fail in test environment, but not with missing API key errors
+		if err != nil && strings.Contains(err.Error(), "GEMINI_API_KEY") {
+			t.Error("generatePlan should not reference GEMINI_API_KEY - should use Claude Code only")
 		}
 	})
 
-	// Test that generatePlan returns error if prompt template cannot be read
-	t.Run("error when prompt template not found", func(t *testing.T) {
-		// Set a dummy API key for this test
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() {
-			_ = os.Setenv("GEMINI_API_KEY", originalKey)
-		}()
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
+	// Test that generatePlan handles Claude Code execution properly
+	t.Run("handles claude code execution", func(t *testing.T) {
+		// This test verifies that generatePlan uses Claude Code executor
+		// and handles the temporary state file creation properly
+		// We'll verify that no Gemini-specific logic is used
+		
+		// This is a unit test that doesn't require Claude CLI to be installed
+		// It will test the setup and configuration logic
+		t.Skip("Implementation test - requires refactoring generatePlan for better testability")
+	})
 
-		// We'll need to mock the file system access or work in a temp directory
-		// For now, this test will verify the error when the file doesn't exist
-		// We'll need to modify generatePlan to accept a working directory parameter
+	// Test that generatePlan configures Claude properly
+	t.Run("configures claude properly", func(t *testing.T) {
+		// Test Claude Code configuration is set up properly
+		// No API key needed for Claude Code CLI
 
 		// This test will be properly implemented when we refactor generatePlan
 		// to accept dependencies for testing
 		t.Skip("Skipping until generatePlan is refactored for testability")
 	})
-
-	// Test that generatePlan returns error if no spec files are found
-	t.Run("error when no spec files found", func(t *testing.T) {
-		// Set a dummy API key for this test
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() {
-			_ = os.Setenv("GEMINI_API_KEY", originalKey)
-		}()
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
-
-		// This test will be properly implemented when we refactor generatePlan
-		// to accept dependencies for testing
-		t.Skip("Skipping until generatePlan is refactored for testability")
-	})
-
-	// Test successful prompt construction
-	t.Run("successful prompt construction", func(t *testing.T) {
-		// Set a dummy API key for this test
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() {
-			_ = os.Setenv("GEMINI_API_KEY", originalKey)
-		}()
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
-
-		// This test will verify that the prompt is correctly constructed
-		// with all spec files and the task description
-		t.Skip("Skipping until generatePlan is refactored for testability")
-	})
-
-	// Test successful execution
-	t.Run("successful execution", func(t *testing.T) {
-		// Set a dummy API key for this test
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() {
-			_ = os.Setenv("GEMINI_API_KEY", originalKey)
-		}()
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
-
-		// This test will verify that Gemini is executed correctly
-		// and allowed to handle file creation directly
-		t.Skip("Skipping until generatePlan is refactored for testability")
-	})
 }
 
-// TestPlanCommand_RouteToGeminiByDefault tests that default behavior calls Gemini
-func TestPlanCommand_RouteToGeminiByDefault(t *testing.T) {
-	// Save and restore environment
-	originalKey := os.Getenv("GEMINI_API_KEY")
-	defer func() {
-		_ = os.Setenv("GEMINI_API_KEY", originalKey)
-	}()
-	_ = os.Setenv("GEMINI_API_KEY", "test-key")
-
-	// No need to create prompt files anymore - they're embedded
-
-	// This test verifies the routing logic defaults to Gemini
-	// Full implementation will come after refactoring for testability
-	t.Skip("Waiting for command runner injection")
-}
-
-// TestPlanCommand_RouteToClaude tests that --cc flag routes to Claude
-func TestPlanCommand_RouteToClaude(t *testing.T) {
-	// No need to create prompt files anymore - they're embedded
-
-	// This test verifies the routing logic routes to Claude when --cc is used
-	// Full implementation will come after implementing generatePlanWithClaude
-	t.Skip("Waiting for generatePlanWithClaude implementation")
-}
-
-// TestPlanCommand_ErrorPropagation tests error handling from both paths
+// TestPlanCommand_ErrorPropagation tests error handling for Claude Code
 func TestPlanCommand_ErrorPropagation(t *testing.T) {
-	t.Run("Gemini error propagation", func(t *testing.T) {
+	t.Run("Claude error propagation", func(t *testing.T) {
 		// Test that errors from generatePlan are properly propagated
+		// This test will likely timeout or fail in CI since Claude CLI integration is complex
+		// We primarily want to verify no Gemini references remain
 		rootCmd := NewRootCommand()
 		output := &bytes.Buffer{}
 		rootCmd.SetOut(output)
 		rootCmd.SetErr(output)
 		rootCmd.SetArgs([]string{"plan", "test task"})
 
-		// Without GEMINI_API_KEY, it should error
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() {
-			_ = os.Setenv("GEMINI_API_KEY", originalKey)
-		}()
-		_ = os.Unsetenv("GEMINI_API_KEY")
-
+		// Execute the command - we expect it to fail but not because of missing API key
 		err := rootCmd.Execute()
-		if err == nil {
-			t.Error("expected error when GEMINI_API_KEY not set")
+		if err != nil && strings.Contains(err.Error(), "GEMINI_API_KEY") {
+			t.Error("generatePlan should not reference GEMINI_API_KEY - should use Claude Code only")
 		}
-		if !strings.Contains(err.Error(), "GEMINI_API_KEY not set") {
-			t.Errorf("expected GEMINI_API_KEY error, got: %v", err)
-		}
+		// Note: We don't require this to succeed in tests since Claude CLI integration
+		// requires proper setup, but we verify no Gemini artifacts remain
 	})
 
-	t.Run("Claude error propagation", func(t *testing.T) {
-		// Test that errors from generatePlanWithClaude are properly propagated
-		rootCmd := NewRootCommand()
-		output := &bytes.Buffer{}
-		rootCmd.SetOut(output)
-		rootCmd.SetErr(output)
-		rootCmd.SetArgs([]string{"plan", "--cc", "test task"})
-
-		err := rootCmd.Execute()
-		if err == nil {
-			t.Error("expected error from generatePlanWithClaude")
-		}
-		// With embedded prompts, we now expect a different error (e.g., Claude CLI not found)
-		// The specific error depends on the execution environment
-	})
 }
 
-// TestPlanCommand_RoutingLogic tests that the correct function is called based on flag
+// TestPlanCommand_RoutingLogic tests that the plan command always uses Claude Code
 func TestPlanCommand_RoutingLogic(t *testing.T) {
-	// Capture stdout to verify the routing messages
-	oldStdout := os.Stdout
-	defer func() { os.Stdout = oldStdout }()
-
-	t.Run("default routes to Gemini", func(t *testing.T) {
-		// Create a pipe to capture stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-		defer func() { os.Stdout = oldStdout }()
-
+	// This test verifies that plan generation always routes to Claude Code
+	t.Run("always routes to Claude Code", func(t *testing.T) {
 		rootCmd := NewRootCommand()
 		rootCmd.SetArgs([]string{"plan", "test task"})
 
-		// Without GEMINI_API_KEY, we expect the Gemini-specific error
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() {
-			_ = os.Setenv("GEMINI_API_KEY", originalKey)
-		}()
-		_ = os.Unsetenv("GEMINI_API_KEY")
-
+		// We expect this to fail in test environments but not due to GEMINI_API_KEY
 		err := rootCmd.Execute()
-		if err == nil || !strings.Contains(err.Error(), "GEMINI_API_KEY not set") {
-			t.Errorf("expected GEMINI_API_KEY error (indicating Gemini path), got: %v", err)
+		if err != nil && strings.Contains(err.Error(), "GEMINI_API_KEY") {
+			t.Error("plan command should not reference GEMINI_API_KEY - should use Claude Code only")
 		}
-
-		// Close writer and read output
-		_ = w.Close()
-		var buf bytes.Buffer
-		_, _ = buf.ReadFrom(r)
-		outputStr := buf.String()
-
-		// Check that output shows "Generating plan..." (Gemini message)
-		// Note: Printer adds formatting prefixes like → which may not be captured in pipe
-		if !strings.Contains(outputStr, "Generating plan") {
-			t.Errorf("expected 'Generating plan' message, got: %s", outputStr)
-		}
+		// Test passes as long as no Gemini references appear in errors
 	})
 
-	t.Run("--cc flag routes to Claude", func(t *testing.T) {
-		// Create a pipe to capture stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-		defer func() { os.Stdout = oldStdout }()
-
-		rootCmd := NewRootCommand()
-		rootCmd.SetArgs([]string{"plan", "--cc", "test task"})
-
-		err := rootCmd.Execute()
-		// With embedded prompts, we expect an error but not specifically about prompt template
-		if err == nil {
-			t.Error("expected error from generatePlanWithClaude")
-		}
-
-		// Close writer and read output
-		_ = w.Close()
-		var buf bytes.Buffer
-		_, _ = buf.ReadFrom(r)
-		outputStr := buf.String()
-
-		// Check that output shows Claude-related messages
-		// The printer may format the output differently
-		if !strings.Contains(outputStr, "Claude Code") && !strings.Contains(err.Error(), "prompt template") {
-			t.Errorf("expected Claude Code message or prompt template error, got: %s", outputStr)
-		}
-	})
 }
 
 // TestGeneratePlanRefactored tests the refactored generatePlan function with dependencies
@@ -430,7 +297,7 @@ func TestGeneratePlanWithClaude_PromptTemplate(t *testing.T) {
 		// 3. Passes the processed prompt to Claude
 
 		// For now, skip until implementation
-		t.Skip("Waiting for generatePlanWithClaude implementation")
+		t.Skip("Waiting for generatePlan implementation")
 	})
 
 	t.Run("handles task replacement in embedded template", func(t *testing.T) {
@@ -444,17 +311,17 @@ func TestGeneratePlanWithClaude_PromptTemplate(t *testing.T) {
 func TestGeneratePlanWithClaude_ErrorHandling(t *testing.T) {
 	t.Run("handles missing Claude CLI", func(t *testing.T) {
 		// Test that appropriate error is returned when Claude CLI is not found
-		t.Skip("Waiting for generatePlanWithClaude implementation")
+		t.Skip("Waiting for generatePlan implementation")
 	})
 
 	t.Run("handles Claude execution failure", func(t *testing.T) {
 		// Test error propagation from Claude executor
-		t.Skip("Waiting for generatePlanWithClaude implementation")
+		t.Skip("Waiting for generatePlan implementation")
 	})
 
 	t.Run("handles timeout", func(t *testing.T) {
 		// Test timeout handling (5 minutes default)
-		t.Skip("Waiting for generatePlanWithClaude implementation")
+		t.Skip("Waiting for generatePlan implementation")
 	})
 }
 
@@ -466,7 +333,7 @@ func TestGeneratePlanWithClaude_MockExecution(t *testing.T) {
 		// 2. Temporary state file is created
 		// 3. Output is streamed correctly
 		// 4. Cleanup happens after execution
-		t.Skip("Waiting for generatePlanWithClaude implementation")
+		t.Skip("Waiting for generatePlan implementation")
 	})
 
 	t.Run("uses planning-specific configuration", func(t *testing.T) {
@@ -474,7 +341,7 @@ func TestGeneratePlanWithClaude_MockExecution(t *testing.T) {
 		// - No MCP servers
 		// - Planning system prompt
 		// - Temporary state file
-		t.Skip("Waiting for generatePlanWithClaude implementation")
+		t.Skip("Waiting for generatePlan implementation")
 	})
 }
 
@@ -623,8 +490,8 @@ func TestGeneratePlanWithClaude_ProgressIndicator(t *testing.T) {
 			outputChan <- output.String()
 		}()
 
-		// Call generatePlanWithClaude (will fail due to missing Claude CLI)
-		_ = generatePlanWithClaude("test task")
+		// Call generatePlan (will fail due to missing Claude CLI)
+		_ = generatePlan("test task")
 
 		// Restore stdout and get output
 		_ = w.Close()
@@ -678,8 +545,8 @@ func TestGeneratePlanWithClaude_ProgressIndicator(t *testing.T) {
 			outputChan <- output.String()
 		}()
 
-		// Call generatePlanWithClaude (will fail due to missing prompt template)
-		_ = generatePlanWithClaude("test task")
+		// Call generatePlan (will fail due to missing prompt template)
+		_ = generatePlan("test task")
 
 		// Restore stdout and get output
 		_ = w.Close()
@@ -830,83 +697,8 @@ func TestFetchGitHubIssue_EmptyResponse(t *testing.T) {
 	t.Skip("Skipping test - requires mock implementation")
 }
 
-// TestGhIssueCommand_Integration_Gemini tests the full gh-issue flow with Gemini
-// This test verifies that the fetched issue data is correctly passed to generatePlan
-func TestGhIssueCommand_Integration_Gemini(t *testing.T) {
-	// Create a temporary directory for test
-	tmpDir := t.TempDir()
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	_ = os.Chdir(tmpDir)
-
-	// Initialize git repo for testing
-	cmd := exec.Command("git", "init")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to init git repo: %v", err)
-	}
-
-	// Create mock gh command
-	mockGhScript := `#!/bin/bash
-if [[ "$1" == "issue" && "$2" == "view" && "$4" == "--json" && "$5" == "title,body" ]]; then
-    echo '{"title":"Test Issue Title","body":"Test issue body content"}'
-    exit 0
-fi
-exit 1
-`
-	mockGhPath := filepath.Join(tmpDir, "gh")
-	if err := os.WriteFile(mockGhPath, []byte(mockGhScript), 0755); err != nil {
-		t.Fatalf("Failed to create mock gh: %v", err)
-	}
-
-	// Add mock directory to PATH
-	oldPath := os.Getenv("PATH")
-	_ = os.Setenv("PATH", tmpDir+":"+oldPath)
-	defer func() { _ = os.Setenv("PATH", oldPath) }()
-
-	// Also need to mock gemini for the plan generation
-	mockGeminiScript := `#!/bin/bash
-echo "# Generated Plan"
-echo ""
-echo "## Task: Test Issue Title"
-echo ""
-echo "Test issue body content"
-`
-	mockGeminiPath := filepath.Join(tmpDir, "gemini")
-	if err := os.WriteFile(mockGeminiPath, []byte(mockGeminiScript), 0755); err != nil {
-		t.Fatalf("Failed to create mock gemini: %v", err)
-	}
-
-	// Execute the command
-	rootCmd := NewRootCommand()
-	rootCmd.SetArgs([]string{"plan", "gh-issue", "https://github.com/test/repo/issues/1"})
-
-	// Capture output
-	var buf bytes.Buffer
-	rootCmd.SetOut(&buf)
-	rootCmd.SetErr(&buf)
-
-	err := rootCmd.Execute()
-	if err != nil {
-		t.Errorf("Command failed: %v", err)
-	}
-
-	// Verify plan.md was created with the combined task description
-	planContent, err := os.ReadFile("plan.md")
-	if err != nil {
-		t.Fatalf("Failed to read plan.md: %v", err)
-	}
-
-	// Check that the plan contains both title and body
-	if !strings.Contains(string(planContent), "Test Issue Title") {
-		t.Error("plan.md should contain the issue title")
-	}
-	if !strings.Contains(string(planContent), "Test issue body content") {
-		t.Error("plan.md should contain the issue body")
-	}
-}
-
 // TestGhIssueCommand_Integration_Claude tests the full gh-issue flow with Claude
-// This test verifies that the fetched issue data is correctly passed to generatePlanWithClaude
+// This test verifies that the fetched issue data is correctly passed to generatePlan
 func TestGhIssueCommand_Integration_Claude(t *testing.T) {
 	// Create a temporary directory for test
 	tmpDir := t.TempDir()
@@ -956,9 +748,9 @@ EOF
 		t.Fatalf("Failed to create mock claude: %v", err)
 	}
 
-	// Execute the command with --cc flag
+	// Execute the gh-issue command (now always uses Claude)
 	rootCmd := NewRootCommand()
-	rootCmd.SetArgs([]string{"plan", "--cc", "gh-issue", "https://github.com/test/repo/issues/2"})
+	rootCmd.SetArgs([]string{"plan", "gh-issue", "https://github.com/test/repo/issues/2"})
 
 	// Capture output
 	var buf bytes.Buffer
@@ -986,649 +778,6 @@ EOF
 	if !strings.Contains(string(planContent), "Generated by Claude") {
 		t.Error("plan.md should indicate it was generated by Claude")
 	}
-}
-
-// TestGeneratePlan_RetryLoop tests the retry mechanism for plan.md generation
-func TestGeneratePlan_RetryLoop(t *testing.T) {
-	// Test successful generation on first attempt (no retries)
-	t.Run("successful generation on first attempt", func(t *testing.T) {
-		// Create a temporary directory for test
-		tmpDir := t.TempDir()
-		oldDir, _ := os.Getwd()
-		defer func() { _ = os.Chdir(oldDir) }()
-		_ = os.Chdir(tmpDir)
-
-		// Set GEMINI_API_KEY
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() { _ = os.Setenv("GEMINI_API_KEY", originalKey) }()
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
-
-		// Create mock gemini that creates plan.md on first attempt
-		mockGeminiScript := `#!/bin/bash
-echo "# Generated Plan" > plan.md
-echo "Task implementation plan" >> plan.md
-echo "Gemini execution successful"
-exit 0
-`
-		mockGeminiPath := filepath.Join(tmpDir, "gemini")
-		if err := os.WriteFile(mockGeminiPath, []byte(mockGeminiScript), 0755); err != nil {
-			t.Fatalf("Failed to create mock gemini: %v", err)
-		}
-
-		// Add mock directory to PATH
-		oldPath := os.Getenv("PATH")
-		_ = os.Setenv("PATH", tmpDir+":"+oldPath)
-		defer func() { _ = os.Setenv("PATH", oldPath) }()
-
-		// Capture output to verify no retry messages
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		outputChan := make(chan string)
-		go func() {
-			var buf bytes.Buffer
-			_, _ = buf.ReadFrom(r)
-			outputChan <- buf.String()
-		}()
-
-		// Execute generatePlan
-		err := generatePlan("test task")
-
-		// Restore stdout and get output
-		_ = w.Close()
-		os.Stdout = oldStdout
-		output := <-outputChan
-
-		// Verify success
-		if err != nil {
-			t.Errorf("Expected success on first attempt, got error: %v", err)
-		}
-
-		// Verify plan.md exists and has content
-		info, err := os.Stat("plan.md")
-		if err != nil {
-			t.Errorf("plan.md should exist after successful generation: %v", err)
-		}
-		if info.Size() == 0 {
-			t.Error("plan.md should have content")
-		}
-
-		// Verify output shows "Generating plan..." only once
-		if strings.Count(output, "Generating plan...") != 1 {
-			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences",
-				strings.Count(output, "Generating plan..."))
-		}
-
-		// Should show "Attempt 1 of 3..." but no retry messages
-		if !strings.Contains(output, "Attempt 1 of 3...") {
-			t.Error("Expected to see 'Attempt 1 of 3...' message")
-		}
-		if strings.Contains(output, "retry") {
-			t.Error("Should not show retry messages on first successful attempt")
-		}
-	})
-
-	// Test successful generation on second attempt (1 retry)
-	t.Run("successful generation on second attempt", func(t *testing.T) {
-		// Create a temporary directory for test
-		tmpDir := t.TempDir()
-		oldDir, _ := os.Getwd()
-		defer func() { _ = os.Chdir(oldDir) }()
-		_ = os.Chdir(tmpDir)
-
-		// Set GEMINI_API_KEY
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() { _ = os.Setenv("GEMINI_API_KEY", originalKey) }()
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
-
-		// Create a counter file to track attempts
-		counterFile := filepath.Join(tmpDir, "counter")
-		_ = os.WriteFile(counterFile, []byte("1"), 0644)
-
-		// Create mock gemini that fails first time, succeeds second time
-		mockGeminiScript := fmt.Sprintf(`#!/bin/bash
-# Read the attempt counter
-counter=$(cat %s)
-
-if [ "$counter" -eq "1" ]; then
-    # First attempt - don't create plan.md
-    echo "First attempt - simulating failure"
-    echo "2" > %s
-    exit 0
-else
-    # Second attempt - create plan.md
-    echo "# Generated Plan" > plan.md
-    echo "Task implementation plan - created on second attempt" >> plan.md
-    echo "Second attempt - success"
-    exit 0
-fi
-`, counterFile, counterFile)
-
-		mockGeminiPath := filepath.Join(tmpDir, "gemini")
-		if err := os.WriteFile(mockGeminiPath, []byte(mockGeminiScript), 0755); err != nil {
-			t.Fatalf("Failed to create mock gemini: %v", err)
-		}
-
-		// Add mock directory to PATH
-		oldPath := os.Getenv("PATH")
-		_ = os.Setenv("PATH", tmpDir+":"+oldPath)
-		defer func() { _ = os.Setenv("PATH", oldPath) }()
-
-		// Capture output
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		outputChan := make(chan string)
-		go func() {
-			var buf bytes.Buffer
-			_, _ = buf.ReadFrom(r)
-			outputChan <- buf.String()
-		}()
-
-		// Execute generatePlan
-		err := generatePlan("test task")
-
-		// Restore stdout and get output
-		_ = w.Close()
-		os.Stdout = oldStdout
-		output := <-outputChan
-
-		// Verify success
-		if err != nil {
-			t.Errorf("Expected success on second attempt, got error: %v", err)
-		}
-
-		// Verify plan.md exists and has content
-		planContent, err := os.ReadFile("plan.md")
-		if err != nil {
-			t.Errorf("plan.md should exist after successful generation: %v", err)
-		}
-		if !strings.Contains(string(planContent), "created on second attempt") {
-			t.Error("plan.md should be created on second attempt")
-		}
-
-		// Verify output shows retry messages
-		if !strings.Contains(output, "Generating plan...") {
-			t.Error("Expected to see 'Generating plan...' message for first attempt")
-		}
-		if !strings.Contains(output, "Attempt 2 of 3") {
-			t.Error("Expected to see 'Attempt 2 of 3' message")
-		}
-		// Should not see third attempt
-		if strings.Contains(output, "Attempt 3 of 3") {
-			t.Error("Should not see 'Attempt 3 of 3' when successful on second attempt")
-		}
-	})
-
-	// Test successful generation on third attempt (2 retries)
-	t.Run("successful generation on third attempt", func(t *testing.T) {
-		// Create a temporary directory for test
-		tmpDir := t.TempDir()
-		oldDir, _ := os.Getwd()
-		defer func() { _ = os.Chdir(oldDir) }()
-		_ = os.Chdir(tmpDir)
-
-		// Set GEMINI_API_KEY
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() { _ = os.Setenv("GEMINI_API_KEY", originalKey) }()
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
-
-		// Create a counter file to track attempts
-		counterFile := filepath.Join(tmpDir, "counter")
-		_ = os.WriteFile(counterFile, []byte("1"), 0644)
-
-		// Create mock gemini that fails twice, succeeds third time
-		mockGeminiScript := fmt.Sprintf(`#!/bin/bash
-# Read the attempt counter
-counter=$(cat %s)
-
-if [ "$counter" -eq "1" ]; then
-    # First attempt - don't create plan.md
-    echo "First attempt - simulating failure"
-    echo "2" > %s
-    exit 0
-elif [ "$counter" -eq "2" ]; then
-    # Second attempt - still don't create plan.md
-    echo "Second attempt - simulating failure"
-    echo "3" > %s
-    exit 0
-else
-    # Third attempt - create plan.md
-    echo "# Generated Plan" > plan.md
-    echo "Task implementation plan - created on third attempt" >> plan.md
-    echo "Third attempt - success"
-    exit 0
-fi
-`, counterFile, counterFile, counterFile)
-
-		mockGeminiPath := filepath.Join(tmpDir, "gemini")
-		if err := os.WriteFile(mockGeminiPath, []byte(mockGeminiScript), 0755); err != nil {
-			t.Fatalf("Failed to create mock gemini: %v", err)
-		}
-
-		// Add mock directory to PATH
-		oldPath := os.Getenv("PATH")
-		_ = os.Setenv("PATH", tmpDir+":"+oldPath)
-		defer func() { _ = os.Setenv("PATH", oldPath) }()
-
-		// Capture output
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		outputChan := make(chan string)
-		go func() {
-			var buf bytes.Buffer
-			_, _ = buf.ReadFrom(r)
-			outputChan <- buf.String()
-		}()
-
-		// Execute generatePlan
-		err := generatePlan("test task")
-
-		// Restore stdout and get output
-		_ = w.Close()
-		os.Stdout = oldStdout
-		output := <-outputChan
-
-		// Verify success
-		if err != nil {
-			t.Errorf("Expected success on third attempt, got error: %v", err)
-		}
-
-		// Verify plan.md exists and has content
-		planContent, err := os.ReadFile("plan.md")
-		if err != nil {
-			t.Errorf("plan.md should exist after successful generation: %v", err)
-		}
-		if !strings.Contains(string(planContent), "created on third attempt") {
-			t.Error("plan.md should be created on third attempt")
-		}
-
-		// Verify output shows all retry messages
-		if !strings.Contains(output, "Generating plan...") {
-			t.Error("Expected to see 'Generating plan...' message for first attempt")
-		}
-		if !strings.Contains(output, "Attempt 2 of 3") {
-			t.Error("Expected to see 'Attempt 2 of 3' message")
-		}
-		if !strings.Contains(output, "Attempt 3 of 3") {
-			t.Error("Expected to see 'Attempt 3 of 3' message")
-		}
-	})
-
-	// Test failure after 3 attempts returns error
-	t.Run("failure after 3 attempts returns error", func(t *testing.T) {
-		// Create a temporary directory for test
-		tmpDir := t.TempDir()
-		oldDir, _ := os.Getwd()
-		defer func() { _ = os.Chdir(oldDir) }()
-		_ = os.Chdir(tmpDir)
-
-		// Set GEMINI_API_KEY
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() { _ = os.Setenv("GEMINI_API_KEY", originalKey) }()
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
-
-		// Create mock gemini that never creates plan.md
-		mockGeminiScript := `#!/bin/bash
-echo "Simulating Gemini execution that doesn't create plan.md"
-exit 0
-`
-		mockGeminiPath := filepath.Join(tmpDir, "gemini")
-		if err := os.WriteFile(mockGeminiPath, []byte(mockGeminiScript), 0755); err != nil {
-			t.Fatalf("Failed to create mock gemini: %v", err)
-		}
-
-		// Add mock directory to PATH
-		oldPath := os.Getenv("PATH")
-		_ = os.Setenv("PATH", tmpDir+":"+oldPath)
-		defer func() { _ = os.Setenv("PATH", oldPath) }()
-
-		// Capture output (both stdout and stderr)
-		oldStdout := os.Stdout
-		oldStderr := os.Stderr
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-		os.Stderr = w
-
-		outputChan := make(chan string)
-		go func() {
-			var buf bytes.Buffer
-			_, _ = buf.ReadFrom(r)
-			outputChan <- buf.String()
-		}()
-
-		// Execute generatePlan
-		err := generatePlan("test task")
-
-		// Restore stdout/stderr and get output
-		_ = w.Close()
-		os.Stdout = oldStdout
-		os.Stderr = oldStderr
-		output := <-outputChan
-
-		// Verify error is returned
-		if err == nil {
-			t.Error("Expected error after 3 failed attempts, got nil")
-		}
-
-		// Verify error message is exactly as specified
-		expectedError := "gemini failed to create plan"
-		if err != nil && err.Error() != expectedError {
-			t.Errorf("Expected error message '%s', got '%s'", expectedError, err.Error())
-		}
-
-		// Verify plan.md does not exist
-		if _, err := os.Stat("plan.md"); !os.IsNotExist(err) {
-			t.Error("plan.md should not exist after all attempts fail")
-		}
-
-		// Verify output shows all attempts (first attempt shows "Generating plan...")
-		if !strings.Contains(output, "Generating plan...") {
-			t.Error("Expected to see 'Generating plan...' message for first attempt")
-		}
-		if !strings.Contains(output, "Attempt 2 of 3") {
-			t.Error("Expected to see 'Attempt 2 of 3' message")
-		}
-		if !strings.Contains(output, "Attempt 3 of 3") {
-			t.Error("Expected to see 'Attempt 3 of 3' message")
-		}
-
-		// Verify final error message in output
-		if !strings.Contains(output, "Gemini failed to create plan") {
-			t.Error("Expected to see 'Gemini failed to create plan' error message in output")
-		}
-	})
-}
-
-// TestGeneratePlan_ProgressMessages tests that progress messages are shown correctly
-// according to Task 3 requirements from plan.md
-func TestGeneratePlan_ProgressMessages(t *testing.T) {
-	// Test that "Attempt 1 of 3..." is shown before first execution
-	t.Run("shows Attempt 1 of 3 before first execution", func(t *testing.T) {
-		// Create a temporary directory for test
-		tmpDir := t.TempDir()
-		oldDir, _ := os.Getwd()
-		defer func() { _ = os.Chdir(oldDir) }()
-		_ = os.Chdir(tmpDir)
-
-		// Set GEMINI_API_KEY
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() { _ = os.Setenv("GEMINI_API_KEY", originalKey) }()
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
-
-		// Create mock gemini that creates plan.md on first attempt
-		mockGeminiScript := `#!/bin/bash
-echo "# Generated Plan" > plan.md
-echo "Task implementation plan" >> plan.md
-echo "Gemini execution successful"
-exit 0
-`
-		mockGeminiPath := filepath.Join(tmpDir, "gemini")
-		if err := os.WriteFile(mockGeminiPath, []byte(mockGeminiScript), 0755); err != nil {
-			t.Fatalf("Failed to create mock gemini: %v", err)
-		}
-
-		// Add mock directory to PATH
-		oldPath := os.Getenv("PATH")
-		_ = os.Setenv("PATH", tmpDir+":"+oldPath)
-		defer func() { _ = os.Setenv("PATH", oldPath) }()
-
-		// Capture output to verify progress messages
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		outputChan := make(chan string)
-		go func() {
-			var buf bytes.Buffer
-			_, _ = buf.ReadFrom(r)
-			outputChan <- buf.String()
-		}()
-
-		// Execute generatePlan
-		err := generatePlan("test task")
-
-		// Restore stdout and get output
-		_ = w.Close()
-		os.Stdout = oldStdout
-		output := <-outputChan
-
-		// Verify success
-		if err != nil {
-			t.Errorf("Expected success on first attempt, got error: %v", err)
-		}
-
-		// Verify output shows "Attempt 1 of 3..." before first execution
-		if !strings.Contains(output, "Attempt 1 of 3...") {
-			t.Error("Expected to see 'Attempt 1 of 3...' message before first execution")
-		}
-
-		// Verify "Generating plan..." is shown only on first attempt
-		if strings.Count(output, "Generating plan...") != 1 {
-			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences",
-				strings.Count(output, "Generating plan..."))
-		}
-
-		// Verify order: "Attempt 1 of 3..." should come before "Generating plan..."
-		attemptIdx := strings.Index(output, "Attempt 1 of 3...")
-		generatingIdx := strings.Index(output, "Generating plan...")
-		if attemptIdx == -1 || generatingIdx == -1 || attemptIdx > generatingIdx {
-			t.Error("'Attempt 1 of 3...' should appear before 'Generating plan...'")
-		}
-	})
-
-	// Test that "Generating plan..." is shown only on first attempt
-	t.Run("shows Generating plan only on first attempt", func(t *testing.T) {
-		// Create a temporary directory for test
-		tmpDir := t.TempDir()
-		oldDir, _ := os.Getwd()
-		defer func() { _ = os.Chdir(oldDir) }()
-		_ = os.Chdir(tmpDir)
-
-		// Set GEMINI_API_KEY
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() { _ = os.Setenv("GEMINI_API_KEY", originalKey) }()
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
-
-		// Create a counter file to track attempts
-		counterFile := filepath.Join(tmpDir, "counter")
-		_ = os.WriteFile(counterFile, []byte("1"), 0644)
-
-		// Create mock gemini that fails first time, succeeds second time
-		mockGeminiScript := fmt.Sprintf(`#!/bin/bash
-# Read the attempt counter
-counter=$(cat %s)
-
-if [ "$counter" -eq "1" ]; then
-    # First attempt - don't create plan.md
-    echo "First attempt - simulating failure"
-    echo "2" > %s
-    exit 0
-else
-    # Second attempt - create plan.md
-    echo "# Generated Plan" > plan.md
-    echo "Task implementation plan - created on second attempt" >> plan.md
-    echo "Second attempt - success"
-    exit 0
-fi
-`, counterFile, counterFile)
-
-		mockGeminiPath := filepath.Join(tmpDir, "gemini")
-		if err := os.WriteFile(mockGeminiPath, []byte(mockGeminiScript), 0755); err != nil {
-			t.Fatalf("Failed to create mock gemini: %v", err)
-		}
-
-		// Add mock directory to PATH
-		oldPath := os.Getenv("PATH")
-		_ = os.Setenv("PATH", tmpDir+":"+oldPath)
-		defer func() { _ = os.Setenv("PATH", oldPath) }()
-
-		// Capture output
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		outputChan := make(chan string)
-		go func() {
-			var buf bytes.Buffer
-			_, _ = buf.ReadFrom(r)
-			outputChan <- buf.String()
-		}()
-
-		// Execute generatePlan
-		err := generatePlan("test task")
-
-		// Restore stdout and get output
-		_ = w.Close()
-		os.Stdout = oldStdout
-		output := <-outputChan
-
-		// Verify success
-		if err != nil {
-			t.Errorf("Expected success on second attempt, got error: %v", err)
-		}
-
-		// Verify "Generating plan..." appears only once (on first attempt)
-		if strings.Count(output, "Generating plan...") != 1 {
-			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences",
-				strings.Count(output, "Generating plan..."))
-		}
-
-		// Verify correct attempt messages
-		if !strings.Contains(output, "Attempt 1 of 3...") {
-			t.Error("Expected to see 'Attempt 1 of 3...' message")
-		}
-		if !strings.Contains(output, "Attempt 2 of 3...") {
-			t.Error("Expected to see 'Attempt 2 of 3...' message")
-		}
-
-		// Should NOT see duplicate "Generating plan..." on retry
-		lines := strings.Split(output, "\n")
-		generatingCount := 0
-		for _, line := range lines {
-			if strings.Contains(line, "Generating plan...") {
-				generatingCount++
-			}
-		}
-		if generatingCount > 1 {
-			t.Errorf("'Generating plan...' should only appear once, found %d times", generatingCount)
-		}
-	})
-
-	// Test correct messages shown for each attempt
-	t.Run("correct messages shown for each attempt", func(t *testing.T) {
-		// Create a temporary directory for test
-		tmpDir := t.TempDir()
-		oldDir, _ := os.Getwd()
-		defer func() { _ = os.Chdir(oldDir) }()
-		_ = os.Chdir(tmpDir)
-
-		// Set GEMINI_API_KEY
-		originalKey := os.Getenv("GEMINI_API_KEY")
-		defer func() { _ = os.Setenv("GEMINI_API_KEY", originalKey) }()
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
-
-		// Create a counter file to track attempts
-		counterFile := filepath.Join(tmpDir, "counter")
-		_ = os.WriteFile(counterFile, []byte("1"), 0644)
-
-		// Create mock gemini that fails twice, succeeds third time
-		mockGeminiScript := fmt.Sprintf(`#!/bin/bash
-# Read the attempt counter
-counter=$(cat %s)
-
-if [ "$counter" -eq "1" ]; then
-    echo "First attempt - simulating failure"
-    echo "2" > %s
-    exit 0
-elif [ "$counter" -eq "2" ]; then
-    echo "Second attempt - simulating failure"
-    echo "3" > %s
-    exit 0
-else
-    echo "# Generated Plan" > plan.md
-    echo "Task implementation plan - created on third attempt" >> plan.md
-    echo "Third attempt - success"
-    exit 0
-fi
-`, counterFile, counterFile, counterFile)
-
-		mockGeminiPath := filepath.Join(tmpDir, "gemini")
-		if err := os.WriteFile(mockGeminiPath, []byte(mockGeminiScript), 0755); err != nil {
-			t.Fatalf("Failed to create mock gemini: %v", err)
-		}
-
-		// Add mock directory to PATH
-		oldPath := os.Getenv("PATH")
-		_ = os.Setenv("PATH", tmpDir+":"+oldPath)
-		defer func() { _ = os.Setenv("PATH", oldPath) }()
-
-		// Capture output
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		outputChan := make(chan string)
-		go func() {
-			var buf bytes.Buffer
-			_, _ = buf.ReadFrom(r)
-			outputChan <- buf.String()
-		}()
-
-		// Execute generatePlan
-		err := generatePlan("test task")
-
-		// Restore stdout and get output
-		_ = w.Close()
-		os.Stdout = oldStdout
-		output := <-outputChan
-
-		// Verify success
-		if err != nil {
-			t.Errorf("Expected success on third attempt, got error: %v", err)
-		}
-
-		// Verify all attempt messages appear in correct order
-		messages := []string{
-			"Attempt 1 of 3...",
-			"Generating plan...",
-			"Attempt 2 of 3...",
-			"Attempt 3 of 3...",
-		}
-
-		// Check that all messages appear
-		for _, msg := range messages {
-			if !strings.Contains(output, msg) {
-				t.Errorf("Expected to see '%s' in output", msg)
-			}
-		}
-
-		// Verify order of messages
-		indices := make([]int, len(messages))
-		for i, msg := range messages {
-			indices[i] = strings.Index(output, msg)
-			if indices[i] == -1 {
-				t.Errorf("Message '%s' not found in output", msg)
-			}
-		}
-
-		// Check that indices are in increasing order
-		for i := 1; i < len(indices); i++ {
-			if indices[i] <= indices[i-1] {
-				t.Errorf("Message '%s' should appear after '%s'", messages[i], messages[i-1])
-			}
-		}
-
-		// Verify "Generating plan..." appears only once
-		if strings.Count(output, "Generating plan...") != 1 {
-			t.Errorf("Expected 'Generating plan...' to appear exactly once, but found %d occurrences",
-				strings.Count(output, "Generating plan..."))
-		}
-	})
 }
 
 // TestPlanCommand_WorktreeFlags tests the --worktree and --cleanup flags
@@ -1770,10 +919,6 @@ func TestPlanExecution_WithWorktree(t *testing.T) {
 		output := &bytes.Buffer{}
 		rootCmd.SetOut(output)
 		rootCmd.SetErr(output)
-
-		// Set up environment to skip actual plan generation
-		_ = os.Setenv("GEMINI_API_KEY", "test-key")
-		defer func() { _ = os.Unsetenv("GEMINI_API_KEY") }()
 
 		// The actual worktree implementation will be tested after implementation
 		// For now, this test serves as a placeholder for integration testing
