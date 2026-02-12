@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 // Set via -ldflags at build time
@@ -18,59 +16,6 @@ var (
 	verbose    bool
 	jsonOutput bool
 )
-
-// Config represents alpine.yaml configuration
-type Config struct {
-	Install   string   `yaml:"install"`
-	EnvFiles  []string `yaml:"env_files"`
-	BaseImage string   `yaml:"base_image"`
-	Services  []string `yaml:"services"`
-}
-
-// validServices is the set of recognized service names
-var validServices = map[string]bool{
-	"postgres": true,
-	"redis":    true,
-}
-
-// loadConfig reads and validates alpine.yaml from the current directory.
-// Returns default config with a warning if file is missing.
-func loadConfig() (*Config, error) {
-	cfg := &Config{
-		BaseImage: "ubuntu:24.04",
-	}
-
-	data, err := os.ReadFile("alpine.yaml")
-	if err != nil {
-		if os.IsNotExist(err) {
-			slog.Warn("alpine.yaml not found, using defaults")
-			return cfg, nil
-		}
-		return nil, fmt.Errorf("reading alpine.yaml: %w", err)
-	}
-
-	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("parsing alpine.yaml: %w", err)
-	}
-
-	if err := cfg.validate(); err != nil {
-		return nil, err
-	}
-
-	return cfg, nil
-}
-
-func (c *Config) validate() error {
-	if c.BaseImage == "" {
-		return fmt.Errorf("base_image cannot be empty")
-	}
-	for _, svc := range c.Services {
-		if !validServices[svc] {
-			return fmt.Errorf("unknown service %q (supported: postgres, redis)", svc)
-		}
-	}
-	return nil
-}
 
 var rootCmd = &cobra.Command{
 	Use:   "alpine",
@@ -103,15 +48,6 @@ func init() {
 	// - list.go:   rootCmd.AddCommand(listCmd)
 	// - status.go: rootCmd.AddCommand(statusCmd)
 }
-
-// exitError carries a specific exit code alongside the error message.
-// Commands return this to signal user errors (1) vs system errors (2).
-type exitError struct {
-	msg  string
-	code int
-}
-
-func (e *exitError) Error() string { return e.msg }
 
 func execute(ctx context.Context) int {
 	rootCmd.SetContext(ctx)

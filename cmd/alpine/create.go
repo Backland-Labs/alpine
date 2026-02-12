@@ -53,16 +53,6 @@ func init() {
 	rootCmd.AddCommand(createCmd)
 }
 
-// userErr returns an exitError with code 1 (user error).
-func userErr(msg string) error {
-	return &exitError{msg: msg, code: 1}
-}
-
-// sysErr returns an exitError with code 2 (system error).
-func sysErr(msg string) error {
-	return &exitError{msg: msg, code: 2}
-}
-
 func runCreate(cmd *cobra.Command, args []string) (err error) {
 	ctx := cmd.Context()
 	name := args[0]

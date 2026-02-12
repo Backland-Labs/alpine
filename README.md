@@ -167,6 +167,27 @@ Show details for a specific environment.
 | `-v, --verbose` | Verbose output |
 | `--json` | Machine-readable JSON output |
 
+## Project Structure
+
+```
+cmd/alpine/
+├── main.go           CLI root, Cobra setup, flags
+├── main_entry.go     OS entrypoint with signal handling
+├── create.go         alpine create (19-step workflow)
+├── list.go           alpine list
+├── status.go         alpine status
+├── exec.go           Shell execution (run, runInteractive, ExecError)
+├── docker.go         Docker daemon ops (health check, compose up/down)
+├── compose.go        Compose YAML generation (templates, service defaults)
+├── dockerfile.go     Dockerfile generation and hashing
+├── git.go            Git operations (clone, branch, configure, find root)
+├── container.go      Container interaction (inspect, copy files, check processes)
+├── dotenv.go         .env file loading
+├── config.go         Config struct, loadConfig, validate
+├── errors.go         exitError, userErr, sysErr
+└── output.go         outputJSON, outputError
+```
+
 ## Development
 
 ```bash

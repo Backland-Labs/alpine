@@ -21,11 +21,26 @@ alpine status my-feature      # show environment details
 
 ## Key Architecture
 
-- `cmd/alpine/main.go` -- CLI root, config loading, validation
-- `cmd/alpine/create.go` -- `alpine create` (15-step workflow)
-- `cmd/alpine/docker.go` -- Docker/Compose/Git operations, Dockerfile and Compose YAML generation
+### Commands
+- `cmd/alpine/main.go` -- CLI root, Cobra setup, flags, execute()
+- `cmd/alpine/main_entry.go` -- OS entrypoint with signal handling
+- `cmd/alpine/create.go` -- `alpine create` (19-step workflow)
 - `cmd/alpine/list.go` -- `alpine list`
 - `cmd/alpine/status.go` -- `alpine status`
+
+### Infrastructure
+- `cmd/alpine/exec.go` -- Shell execution (`run()`, `runInteractive()`, `ExecError`)
+- `cmd/alpine/docker.go` -- Docker daemon ops (health check, compose up/down, image exists)
+- `cmd/alpine/compose.go` -- Compose YAML generation (templates, service defaults)
+- `cmd/alpine/dockerfile.go` -- Dockerfile generation and hashing
+- `cmd/alpine/git.go` -- Git operations (clone, branch, configure user, find root)
+- `cmd/alpine/container.go` -- Container interaction (inspect, copy files, check processes)
+- `cmd/alpine/dotenv.go` -- .env file loading
+
+### Support
+- `cmd/alpine/config.go` -- Config struct, loadConfig(), validate()
+- `cmd/alpine/errors.go` -- exitError, userErr(), sysErr()
+- `cmd/alpine/output.go` -- outputJSON(), outputError()
 
 ## Configuration
 
@@ -35,7 +50,8 @@ alpine status my-feature      # show environment details
 
 ## Conventions
 
-- All external commands go through `run()` in docker.go -- never use `sh -c`
+- One concern per file, named for what it contains (e.g., `git.go` not `utils.go`). If a file does two unrelated things, split it. Each test file mirrors its source file (`git.go` -> `git_test.go`).
+- All external commands go through `run()` in exec.go -- never use `sh -c`
 - Error handling: `userErr()` (exit 1) vs `sysErr()` (exit 2)
 - Services are aliased: postgres -> `db`, redis -> `cache`
 - Container user is always `claude` (non-root)
