@@ -4,8 +4,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -985,5 +987,93 @@ func TestDockerHealthCheck_DarwinPollTimeoutNonJSON(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "did not become ready") {
 		t.Fatalf("error = %q, want to contain 'did not become ready'", err.Error())
+	}
+}
+
+// ---------------------------------------------------------------------------
+// defaultRun: tests the real exec.CommandContext wrapper (docker.go:93-113)
+// ---------------------------------------------------------------------------
+
+func TestDefaultRun_Success(t *testing.T) {
+	stdout, stderr, err := defaultRun(context.Background(), "echo", "hello")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stdout != "hello" {
+		t.Errorf("stdout = %q, want %q", stdout, "hello")
+	}
+	if stderr != "" {
+		t.Errorf("stderr = %q, want empty", stderr)
+	}
+}
+
+func TestDefaultRun_Error(t *testing.T) {
+	_, _, err := defaultRun(context.Background(), "false")
+	if err == nil {
+		t.Fatal("expected error from 'false' command")
+	}
+	var execErr *ExecError
+	if !errors.As(err, &execErr) {
+		t.Fatalf("expected *ExecError, got %T", err)
+	}
+	if !strings.HasPrefix(execErr.Command, "false") {
+		t.Errorf("Command = %q, want prefix %q", execErr.Command, "false")
+	}
+}
+
+func TestDefaultRun_ContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, _, err := defaultRun(ctx, "sleep", "10")
+	if err == nil {
+		t.Fatal("expected error for cancelled context")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// defaultRunInteractive: tests the real interactive exec wrapper (docker.go:120-137)
+// ---------------------------------------------------------------------------
+
+func TestDefaultRunInteractive_Success(t *testing.T) {
+	// Restore SIGINT handling after test (defaultRunInteractive calls signal.Ignore).
+	t.Cleanup(func() { signal.Reset(os.Interrupt) })
+
+	err := defaultRunInteractive("true")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDefaultRunInteractive_Error(t *testing.T) {
+	t.Cleanup(func() { signal.Reset(os.Interrupt) })
+
+	err := defaultRunInteractive("false")
+	if err == nil {
+		t.Fatal("expected error from 'false' command")
+	}
+	var execErr *ExecError
+	if !errors.As(err, &execErr) {
+		t.Fatalf("expected *ExecError, got %T", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// loadDotEnv: os.Setenv failure with null byte in key (docker.go:591-593)
+// ---------------------------------------------------------------------------
+
+func TestLoadDotEnv_SetenvError(t *testing.T) {
+	dir := t.TempDir()
+	envFile := filepath.Join(dir, ".env")
+	// A null byte in the key causes os.Setenv to return EINVAL.
+	if err := os.WriteFile(envFile, []byte("FOO\x00BAR=value\n"), 0644); err != nil {
+		t.Fatalf("writing .env: %v", err)
+	}
+
+	err := loadDotEnv(envFile)
+	if err == nil {
+		t.Fatal("expected error from os.Setenv with null byte in key")
+	}
+	if !strings.Contains(err.Error(), "failed to set env var") {
+		t.Fatalf("error = %q, want to contain 'failed to set env var'", err.Error())
 	}
 }

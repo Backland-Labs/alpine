@@ -1644,6 +1644,48 @@ func TestRunCreate_Step14_CopyClaudeJSONFail(t *testing.T) {
 // Interactive shell returns error (create.go lines 484-486)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Step 7: os.MkdirTemp fails for build temp dir (create.go:176-179)
+// ---------------------------------------------------------------------------
+
+func TestRunCreate_Step7_MkdirTempBuildFails(t *testing.T) {
+	setupCreateTest(t)
+	responses := happyCreateResponses("test")
+	// Make imageExists return false so the build path is entered.
+	responses[4] = errResult("no such image")
+	mockRun(t, responses)
+
+	// Break TMPDIR so os.MkdirTemp fails inside runCreate.
+	// setupCreateTest already created its temp dirs, so this only affects runCreate.
+	t.Setenv("TMPDIR", "/nonexistent/path")
+
+	err := runCreateCmd(t, context.Background(), "test")
+	assertExitCode(t, err, 2)
+	assertContains(t, err, "failed to create temp dir")
+}
+
+// ---------------------------------------------------------------------------
+// Step 8: os.MkdirTemp fails for compose temp dir (create.go:206-208)
+// ---------------------------------------------------------------------------
+
+func TestRunCreate_Step8_MkdirTempComposeFails(t *testing.T) {
+	setupCreateTest(t)
+	responses := happyCreateResponses("test")
+	// Image exists (skip build), so we go directly to the compose MkdirTemp.
+	mockRun(t, responses)
+
+	// Break TMPDIR so os.MkdirTemp fails inside runCreate.
+	t.Setenv("TMPDIR", "/nonexistent/path")
+
+	err := runCreateCmd(t, context.Background(), "test")
+	assertExitCode(t, err, 2)
+	assertContains(t, err, "failed to create temp dir")
+}
+
+// ---------------------------------------------------------------------------
+// Interactive shell returns error (create.go lines 484-486)
+// ---------------------------------------------------------------------------
+
 func TestRunCreate_Step19_InteractiveShellError(t *testing.T) {
 	setupCreateTest(t)
 	detach = false
