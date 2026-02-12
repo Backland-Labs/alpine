@@ -32,7 +32,7 @@ deepened: 2026-02-12
 
 ## Overview
 
-Build `alpine`, a Go CLI that creates fully isolated, containerized development environments for running parallel AI coding agents. A single command (`alpine create <name> "task description"`) spins up an entire dev environment inside Docker -- its own repo clone, branch, services, and Claude Code instance -- with zero cross-talk between environments.
+Build `alpine`, a Go CLI that creates fully isolated, containerized development environments for running parallel AI coding agents. A single command (`alpine create <name>`) spins up an entire dev environment inside Docker -- its own repo clone, branch, services, and Claude Code instance -- with zero cross-talk between environments.
 
 ## Problem Statement
 
@@ -44,7 +44,7 @@ A single binary (`alpine`) with subcommands:
 
 | Command | Description |
 |---|---|
-| `alpine create <name> [prompt]` | Create an isolated dev environment and optionally pass Claude an initial task |
+| `alpine create <name>` | Create an isolated dev environment |
 | `alpine teardown <name>` | Auto-commit, push, then destroy the environment |
 | `alpine list` | Show all active environments with status |
 | `alpine attach <name>` | Reattach terminal to a running environment's Claude session |
@@ -60,7 +60,6 @@ All commands support `--json` for machine-readable output. The `create` command 
 |---|---|---|
 | `--json` | all | Machine-readable JSON output |
 | `--detach` / `-d` | create | Return immediately after launch (don't attach) |
-| `--prompt-file` | create | Read prompt from file (for long prompts) |
 
 **Exit codes:**
 
@@ -165,7 +164,7 @@ alpine/
   - Validate: `base_image` not empty, `services` entries are recognized (`postgres`, `redis`)
   - Missing `alpine.yaml` uses defaults with a warning
 - [ ] Implement name validation (in `create.go`): regex `^[a-z0-9]([a-z0-9-]{0,48}[a-z0-9])?$`. Unit test with injection payloads: `"; rm -rf /"`, `$(whoami)`, `` `id` ``, `--flag-injection`
-- [ ] Implement Docker health check (`docker.go`): shell out to `docker info` with a 3-second timeout via `context.WithTimeout`. Clear error if Docker is not running.
+- [x] Implement Docker health check (`docker.go`): shell out to `docker info` with a 3-second timeout via `context.WithTimeout`. On macOS, auto-launches Docker Desktop via `open -a Docker` and polls up to 60s for daemon readiness. On Linux, returns a clear error if Docker is not running.
 - [ ] Implement compose YAML generation (`docker.go`):
   - Go `text/template` that produces a valid compose file
   - Dev container service: uses `build:` directive (not separate `docker build`), SSH agent mount, env vars forwarded, healthcheck
@@ -257,7 +256,7 @@ alpine/
   12. Create and checkout `feature/<name>` branch
   13. Copy env files into container (`docker cp`), then `chown` to `claude` user
   14. Run install command inside dev container (if configured)
-  15. If `--detach`: print JSON status and exit. Otherwise: launch `claude --dangerously-skip-permissions [prompt]` and attach terminal
+  15. If `--detach`: print JSON status and exit. Otherwise: launch `claude --dangerously-skip-permissions` and attach terminal
   - Rollback: single defer pattern:
     ```go
     composed := false
@@ -272,7 +271,6 @@ alpine/
   - `--from <branch>` -- base branch (default: current branch)
   - `--detach` / `-d` -- return immediately after environment is ready (don't attach to Claude)
   - `--json` -- (persistent) machine-readable JSON output for all commands
-  - `--prompt-file <path>` -- read prompt from file instead of positional arg
 - [ ] Implement env file handling: `docker cp` each file in `env_files` into the container, then `chown claude:claude`. Warn (don't fail) if a file is missing.
 - [ ] Implement list command (`cmd/alpine/list.go`):
   - Run `docker compose ls --filter name=alpine- --format json`
@@ -419,7 +417,8 @@ All errors use a structured `ExecError` type that includes the command name and 
 
 | Scenario | Behavior | Exit Code |
 |---|---|---|
-| Docker not running | "Docker is not running. Start Docker and try again." | 2 |
+| Docker not running (macOS) | Auto-launches Docker Desktop, polls up to 60s for daemon readiness | 2 (if launch fails or times out) |
+| Docker not running (Linux) | "Docker is not running. Start Docker and try again." | 2 |
 | `ANTHROPIC_API_KEY` not set | Clear error before any Docker operations | 1 |
 | Git auth unavailable | "No git auth found. Set up SSH keys or export GITHUB_TOKEN." | 1 |
 | Name already taken | "Environment 'foo' already exists. Run `alpine list` to see active environments." | 1 |
@@ -438,8 +437,7 @@ All errors use a structured `ExecError` type that includes the command name and 
 
 - [ ] `alpine create x` and `alpine create y` run simultaneously without conflicts
 - [ ] Each environment has its own git branch, Docker network, database, and Claude instance
-- [ ] `alpine create <name> "task"` passes the prompt to Claude on launch
-- [ ] `alpine create <name> -d "task"` returns immediately with JSON status (agent-native)
+- [ ] `alpine create <name> -d` returns immediately with JSON status (agent-native)
 - [ ] `alpine status <name> --json` returns Claude process state (agent-native)
 - [ ] `alpine teardown <name>` auto-commits tracked files, pushes, then destroys all resources
 - [ ] `alpine teardown <name>` refuses to destroy if push fails (unless `--force`)

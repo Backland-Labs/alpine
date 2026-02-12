@@ -18,7 +18,6 @@ import (
 var (
 	fromBranch string
 	detach     bool
-	promptFile string
 )
 
 // nameRegex validates environment names: 1-50 lowercase alphanumeric chars or
@@ -33,36 +32,25 @@ func validateName(name string) error {
 }
 
 var createCmd = &cobra.Command{
-	Use:   "create <name> [prompt]",
+	Use:   "create <name>",
 	Short: "Create an isolated dev environment",
 	Long:  "Create a fully isolated dev environment with its own repo clone, branch, services, and Claude Code instance.",
-	Args:  cobra.MinimumNArgs(1),
-	RunE:  runCreate,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return fmt.Errorf("requires a name argument\n\nUsage: alpine create <name>\n\nExample:\n  alpine create my-feature")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("accepts 1 argument, received %d\n\nUsage: alpine create <name>", len(args))
+		}
+		return nil
+	},
+	RunE: runCreate,
 }
 
 func init() {
 	createCmd.Flags().StringVar(&fromBranch, "from", "", "base branch (default: current branch)")
 	createCmd.Flags().BoolVarP(&detach, "detach", "d", false, "return immediately after environment is ready")
-	createCmd.Flags().StringVar(&promptFile, "prompt-file", "", "read prompt from file")
 	rootCmd.AddCommand(createCmd)
-}
-
-// resolvePrompt returns the prompt string from positional args or --prompt-file.
-func resolvePrompt(args []string) (string, error) {
-	if promptFile != "" && len(args) > 1 {
-		return "", fmt.Errorf("cannot specify both positional prompt and --prompt-file")
-	}
-	if promptFile != "" {
-		data, err := os.ReadFile(promptFile)
-		if err != nil {
-			return "", fmt.Errorf("reading prompt file: %w", err)
-		}
-		return strings.TrimSpace(string(data)), nil
-	}
-	if len(args) > 1 {
-		return strings.Join(args[1:], " "), nil
-	}
-	return "", nil
 }
 
 // userErr returns an exitError with code 1 (user error).
@@ -350,12 +338,6 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	// ---------------------------------------------------------------
 	// Step 15: Detach or attach to Claude
 	// ---------------------------------------------------------------
-	prompt, promptErr := resolvePrompt(args)
-	if promptErr != nil {
-		err = userErr(promptErr.Error())
-		return err
-	}
-
 	if detach || jsonOutput {
 		// Output status JSON and return.
 		status := map[string]interface{}{
@@ -364,9 +346,6 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 			"status":    "running",
 			"container": container,
 			"project":   project,
-		}
-		if prompt != "" {
-			status["prompt"] = prompt
 		}
 		if installFailed {
 			status["install_status"] = "failed"
@@ -393,11 +372,8 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 
 	// Interactive mode: launch Claude Code in the container.
 	claudeArgs := []string{"exec", "-it", container, "claude", "--dangerously-skip-permissions"}
-	if prompt != "" {
-		claudeArgs = append(claudeArgs, prompt)
-	}
 
-	slog.Debug("attaching to Claude Code", "container", container, "prompt", prompt)
+	slog.Debug("attaching to Claude Code", "container", container)
 	attachErr := runAttached(ctx, "docker", claudeArgs...)
 	if attachErr != nil {
 		slog.Debug("Claude session ended with error", "error", attachErr)

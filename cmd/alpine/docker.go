@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"text/template"
 	"time"
@@ -129,16 +130,64 @@ func runAttached(ctx context.Context, name string, args ...string) error {
 // ---------------------------------------------------------------------------
 
 // dockerHealthCheck verifies the Docker daemon is running by executing
-// "docker info" with a 3-second timeout.
+// "docker info" with a 3-second timeout. On macOS, if Docker is not
+// running it attempts to launch Docker Desktop and waits up to 60s
+// for the daemon to become ready.
 func dockerHealthCheck(ctx context.Context) error {
 	hctx, cancel := context.WithTimeout(ctx, timeoutDockerHealth)
 	defer cancel()
 
 	_, stderr, err := run(hctx, "docker", "info")
-	if err != nil {
+	if err == nil {
+		return nil
+	}
+
+	// Docker is not running. On macOS, try to start Docker Desktop.
+	if runtime.GOOS != "darwin" {
 		return fmt.Errorf("Docker is not running. Start Docker and try again.\n(detail: %s)", stderr)
 	}
-	return nil
+
+	if !jsonOutput {
+		fmt.Fprintf(os.Stderr, "Docker is not running. Starting Docker Desktop...\n")
+	}
+	slog.Info("Docker is not running, starting Docker Desktop")
+	if _, _, launchErr := run(ctx, "open", "-a", "Docker"); launchErr != nil {
+		return fmt.Errorf("Docker is not running and failed to start Docker Desktop.\n(detail: %s)", stderr)
+	}
+
+	// Poll until the daemon is ready or we time out.
+	const pollTimeout = 60 * time.Second
+	pollCtx, pollCancel := context.WithTimeout(ctx, pollTimeout)
+	defer pollCancel()
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	dots := 0
+	for {
+		select {
+		case <-pollCtx.Done():
+			if !jsonOutput {
+				fmt.Fprintf(os.Stderr, "\n")
+			}
+			return fmt.Errorf("Docker Desktop started but daemon did not become ready within %s", pollTimeout)
+		case <-ticker.C:
+			checkCtx, checkCancel := context.WithTimeout(pollCtx, timeoutDockerHealth)
+			_, _, checkErr := run(checkCtx, "docker", "info")
+			checkCancel()
+			if checkErr == nil {
+				if !jsonOutput {
+					fmt.Fprintf(os.Stderr, "\nDocker Desktop is ready.\n")
+				}
+				slog.Info("Docker Desktop is ready")
+				return nil
+			}
+			dots++
+			if !jsonOutput {
+				fmt.Fprintf(os.Stderr, "  Waiting for Docker daemon to be ready%s\r", strings.Repeat(".", dots%4+1)+"   ")
+			}
+		}
+	}
 }
 
 // checkDuplicate returns an error if an environment with the given name
