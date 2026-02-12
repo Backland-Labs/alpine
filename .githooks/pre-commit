@@ -13,3 +13,6 @@ fi
 
 # Lint
 go vet ./...
+
+# Tests
+go test ./cmd/alpine/

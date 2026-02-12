@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 	"text/tabwriter"
 
@@ -163,7 +164,7 @@ func normalizeStatus(raw string) string {
 func runList(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	if err := dockerHealthCheck(ctx); err != nil {
+	if err := dockerHealthCheck(ctx, runtime.GOOS); err != nil {
 		return err
 	}
 

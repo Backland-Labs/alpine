@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/signal"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -114,28 +113,15 @@ type exitError struct {
 
 func (e *exitError) Error() string { return e.msg }
 
-func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
-
-	// Handle double Ctrl+C: second signal force-exits
-	go func() {
-		<-ctx.Done()
-		// Context cancelled by first signal. Next signal will force exit.
-		ctx2, cancel2 := signal.NotifyContext(context.Background(), os.Interrupt)
-		defer cancel2()
-		<-ctx2.Done()
-		os.Exit(1)
-	}()
-
+func execute(ctx context.Context) int {
 	rootCmd.SetContext(ctx)
-
 	if err := rootCmd.Execute(); err != nil {
 		code := 1
 		if ee, ok := err.(*exitError); ok {
 			code = ee.code
 		}
 		outputError(err.Error(), code)
-		os.Exit(code)
+		return code
 	}
+	return 0
 }

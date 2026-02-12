@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -34,7 +35,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	name := args[0]
 
-	if err := dockerHealthCheck(ctx); err != nil {
+	if err := dockerHealthCheck(ctx, runtime.GOOS); err != nil {
 		return err
 	}
 

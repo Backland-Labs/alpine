@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"runtime"
 	"strings"
 	"text/template"
 	"time"
@@ -81,11 +80,17 @@ var serviceDefaults = map[string]ServiceConfig{
 // Shell-out helpers
 // ---------------------------------------------------------------------------
 
-// run executes a command and returns stdout and stderr as strings.
+// Package-level function variables -- tests swap these via t.Cleanup.
+var (
+	run            = defaultRun
+	runInteractive = defaultRunInteractive
+)
+
+// defaultRun executes a command and returns stdout and stderr as strings.
 // It uses exec.CommandContext with the provided context for timeout support.
 // Every external command invocation must go through this function.
 // Never use "sh -c" -- always pass arguments directly to prevent shell injection.
-func run(ctx context.Context, name string, args ...string) (string, string, error) {
+func defaultRun(ctx context.Context, name string, args ...string) (string, string, error) {
 	slog.Debug("exec", "cmd", name, "args", args)
 
 	cmd := exec.CommandContext(ctx, name, args...)
@@ -107,12 +112,12 @@ func run(ctx context.Context, name string, args ...string) (string, string, erro
 	return outStr, errStr, nil
 }
 
-// runInteractive executes an interactive command with stdin/stdout/stderr
+// defaultRunInteractive executes an interactive command with stdin/stdout/stderr
 // connected to the terminal. Unlike runAttached, it ignores SIGINT in the
 // Go process so Ctrl-C is handled only by the child. This prevents the
 // parent from killing the child when the user presses Ctrl-C (e.g., to
 // exit Claude Code while remaining in a container shell).
-func runInteractive(name string, args ...string) error {
+func defaultRunInteractive(name string, args ...string) error {
 	slog.Debug("exec (interactive)", "cmd", name, "args", args)
 
 	// Ignore SIGINT in the Go process so Ctrl-C passes only to the child.
@@ -140,7 +145,7 @@ func runInteractive(name string, args ...string) error {
 // "docker info" with a 3-second timeout. On macOS, if Docker is not
 // running it attempts to launch Docker Desktop and waits up to 60s
 // for the daemon to become ready.
-func dockerHealthCheck(ctx context.Context) error {
+func dockerHealthCheck(ctx context.Context, platform string) error {
 	hctx, cancel := context.WithTimeout(ctx, timeoutDockerHealth)
 	defer cancel()
 
@@ -150,7 +155,7 @@ func dockerHealthCheck(ctx context.Context) error {
 	}
 
 	// Docker is not running. On macOS, try to start Docker Desktop.
-	if runtime.GOOS != "darwin" {
+	if platform != "darwin" {
 		return fmt.Errorf("docker is not running; start Docker and try again (detail: %s)", stderr)
 	}
 
