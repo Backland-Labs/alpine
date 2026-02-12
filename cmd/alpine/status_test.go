@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -294,11 +295,14 @@ func TestRunStatus(t *testing.T) {
 	t.Run("docker not running", func(t *testing.T) {
 		resetFlags(t)
 		jsonOutput = false
-		// On darwin, dockerHealthCheck tries docker info then open -a Docker.
-		mockRun(t, []cmdResult{
+		responses := []cmdResult{
 			errResult("Cannot connect to Docker daemon"), // docker info fails
-			errResult("app not found"),                   // open -a Docker fails (darwin)
-		})
+		}
+		if runtime.GOOS == "darwin" {
+			// On darwin, dockerHealthCheck tries to start Docker Desktop.
+			responses = append(responses, errResult("app not found"))
+		}
+		mockRun(t, responses)
 		err := runStatus(newCmd(), []string{"myenv"})
 		if err == nil {
 			t.Fatal("expected error when Docker is not running")

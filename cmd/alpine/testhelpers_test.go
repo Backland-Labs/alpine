@@ -34,7 +34,13 @@ func mockRun(t *testing.T, responses []cmdResult) {
 		i++
 		return r.stdout, r.stderr, r.err
 	}
-	t.Cleanup(func() { run = orig })
+	t.Cleanup(func() {
+		run = orig
+		if i < len(responses) {
+			t.Errorf("mockRun: %d of %d responses consumed (%d unconsumed); test may have exited early or registered too many responses",
+				i, len(responses), len(responses)-i)
+		}
+	})
 }
 
 // cmdCall records a single invocation of run().
@@ -59,7 +65,13 @@ func mockRunRecording(t *testing.T, responses []cmdResult) *[]cmdCall {
 		i++
 		return r.stdout, r.stderr, r.err
 	}
-	t.Cleanup(func() { run = orig })
+	t.Cleanup(func() {
+		run = orig
+		if i < len(responses) {
+			t.Errorf("mockRunRecording: %d of %d responses consumed (%d unconsumed); test may have exited early or registered too many responses",
+				i, len(responses), len(responses)-i)
+		}
+	})
 	return &calls
 }
 
@@ -167,6 +179,48 @@ func newTestCreateCmd(ctx context.Context) *cobra.Command {
 	}
 	cmd.SetContext(ctx)
 	return cmd
+}
+
+// captureOutputs captures both stdout and stderr during fn().
+func captureOutputs(t *testing.T, fn func()) (stdout, stderr string) {
+	t.Helper()
+
+	origStdout := os.Stdout
+	rOut, wOut, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe stdout: %v", err)
+	}
+
+	origStderr := os.Stderr
+	rErr, wErr, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe stderr: %v", err)
+	}
+
+	os.Stdout = wOut
+	os.Stderr = wErr
+
+	outCh := make(chan string)
+	errCh := make(chan string)
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, rOut)
+		outCh <- buf.String()
+	}()
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, rErr)
+		errCh <- buf.String()
+	}()
+
+	fn()
+
+	wOut.Close()
+	wErr.Close()
+	os.Stdout = origStdout
+	os.Stderr = origStderr
+
+	return <-outCh, <-errCh
 }
 
 // errResult is a convenience for creating an error cmdResult.

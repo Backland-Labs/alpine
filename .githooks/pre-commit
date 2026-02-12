@@ -14,5 +14,12 @@ fi
 # Lint
 go vet ./...
 
-# Tests
-go test ./cmd/alpine/
+# Tests with coverage threshold
+COVERAGE_THRESHOLD=97
+go test -coverprofile=coverage.out ./cmd/alpine/
+COVERAGE=$(go tool cover -func=coverage.out | tail -1 | awk '{print $NF}' | tr -d '%')
+rm -f coverage.out
+if [ "$(echo "$COVERAGE < $COVERAGE_THRESHOLD" | bc -l)" -eq 1 ]; then
+    echo "FAIL: coverage ${COVERAGE}% is below threshold ${COVERAGE_THRESHOLD}%"
+    exit 1
+fi

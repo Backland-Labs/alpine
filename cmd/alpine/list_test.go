@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -317,13 +318,14 @@ func TestRunListWithProjects(t *testing.T) {
 
 func TestRunListDockerNotRunning(t *testing.T) {
 	resetFlags(t)
-	// On macOS (darwin), dockerHealthCheck attempts to launch Docker Desktop
-	// after the initial docker info fails, so we need a second error response
-	// for the "open -a Docker" call.
-	mockRun(t, []cmdResult{
+	responses := []cmdResult{
 		errResult("Cannot connect to the Docker daemon"), // docker info fails
-		errResult("open -a Docker failed"),               // open -a Docker fails
-	})
+	}
+	if runtime.GOOS == "darwin" {
+		// On darwin, dockerHealthCheck tries to start Docker Desktop.
+		responses = append(responses, errResult("open -a Docker failed"))
+	}
+	mockRun(t, responses)
 	err := runList(newListCmd(), []string{})
 	if err == nil {
 		t.Fatal("expected error when Docker is not running")

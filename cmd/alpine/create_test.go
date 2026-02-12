@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -173,12 +174,14 @@ func TestRunCreate_Step1_InvalidName(t *testing.T) {
 
 func TestRunCreate_Step2_DockerNotRunning(t *testing.T) {
 	setupCreateTest(t)
-	// On darwin, dockerHealthCheck tries to start Docker Desktop after
-	// the initial docker info fails. Provide responses for both calls.
-	mockRun(t, []cmdResult{
-		errResult("Cannot connect to Docker daemon"), // 0: docker info (fails)
-		errResult("app not found"),                   // 1: open -a Docker (fails on darwin)
-	})
+	responses := []cmdResult{
+		errResult("Cannot connect to Docker daemon"), // docker info (fails)
+	}
+	if runtime.GOOS == "darwin" {
+		// On darwin, dockerHealthCheck tries to start Docker Desktop.
+		responses = append(responses, errResult("app not found")) // open -a Docker (fails)
+	}
+	mockRun(t, responses)
 	err := runCreateCmd(t, context.Background(), "test")
 	assertExitCode(t, err, 2)
 }
@@ -427,15 +430,15 @@ func TestRunCreate_Step7_BuildSucceeds(t *testing.T) {
 
 func TestRunCreate_Step7_BuildFails(t *testing.T) {
 	setupCreateTest(t)
-	responses := happyCreateResponses("test")
-	responses[4] = errResult("no such image")
-	buildFail := errResult("build error: no space left")
-	newResp := make([]cmdResult, 0, len(responses)+1)
-	newResp = append(newResp, responses[:5]...)
-	newResp = append(newResp, buildFail)
-	newResp = append(newResp, responses[5:]...)
-
-	mockRun(t, newResp)
+	// Build fails at step 5 (docker build), so only 6 responses consumed.
+	mockRun(t, []cmdResult{
+		{stdout: ""},                            // 0: docker info
+		{stdout: "/tmp/fakegitroot"},            // 1: git rev-parse --show-toplevel
+		{stdout: "[]"},                          // 2: docker compose ls
+		{stdout: "main"},                        // 3: git rev-parse --abbrev-ref HEAD
+		errResult("no such image"),              // 4: docker image inspect (not found)
+		errResult("build error: no space left"), // 5: docker build (fails)
+	})
 	err := runCreateCmd(t, context.Background(), "test")
 	assertExitCode(t, err, 2)
 	assertContains(t, err, "Docker image build failed")
@@ -1419,14 +1422,18 @@ func TestRunCreate_NonJSON_CopyClaudeFailWarning(t *testing.T) {
 	withCopy = append(withCopy, responses[14:]...)
 	mockRun(t, withCopy)
 
-	out := captureStdout(t, func() {
+	stdout, stderr := captureOutputs(t, func() {
 		err := runCreateCmd(t, context.Background(), "test")
 		assertExitCode(t, err, 0)
 	})
 
-	// Non-JSON detach mode produces pretty-printed JSON.
-	if !strings.Contains(out, `"name": "test"`) {
-		t.Fatalf("expected pretty-printed JSON, got: %s", out)
+	// Non-JSON detach mode produces pretty-printed JSON on stdout.
+	if !strings.Contains(stdout, `"name": "test"`) {
+		t.Fatalf("expected pretty-printed JSON on stdout, got: %s", stdout)
+	}
+	// Warning should appear on stderr.
+	if !strings.Contains(stderr, "warning: failed to copy ~/.claude") {
+		t.Errorf("expected warning about ~/.claude copy failure on stderr, got: %s", stderr)
 	}
 }
 
@@ -1444,13 +1451,16 @@ func TestRunCreate_NonJSON_EnvFileNotFound(t *testing.T) {
 
 	mockRun(t, happyCreateResponses("test"))
 
-	out := captureStdout(t, func() {
+	stdout, stderr := captureOutputs(t, func() {
 		err := runCreateCmd(t, context.Background(), "test")
 		assertExitCode(t, err, 0)
 	})
 
-	if !strings.Contains(out, `"name": "test"`) {
-		t.Fatalf("expected pretty-printed JSON, got: %s", out)
+	if !strings.Contains(stdout, `"name": "test"`) {
+		t.Fatalf("expected pretty-printed JSON on stdout, got: %s", stdout)
+	}
+	if !strings.Contains(stderr, "env file") || !strings.Contains(stderr, "not found") {
+		t.Errorf("expected warning about missing env file on stderr, got: %s", stderr)
 	}
 }
 
@@ -1468,13 +1478,16 @@ func TestRunCreate_NonJSON_EnvFileEscapesRoot(t *testing.T) {
 
 	mockRun(t, happyCreateResponses("test"))
 
-	out := captureStdout(t, func() {
+	stdout, stderr := captureOutputs(t, func() {
 		err := runCreateCmd(t, context.Background(), "test")
 		assertExitCode(t, err, 0)
 	})
 
-	if !strings.Contains(out, `"name": "test"`) {
-		t.Fatalf("expected pretty-printed JSON, got: %s", out)
+	if !strings.Contains(stdout, `"name": "test"`) {
+		t.Fatalf("expected pretty-printed JSON on stdout, got: %s", stdout)
+	}
+	if !strings.Contains(stderr, "escapes repository root") {
+		t.Errorf("expected warning about env file escaping root on stderr, got: %s", stderr)
 	}
 }
 
@@ -1504,13 +1517,16 @@ func TestRunCreate_NonJSON_EnvFileCopyFails(t *testing.T) {
 	withEnv = append(withEnv, responses[14:]...)
 	mockRun(t, withEnv)
 
-	out := captureStdout(t, func() {
+	stdout, stderr := captureOutputs(t, func() {
 		err := runCreateCmd(t, context.Background(), "test")
 		assertExitCode(t, err, 0)
 	})
 
-	if !strings.Contains(out, `"name": "test"`) {
-		t.Fatalf("expected pretty-printed JSON, got: %s", out)
+	if !strings.Contains(stdout, `"name": "test"`) {
+		t.Fatalf("expected pretty-printed JSON on stdout, got: %s", stdout)
+	}
+	if !strings.Contains(stderr, "failed to copy env file") {
+		t.Errorf("expected warning about env file copy failure on stderr, got: %s", stderr)
 	}
 }
 
@@ -1535,13 +1551,16 @@ func TestRunCreate_NonJSON_AutoConfigCopyFails(t *testing.T) {
 	withCopy = append(withCopy, responses[14:]...)
 	mockRun(t, withCopy)
 
-	out := captureStdout(t, func() {
+	stdout, stderr := captureOutputs(t, func() {
 		err := runCreateCmd(t, context.Background(), "test")
 		assertExitCode(t, err, 0)
 	})
 
-	if !strings.Contains(out, `"name": "test"`) {
-		t.Fatalf("expected pretty-printed JSON, got: %s", out)
+	if !strings.Contains(stdout, `"name": "test"`) {
+		t.Fatalf("expected pretty-printed JSON on stdout, got: %s", stdout)
+	}
+	if !strings.Contains(stderr, "failed to copy") || !strings.Contains(stderr, ".tool-versions") {
+		t.Errorf("expected warning about .tool-versions copy failure on stderr, got: %s", stderr)
 	}
 }
 
@@ -1650,10 +1669,14 @@ func TestRunCreate_Step14_CopyClaudeJSONFail(t *testing.T) {
 
 func TestRunCreate_Step7_MkdirTempBuildFails(t *testing.T) {
 	setupCreateTest(t)
-	responses := happyCreateResponses("test")
-	// Make imageExists return false so the build path is entered.
-	responses[4] = errResult("no such image")
-	mockRun(t, responses)
+	// MkdirTemp fails after imageExists (step 4), so only 5 responses consumed.
+	mockRun(t, []cmdResult{
+		{stdout: ""},                 // 0: docker info
+		{stdout: "/tmp/fakegitroot"}, // 1: git rev-parse --show-toplevel
+		{stdout: "[]"},               // 2: docker compose ls
+		{stdout: "main"},             // 3: git rev-parse --abbrev-ref HEAD
+		errResult("no such image"),   // 4: docker image inspect (not found)
+	})
 
 	// Break TMPDIR so os.MkdirTemp fails inside runCreate.
 	// setupCreateTest already created its temp dirs, so this only affects runCreate.
@@ -1670,9 +1693,14 @@ func TestRunCreate_Step7_MkdirTempBuildFails(t *testing.T) {
 
 func TestRunCreate_Step8_MkdirTempComposeFails(t *testing.T) {
 	setupCreateTest(t)
-	responses := happyCreateResponses("test")
-	// Image exists (skip build), so we go directly to the compose MkdirTemp.
-	mockRun(t, responses)
+	// Image exists (skip build), MkdirTemp fails after step 4. Only 5 responses consumed.
+	mockRun(t, []cmdResult{
+		{stdout: ""},                 // 0: docker info
+		{stdout: "/tmp/fakegitroot"}, // 1: git rev-parse --show-toplevel
+		{stdout: "[]"},               // 2: docker compose ls
+		{stdout: "main"},             // 3: git rev-parse --abbrev-ref HEAD
+		{stdout: ""},                 // 4: docker image inspect (exists)
+	})
 
 	// Break TMPDIR so os.MkdirTemp fails inside runCreate.
 	t.Setenv("TMPDIR", "/nonexistent/path")

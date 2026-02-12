@@ -7,9 +7,16 @@ BINARY := bin/alpine
 build: setup
 	go build $(LDFLAGS) -o $(BINARY) ./cmd/alpine
 
+COVERAGE_THRESHOLD := 97
+
 test:
 	go test -coverprofile=coverage.out ./cmd/alpine/
 	@go tool cover -func=coverage.out | tail -1
+	@COVERAGE=$$(go tool cover -func=coverage.out | tail -1 | awk '{print $$NF}' | tr -d '%'); \
+	if [ $$(echo "$$COVERAGE < $(COVERAGE_THRESHOLD)" | bc -l) -eq 1 ]; then \
+		echo "FAIL: coverage $${COVERAGE}% is below threshold $(COVERAGE_THRESHOLD)%"; \
+		exit 1; \
+	fi
 
 test-integration:
 	go test -tags=integration -v ./cmd/alpine/
