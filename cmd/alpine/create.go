@@ -367,13 +367,20 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 		return nil
 	}
 
-	// Interactive mode: launch Claude Code inside a bash session so Ctrl-C
-	// exits Claude but drops the user into a container shell.
-	shellCmd := "claude --dangerously-skip-permissions; exec bash"
+	// Interactive mode: launch Claude Code, then drop to a container shell.
+	// Uses runInteractive which ignores SIGINT in the Go process, so Ctrl-C
+	// is handled only by the child (Claude exits, Go process continues).
 	slog.Debug("attaching to Claude Code", "container", container)
-	attachErr := runInteractive("docker", "exec", "-it", "-w", "/workspace", container, "bash", "-c", shellCmd)
-	if attachErr != nil {
-		slog.Debug("interactive session ended with error", "error", attachErr)
+	claudeErr := runInteractive("docker", "exec", "-it", "-w", "/workspace", container, "claude", "--dangerously-skip-permissions")
+	if claudeErr != nil {
+		slog.Debug("Claude session ended", "error", claudeErr)
+	}
+
+	// Drop to an interactive shell inside the container.
+	slog.Debug("dropping to container shell", "container", container)
+	shellErr := runInteractive("docker", "exec", "-it", "-w", "/workspace", container, "/bin/bash")
+	if shellErr != nil {
+		slog.Debug("shell session ended", "error", shellErr)
 	}
 
 	if installFailed {

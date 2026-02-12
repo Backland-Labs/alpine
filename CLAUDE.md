@@ -4,48 +4,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**WHY**: Starter template for Claude Code projects with pre-configured agents, commands, and plugins.
+**WHY**: Create fully isolated, containerized dev environments for running parallel AI coding agents.
 
 **WHAT**:
-- Tech stack: Bash, Markdown
-- Architecture: Claude Code configuration template
+- Tech stack: Go 1.22, Cobra, Docker Compose
+- Architecture: Single-binary CLI that generates Dockerfiles and Compose YAML at runtime
 
 **HOW**:
 ```bash
-# Load environment variables manually
-source .claude/scripts/env_vars.sh
-
-# Or rely on the pre-prompt hook to load .env automatically
+make build                    # build to bin/alpine
+make install                  # install to $GOPATH/bin
+alpine create my-feature      # create an environment
+alpine list                   # show active environments
+alpine status my-feature      # show environment details
 ```
 
-## Sessions Pattern (Optional)
+## Key Architecture
 
-If you've set up the Sessions Directory Pattern (`npx create-sessions-dir`):
+- `cmd/alpine/main.go` -- CLI root, config loading, validation
+- `cmd/alpine/create.go` -- `alpine create` (15-step workflow)
+- `cmd/alpine/docker.go` -- Docker/Compose/Git operations, Dockerfile and Compose YAML generation
+- `cmd/alpine/list.go` -- `alpine list`
+- `cmd/alpine/status.go` -- `alpine status`
 
-- `/start-session` - Read context, fetch GitHub/Linear issues
-- `/end-session` - Update context, detect merged PRs, auto-archive
-- `/plan` - Create structured implementation plans
-- `/document` - Topic-specific documentation with sub-agents
-- `/change-git-strategy` - Change git strategy for .sessions/
+## Configuration
 
-Learn more: https://vieko.dev/sessions
+- `alpine.yaml` -- per-project config (base_image, install, env_files, services)
+- Docker Compose YAML is generated at runtime, never stored as a static file
+- Environment variables use passthrough syntax only (no secrets in generated YAML)
 
-## External Tools (Optional)
+## Conventions
 
-**For GitHub integration:**
-```bash
-gh auth login    # Required for PR/issue fetching
-```
-
-**For Linear integration:**
-Configure the Linear MCP server in your Claude settings.
-See: https://github.com/anthropics/claude-code/blob/main/docs/mcp.md
-
-Commands will gracefully handle missing tools and prompt for manual input.
-
-- Never echo sensative env vars directly. Instead
+- All external commands go through `run()` in docker.go -- never use `sh -c`
+- Error handling: `userErr()` (exit 1) vs `sysErr()` (exit 2)
+- Services are aliased: postgres -> `db`, redis -> `cache`
+- Container user is always `claude` (non-root)
+- Never echo sensitive env vars directly
 
 ```bash
-# Returns exit code 0 (true) if set, 1 (false) if not
-  [ -n "$VARIABLE" ]
+# Check if a variable is set without printing its value
+[ -n "$VARIABLE" ]
 ```
