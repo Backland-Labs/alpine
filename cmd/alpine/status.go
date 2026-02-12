@@ -12,7 +12,7 @@ import (
 type statusOutput struct {
 	Name           string `json:"name"`
 	Container      string `json:"container"`
-	State          string `json:"state"`                       // "running", "stopped", "not_found"
+	State          string `json:"state"` // "running", "stopped", "not_found"
 	Branch         string `json:"branch"`
 	Created        string `json:"created"`
 	ClaudeRunning  bool   `json:"claude_running"`

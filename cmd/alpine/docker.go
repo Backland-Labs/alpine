@@ -107,25 +107,6 @@ func run(ctx context.Context, name string, args ...string) (string, string, erro
 	return outStr, errStr, nil
 }
 
-// runAttached executes a command with stdin/stdout/stderr connected to the
-// terminal. Used for interactive sessions (e.g., docker exec -it).
-func runAttached(ctx context.Context, name string, args ...string) error {
-	slog.Debug("exec (attached)", "cmd", name, "args", args)
-
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return &ExecError{
-			Command: name + " " + strings.Join(args, " "),
-			Err:     err,
-		}
-	}
-	return nil
-}
-
 // runInteractive executes an interactive command with stdin/stdout/stderr
 // connected to the terminal. Unlike runAttached, it ignores SIGINT in the
 // Go process so Ctrl-C is handled only by the child. This prevents the
@@ -170,7 +151,7 @@ func dockerHealthCheck(ctx context.Context) error {
 
 	// Docker is not running. On macOS, try to start Docker Desktop.
 	if runtime.GOOS != "darwin" {
-		return fmt.Errorf("Docker is not running. Start Docker and try again.\n(detail: %s)", stderr)
+		return fmt.Errorf("docker is not running; start Docker and try again (detail: %s)", stderr)
 	}
 
 	if !jsonOutput {
@@ -178,7 +159,7 @@ func dockerHealthCheck(ctx context.Context) error {
 	}
 	slog.Info("Docker is not running, starting Docker Desktop")
 	if _, _, launchErr := run(ctx, "open", "-a", "Docker"); launchErr != nil {
-		return fmt.Errorf("Docker is not running and failed to start Docker Desktop.\n(detail: %s)", stderr)
+		return fmt.Errorf("docker is not running and failed to start Docker Desktop (detail: %s)", stderr)
 	}
 
 	// Poll until the daemon is ready or we time out.
@@ -196,7 +177,7 @@ func dockerHealthCheck(ctx context.Context) error {
 			if !jsonOutput {
 				fmt.Fprintf(os.Stderr, "\n")
 			}
-			return fmt.Errorf("Docker Desktop started but daemon did not become ready within %s", pollTimeout)
+			return fmt.Errorf("docker Desktop started but daemon did not become ready within %s", pollTimeout)
 		case <-ticker.C:
 			checkCtx, checkCancel := context.WithTimeout(pollCtx, timeoutDockerHealth)
 			_, _, checkErr := run(checkCtx, "docker", "info")
@@ -387,27 +368,27 @@ var serviceAlias = map[string]string{
 
 // serviceTemplateData holds data for rendering a service block.
 type serviceTemplateData struct {
-	Alias           string
-	Image           string
-	ExtraCmd        string
-	Tmpfs           string
-	Healthcheck     string
-	UseCMDShell     bool
+	Alias            string
+	Image            string
+	ExtraCmd         string
+	Tmpfs            string
+	Healthcheck      string
+	UseCMDShell      bool
 	HealthcheckParts string
-	StartPeriod     string
-	EnvName         string
+	StartPeriod      string
+	EnvName          string
 }
 
 // composeData holds all the data needed to render the compose template.
 type composeData struct {
-	ImageTag string
-	Project  string
-	Name     string
+	ImageTag  string
+	Project   string
+	Name      string
 	SSHSocket string
 	SSHTarget string
-	Created  string
-	Branch   string
-	Services []string
+	Created   string
+	Branch    string
+	Services  []string
 }
 
 // generateComposeYAML produces a docker-compose.yml from the given config.
@@ -480,14 +461,14 @@ func generateComposeYAML(cfg *Config, name, branch, platform, imageTag string) (
 	}
 
 	data := composeData{
-		ImageTag: imageTag,
-		Project:  project,
-		Name:         name,
-		SSHSocket:    sshSocket,
-		SSHTarget:    sshTarget,
-		Created:      created,
-		Branch:       branch,
-		Services:     serviceBlocks,
+		ImageTag:  imageTag,
+		Project:   project,
+		Name:      name,
+		SSHSocket: sshSocket,
+		SSHTarget: sshTarget,
+		Created:   created,
+		Branch:    branch,
+		Services:  serviceBlocks,
 	}
 
 	tmpl, err := template.New("compose").Parse(composeTemplate)
@@ -602,7 +583,9 @@ func loadDotEnv(path string) error {
 
 		// Only set if not already in environment.
 		if os.Getenv(key) == "" {
-			os.Setenv(key, value)
+			if err := os.Setenv(key, value); err != nil {
+				return fmt.Errorf("failed to set env var %s: %w", key, err)
+			}
 			slog.Debug("loaded env var from .env", "key", key)
 		}
 	}
@@ -688,46 +671,6 @@ func gitConfigureUser(ctx context.Context, container string) error {
 	return nil
 }
 
-// gitHasChanges returns true if there are uncommitted changes in the
-// container's working tree.
-func gitHasChanges(ctx context.Context, container string) (bool, error) {
-	stdout, _, err := run(ctx, "docker", "exec", "-w", "/workspace", container,
-		"git", "status", "--porcelain")
-	if err != nil {
-		return false, fmt.Errorf("git status failed: %w", err)
-	}
-	return stdout != "", nil
-}
-
-// gitAddCommitPush stages tracked files (git add -u, NEVER git add .),
-// commits with the given message, and pushes to the remote branch.
-func gitAddCommitPush(ctx context.Context, container, branch, message string) error {
-	// Stage tracked files only.
-	_, _, err := run(ctx, "docker", "exec", "-w", "/workspace", container,
-		"git", "add", "-u")
-	if err != nil {
-		return fmt.Errorf("git add -u failed: %w", err)
-	}
-
-	// Commit.
-	_, _, err = run(ctx, "docker", "exec", "-w", "/workspace", container,
-		"git", "commit", "-m", message)
-	if err != nil {
-		return fmt.Errorf("git commit failed: %w", err)
-	}
-
-	// Push with timeout.
-	pushCtx, cancel := context.WithTimeout(ctx, timeoutGitPush)
-	defer cancel()
-
-	_, stderr, err := run(pushCtx, "docker", "exec", "-w", "/workspace", container,
-		"git", "push", "origin", branch)
-	if err != nil {
-		return fmt.Errorf("git push failed: %s", stderr)
-	}
-	return nil
-}
-
 // gitGetCurrentBranch returns the current branch name on the host.
 func gitGetCurrentBranch(ctx context.Context) (string, error) {
 	stdout, _, err := run(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")
@@ -759,7 +702,6 @@ func gitFindRoot() (string, error) {
 	return stdout, nil
 }
 
-
 // ---------------------------------------------------------------------------
 // Output helpers
 // ---------------------------------------------------------------------------
@@ -785,5 +727,3 @@ func outputError(msg string, exitCode int) {
 	}
 	fmt.Fprintln(os.Stderr, "Error: "+msg)
 }
-
-

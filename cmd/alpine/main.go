@@ -90,9 +90,9 @@ repo clone, branch, services, and Claude Code instance.`,
 			Level: level,
 		})))
 	},
-	SilenceUsage:          true,
-	SilenceErrors:         true,
-	CompletionOptions:     cobra.CompletionOptions{DisableDefaultCmd: true},
+	SilenceUsage:      true,
+	SilenceErrors:     true,
+	CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 }
 
 func init() {

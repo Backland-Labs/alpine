@@ -177,7 +177,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return sysErr(fmt.Sprintf("failed to create temp dir: %v", err))
 		}
-		defer os.RemoveAll(tempBuildDir)
+		defer os.RemoveAll(tempBuildDir) //nolint:errcheck // best-effort cleanup
 
 		dockerfilePath := filepath.Join(tempBuildDir, "Dockerfile")
 		if err := os.WriteFile(dockerfilePath, dockerfile, 0644); err != nil {
@@ -210,7 +210,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	// ---------------------------------------------------------------
 	// Step 9: defer cleanup of temp dir
 	// ---------------------------------------------------------------
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup
 
 	composeFile := filepath.Join(tempDir, "docker-compose.yml")
 	if err := os.WriteFile(composeFile, composeYAML, 0644); err != nil {
