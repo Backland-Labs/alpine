@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 	"text/tabwriter"
 
@@ -163,7 +164,7 @@ func normalizeStatus(raw string) string {
 func runList(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	if err := dockerHealthCheck(ctx); err != nil {
+	if err := dockerHealthCheck(ctx, runtime.GOOS); err != nil {
 		return err
 	}
 
@@ -211,9 +212,9 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	// Table output.
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tBRANCH\tSTATUS\tCREATED")
+	fmt.Fprintln(w, "NAME\tBRANCH\tSTATUS\tCREATED") //nolint:errcheck // errors surface on Flush
 	for _, env := range envs {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", env.Name, env.Branch, env.Status, env.Created)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", env.Name, env.Branch, env.Status, env.Created) //nolint:errcheck // errors surface on Flush
 	}
 	return w.Flush()
 }

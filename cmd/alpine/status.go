@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -12,7 +13,7 @@ import (
 type statusOutput struct {
 	Name           string `json:"name"`
 	Container      string `json:"container"`
-	State          string `json:"state"`                       // "running", "stopped", "not_found"
+	State          string `json:"state"` // "running", "stopped", "not_found"
 	Branch         string `json:"branch"`
 	Created        string `json:"created"`
 	ClaudeRunning  bool   `json:"claude_running"`
@@ -34,7 +35,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	name := args[0]
 
-	if err := dockerHealthCheck(ctx); err != nil {
+	if err := dockerHealthCheck(ctx, runtime.GOOS); err != nil {
 		return err
 	}
 

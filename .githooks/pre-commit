@@ -1,0 +1,25 @@
+#!/bin/sh
+set -e
+
+# Format check -- fail if any staged .go files aren't formatted
+UNFORMATTED=$(gofmt -l $(git diff --cached --name-only --diff-filter=ACM -- '*.go') 2>/dev/null)
+if [ -n "$UNFORMATTED" ]; then
+    echo "gofmt: these files need formatting:"
+    echo "$UNFORMATTED"
+    echo ""
+    echo "Run: gofmt -w \$file"
+    exit 1
+fi
+
+# Lint
+go vet ./...
+
+# Tests with coverage threshold
+COVERAGE_THRESHOLD=97
+go test -coverprofile=coverage.out ./cmd/alpine/
+COVERAGE=$(go tool cover -func=coverage.out | tail -1 | awk '{print $NF}' | tr -d '%')
+rm -f coverage.out
+if [ "$(echo "$COVERAGE < $COVERAGE_THRESHOLD" | bc -l)" -eq 1 ]; then
+    echo "FAIL: coverage ${COVERAGE}% is below threshold ${COVERAGE_THRESHOLD}%"
+    exit 1
+fi

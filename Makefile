@@ -2,13 +2,28 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 BINARY := bin/alpine
 
-.PHONY: build test lint install clean
+.PHONY: build test test-integration test-coverage lint install clean setup
 
-build:
+build: setup
 	go build $(LDFLAGS) -o $(BINARY) ./cmd/alpine
 
+COVERAGE_THRESHOLD := 97
+
 test:
-	go test ./...
+	go test -coverprofile=coverage.out ./cmd/alpine/
+	@go tool cover -func=coverage.out | tail -1
+	@COVERAGE=$$(go tool cover -func=coverage.out | tail -1 | awk '{print $$NF}' | tr -d '%'); \
+	if [ $$(echo "$$COVERAGE < $(COVERAGE_THRESHOLD)" | bc -l) -eq 1 ]; then \
+		echo "FAIL: coverage $${COVERAGE}% is below threshold $(COVERAGE_THRESHOLD)%"; \
+		exit 1; \
+	fi
+
+test-integration:
+	go test -tags=integration -v ./cmd/alpine/
+
+test-coverage:
+	go test -coverprofile=coverage.out ./cmd/alpine/
+	go tool cover -html=coverage.out
 
 lint:
 	go vet ./...
@@ -21,5 +36,8 @@ lint:
 install:
 	go install $(LDFLAGS) ./cmd/alpine
 
+setup:
+	git config core.hooksPath .githooks
+
 clean:
-	rm -rf bin/
+	rm -rf bin/ coverage.out

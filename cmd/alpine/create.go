@@ -80,7 +80,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	// Step 2: Docker health check
 	// ---------------------------------------------------------------
 	slog.Debug("checking Docker health")
-	if err := dockerHealthCheck(ctx); err != nil {
+	if err := dockerHealthCheck(ctx, runtime.GOOS); err != nil {
 		return sysErr(err.Error())
 	}
 
@@ -177,7 +177,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 		if err != nil {
 			return sysErr(fmt.Sprintf("failed to create temp dir: %v", err))
 		}
-		defer os.RemoveAll(tempBuildDir)
+		defer os.RemoveAll(tempBuildDir) //nolint:errcheck // best-effort cleanup
 
 		dockerfilePath := filepath.Join(tempBuildDir, "Dockerfile")
 		if err := os.WriteFile(dockerfilePath, dockerfile, 0644); err != nil {
@@ -210,7 +210,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	// ---------------------------------------------------------------
 	// Step 9: defer cleanup of temp dir
 	// ---------------------------------------------------------------
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup
 
 	composeFile := filepath.Join(tempDir, "docker-compose.yml")
 	if err := os.WriteFile(composeFile, composeYAML, 0644); err != nil {
@@ -220,9 +220,14 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 
 	// Rollback defer: tear down compose project if we started it and hit an error.
 	// Uses context.Background() so cleanup works even after Ctrl+C cancels ctx.
+	// Skip rollback for exit code 3 (install failure) -- leave env running so
+	// the user can attach and fix.
 	composed := false
 	defer func() {
 		if err != nil && composed {
+			if ee, ok := err.(*exitError); ok && ee.code == 3 {
+				return
+			}
 			slog.Debug("rolling back: tearing down compose project", "project", project)
 			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cleanupCancel()
@@ -468,7 +473,7 @@ fi`)
 		}
 
 		if installFailed {
-			os.Exit(3)
+			return &exitError{msg: "install command failed; environment is running", code: 3}
 		}
 		return nil
 	}
@@ -481,7 +486,7 @@ fi`)
 	}
 
 	if installFailed {
-		os.Exit(3)
+		return &exitError{msg: "install command failed; environment is running", code: 3}
 	}
 
 	// Clear the named return so rollback defer does not fire.

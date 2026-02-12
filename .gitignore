@@ -7,3 +7,6 @@ auth.json
 # Build artifacts
 /alpine
 /bin/
+
+# Test artifacts
+coverage.out
