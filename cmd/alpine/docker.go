@@ -296,6 +296,7 @@ const composeTemplate = `services:
       - {{ .SSHSocket }}:{{ .SSHTarget }}
     environment:
       - ANTHROPIC_API_KEY
+      - CLAUDE_OAUTH_TOKEN
       - GITHUB_TOKEN
       - GH_TOKEN
       - SSH_AUTH_SOCK={{ .SSHTarget }}

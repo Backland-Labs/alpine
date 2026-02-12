@@ -135,9 +135,6 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	// Step 7: Validate prerequisites
 	// ---------------------------------------------------------------
 	slog.Debug("validating prerequisites")
-	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		return userErr("ANTHROPIC_API_KEY is not set")
-	}
 
 	hasGitAuth := false
 	if os.Getenv("SSH_AUTH_SOCK") != "" {
@@ -368,6 +365,15 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 			os.Exit(3)
 		}
 		return nil
+	}
+
+	// If no OAuth token is available, run setup-token to authenticate interactively.
+	if os.Getenv("CLAUDE_OAUTH_TOKEN") == "" {
+		slog.Debug("no CLAUDE_OAUTH_TOKEN set, running claude setup-token")
+		setupErr := runAttached(ctx, "docker", "exec", "-it", container, "claude", "setup-token")
+		if setupErr != nil {
+			return sysErr(fmt.Sprintf("claude setup-token failed: %v", setupErr))
+		}
 	}
 
 	// Interactive mode: launch Claude Code in the container.
