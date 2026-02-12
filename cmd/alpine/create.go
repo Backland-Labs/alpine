@@ -122,20 +122,9 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 6: Get remote URL (origin)
+	// Step 6: Validate git auth prerequisites
 	// ---------------------------------------------------------------
-	slog.Debug("resolving git remote URL")
-	remoteURL, err := gitGetRemoteURL(ctx, "origin")
-	if err != nil {
-		return userErr("no git remote 'origin' configured. Add a remote and try again")
-	}
-	slog.Debug("remote URL resolved", "url", remoteURL)
-
-	// ---------------------------------------------------------------
-	// Step 7: Validate prerequisites
-	// ---------------------------------------------------------------
-	slog.Debug("validating prerequisites")
-
+	slog.Debug("validating git auth prerequisites")
 	hasGitAuth := false
 	if os.Getenv("SSH_AUTH_SOCK") != "" {
 		hasGitAuth = true
@@ -150,7 +139,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 8: Generate Dockerfile, compute hash, build if needed
+	// Step 7: Generate Dockerfile, compute hash, build if needed
 	// ---------------------------------------------------------------
 	slog.Debug("loading configuration")
 	cfg, err := loadConfig()
@@ -194,7 +183,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 9: Generate compose YAML, write to temp dir, compose up
+	// Step 8: Generate compose YAML, write to temp dir, compose up
 	// ---------------------------------------------------------------
 	composeYAML, err := generateComposeYAML(cfg, name, branch, runtime.GOOS, imageTag)
 	if err != nil {
@@ -207,7 +196,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 10: defer cleanup of temp dir
+	// Step 9: defer cleanup of temp dir
 	// ---------------------------------------------------------------
 	defer os.RemoveAll(tempDir)
 
@@ -244,7 +233,17 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	slog.Debug("dev container discovered", "container", container)
 
 	// ---------------------------------------------------------------
-	// Step 11: Clone repo inside dev container
+	// Step 10: Get remote URL
+	// ---------------------------------------------------------------
+	slog.Debug("resolving git remote URL")
+	remoteURL, err := gitGetRemoteURL(ctx, "origin")
+	if err != nil {
+		return userErr("no git remote 'origin' configured. Add a remote and try again")
+	}
+	slog.Debug("remote URL resolved", "url", remoteURL)
+
+	// ---------------------------------------------------------------
+	// Step 11: Clone repo inside container
 	// ---------------------------------------------------------------
 	slog.Debug("cloning repository into container", "remote", remoteURL, "branch", branch)
 	if err = gitClone(ctx, container, remoteURL, branch); err != nil {
@@ -252,7 +251,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 12: Create feature/<name> branch
+	// Step 12: Create feature/<name> branch inside container
 	// ---------------------------------------------------------------
 	featureBranch := "feature/" + name
 	slog.Debug("creating feature branch", "branch", featureBranch)
@@ -269,9 +268,43 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 13b: Copy env files into container
+	// Step 14: Auto-detect and copy common config files into container
+	// ---------------------------------------------------------------
+	autoConfigPaths := []string{".claude", ".env", ".tool-versions", ".node-version", ".ruby-version", ".python-version"}
+	copiedPaths := make(map[string]bool)
+
+	for _, configPath := range autoConfigPaths {
+		srcPath := filepath.Join(gitRoot, configPath)
+		if _, statErr := os.Stat(srcPath); statErr != nil {
+			// File/directory does not exist -- skip silently.
+			continue
+		}
+
+		destPath := "/workspace/" + configPath
+		slog.Debug("auto-copying config into container", "src", srcPath, "dest", destPath)
+
+		if cpErr := copyPathToContainer(ctx, container, srcPath, destPath); cpErr != nil {
+			slog.Debug("failed to auto-copy config", "path", configPath, "error", cpErr)
+			if !jsonOutput {
+				fmt.Fprintf(os.Stderr, "warning: failed to copy %q: %v\n", configPath, cpErr)
+			}
+			continue
+		}
+
+		copiedPaths[configPath] = true
+		slog.Debug("auto-copied config into container", "path", configPath)
+	}
+
+	// ---------------------------------------------------------------
+	// Step 15: Copy env files into container
 	// ---------------------------------------------------------------
 	for _, envFile := range cfg.EnvFiles {
+		// Skip if already copied in step 14.
+		if copiedPaths[envFile] {
+			slog.Debug("env file already copied in auto-detect, skipping", "file", envFile)
+			continue
+		}
+
 		srcPath := filepath.Join(gitRoot, envFile)
 		absPath, _ := filepath.Abs(srcPath)
 		if !strings.HasPrefix(absPath, gitRoot+string(filepath.Separator)) && absPath != gitRoot {
@@ -292,24 +325,19 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 		destPath := "/workspace/" + envFile
 		slog.Debug("copying env file into container", "src", srcPath, "dest", destPath)
 
-		_, stderr, cpErr := run(ctx, "docker", "cp", srcPath, container+":"+destPath)
-		if cpErr != nil {
-			slog.Debug("failed to copy env file", "file", envFile, "error", stderr)
+		if cpErr := copyPathToContainer(ctx, container, srcPath, destPath); cpErr != nil {
+			slog.Debug("failed to copy env file", "file", envFile, "error", cpErr)
 			if !jsonOutput {
-				fmt.Fprintf(os.Stderr, "warning: failed to copy env file %q: %s\n", envFile, stderr)
+				fmt.Fprintf(os.Stderr, "warning: failed to copy env file %q: %v\n", envFile, cpErr)
 			}
 			continue
 		}
 
-		// chown to claude user
-		_, stderr, chownErr := run(ctx, "docker", "exec", container, "chown", "claude:claude", destPath)
-		if chownErr != nil {
-			slog.Debug("failed to chown env file", "file", envFile, "error", stderr)
-		}
+		copiedPaths[envFile] = true
 	}
 
 	// ---------------------------------------------------------------
-	// Step 14: Run install command if configured
+	// Step 16: Run install command if configured
 	// ---------------------------------------------------------------
 	installFailed := false
 	if cfg.Install != "" {
@@ -333,7 +361,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 15: Detach or attach to Claude
+	// Step 17: Detach or attach
 	// ---------------------------------------------------------------
 	if detach || jsonOutput {
 		// Output status JSON and return.

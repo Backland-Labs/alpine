@@ -88,7 +88,7 @@ The generated compose project includes:
 **Environment variables** are passed through from the host using Docker's passthrough syntax (no literal values in the generated YAML):
 
 - `ANTHROPIC_API_KEY`
-- `CLAUDE_OAUTH_TOKEN`
+- `CLAUDE_CODE_OAUTH_TOKEN`
 - `GITHUB_TOKEN`
 - `GH_TOKEN`
 - `SSH_AUTH_SOCK`
@@ -113,7 +113,7 @@ export GITHUB_TOKEN=ghp_...       # or GH_TOKEN
 
 # Required: at least one of these for Claude
 export ANTHROPIC_API_KEY=sk-...
-export CLAUDE_OAUTH_TOKEN=...     # alternative to API key
+export CLAUDE_CODE_OAUTH_TOKEN=...     # alternative to API key
 ```
 
 The `env_files` field in `alpine.yaml` controls which files are copied into the container -- it does not load variables into Alpine itself.
