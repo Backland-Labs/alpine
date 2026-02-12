@@ -322,7 +322,7 @@ const composeTemplate = `services:
       - {{ .SSHSocket }}:{{ .SSHTarget }}
     environment:
       - ANTHROPIC_API_KEY
-      - CLAUDE_OAUTH_TOKEN
+      - CLAUDE_CODE_OAUTH_TOKEN
       - GITHUB_TOKEN
       - GH_TOKEN
       - SSH_AUTH_SOCK={{ .SSHTarget }}
@@ -511,8 +511,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN useradd -m -s /bin/bash claude
 
+# Pre-populate GitHub SSH host keys so git clone over SSH does not prompt.
+RUN mkdir -p /home/claude/.ssh \
+    && ssh-keyscan -t ed25519,rsa github.com >> /home/claude/.ssh/known_hosts 2>/dev/null \
+    && chown -R claude:claude /home/claude/.ssh \
+    && chmod 700 /home/claude/.ssh \
+    && chmod 600 /home/claude/.ssh/known_hosts
+
 USER claude
 ENV PATH="/home/claude/.local/bin:${PATH}"
+
+# Configure git to use GITHUB_TOKEN for HTTPS auth when available.
+RUN git config --global credential.helper \
+    '!f() { echo "username=x-access-token"; echo "password=${GITHUB_TOKEN:-${GH_TOKEN}}"; }; f'
 
 RUN bash -c 'set -o pipefail && curl -fsSL https://claude.ai/install.sh | bash'
 
@@ -544,19 +555,39 @@ func imageExists(ctx context.Context, tag string) (bool, error) {
 }
 
 // ---------------------------------------------------------------------------
+// File copy helpers
+// ---------------------------------------------------------------------------
+
+// copyPathToContainer copies a file or directory from the host into the container
+// and chowns it to the claude user. Works for both files and directories.
+func copyPathToContainer(ctx context.Context, container, srcPath, destPath string) error {
+	// Use docker cp (handles both files and directories)
+	_, stderr, err := run(ctx, "docker", "cp", srcPath, container+":"+destPath)
+	if err != nil {
+		return fmt.Errorf("docker cp failed: %s", stderr)
+	}
+
+	// chown to claude user (use -R for directories)
+	_, stderr, err = run(ctx, "docker", "exec", "--user", "root", container, "chown", "-R", "claude:claude", destPath)
+	if err != nil {
+		return fmt.Errorf("chown failed: %s", stderr)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
 // Git operations (all via docker exec into container)
 // ---------------------------------------------------------------------------
 
-// gitClone clones a repo inside a container using a shallow, single-branch
-// clone for speed: --depth 1 --single-branch.
+// gitClone clones a repo inside a container. Uses a full clone so the
+// container has enough history for rebases, amends, and pushes.
 func gitClone(ctx context.Context, container, remoteURL, branch string) error {
 	cloneCtx, cancel := context.WithTimeout(ctx, timeoutGitClone)
 	defer cancel()
 
 	slog.Info("cloning repository", "container", container, "branch", branch)
 	_, stderr, err := run(cloneCtx, "docker", "exec", container,
-		"git", "clone", "--depth", "1", "--single-branch", "--branch", branch,
-		remoteURL, "/workspace")
+		"git", "clone", "--branch", branch, remoteURL, "/workspace")
 	if err != nil {
 		return fmt.Errorf("git clone failed: %s", stderr)
 	}
@@ -672,6 +703,7 @@ func gitFindRoot() (string, error) {
 	}
 	return stdout, nil
 }
+
 
 // ---------------------------------------------------------------------------
 // Output helpers
