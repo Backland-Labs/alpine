@@ -268,7 +268,25 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 14: Auto-detect and copy common config files into container
+	// Step 14: Copy host ~/.claude into container home for Claude Code setup
+	// ---------------------------------------------------------------
+	if homeDir, homeErr := os.UserHomeDir(); homeErr == nil {
+		hostClaudeDir := filepath.Join(homeDir, ".claude")
+		if _, statErr := os.Stat(hostClaudeDir); statErr == nil {
+			slog.Debug("copying host ~/.claude into container home", "src", hostClaudeDir)
+			if cpErr := copyPathToContainer(ctx, container, hostClaudeDir, "/home/claude/.claude"); cpErr != nil {
+				slog.Debug("failed to copy host ~/.claude", "error", cpErr)
+				if !jsonOutput {
+					fmt.Fprintf(os.Stderr, "warning: failed to copy ~/.claude: %v\n", cpErr)
+				}
+			} else {
+				slog.Debug("copied host ~/.claude into container home")
+			}
+		}
+	}
+
+	// ---------------------------------------------------------------
+	// Step 15: Auto-detect and copy common config files into container
 	// ---------------------------------------------------------------
 	autoConfigPaths := []string{".claude", ".env", ".tool-versions", ".node-version", ".ruby-version", ".python-version"}
 	copiedPaths := make(map[string]bool)
@@ -296,7 +314,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 15: Copy env files into container
+	// Step 16: Copy env files into container
 	// ---------------------------------------------------------------
 	for _, envFile := range cfg.EnvFiles {
 		// Skip if already copied in step 14.
@@ -337,7 +355,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 16: Run install command if configured
+	// Step 17: Run install command if configured
 	// ---------------------------------------------------------------
 	installFailed := false
 	if cfg.Install != "" {
@@ -361,7 +379,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 17: Detach or attach
+	// Step 18: Detach or attach
 	// ---------------------------------------------------------------
 	if detach || jsonOutput {
 		// Output status JSON and return.
