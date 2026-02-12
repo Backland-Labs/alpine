@@ -191,16 +191,24 @@ func dockerHealthCheck(ctx context.Context) error {
 }
 
 // checkDuplicate returns an error if an environment with the given name
-// already exists (i.e., the compose project is already running or stopped).
+// already exists (i.e., the compose project is listed by docker compose ls).
 func checkDuplicate(ctx context.Context, name string) error {
 	project := "alpine-" + name
-	// docker compose ps returns exit 0 if the project exists (even if stopped).
-	_, _, err := run(ctx, "docker", "compose", "-p", project, "ps", "--format", "json")
-	if err == nil {
-		return fmt.Errorf("environment %q already exists. Run `alpine list` to see active environments", name)
+	// docker compose ls lists known projects. We filter by exact name and check
+	// whether the result is non-empty. This is reliable across Docker Compose
+	// versions (unlike "docker compose ps" which may return exit 0 with empty
+	// output for non-existent projects).
+	stdout, _, err := run(ctx, "docker", "compose", "ls", "--filter", "name="+project, "--format", "json")
+	if err != nil {
+		// If ls itself fails, assume no duplicate (create will fail later if
+		// Docker is truly broken).
+		return nil
 	}
-	// Non-zero exit means no such project -- this is the expected case.
-	return nil
+	stdout = strings.TrimSpace(stdout)
+	if stdout == "" || stdout == "[]" {
+		return nil
+	}
+	return fmt.Errorf("environment %q already exists", name)
 }
 
 // composePSEntry is a helper struct for parsing docker compose ps JSON output.
