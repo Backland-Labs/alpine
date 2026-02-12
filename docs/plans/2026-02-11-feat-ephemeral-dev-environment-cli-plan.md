@@ -377,7 +377,6 @@ alpine/
   - Subdirectory of a repo (walk up to find root)
   - No git remote configured
   - Remote-only branches with `--from`
-- [ ] Add shell completion (Cobra built-in)
 - [ ] Set up GitHub Actions CI with Docker for integration tests
 
 **Success criteria:**
@@ -496,7 +495,6 @@ All errors use a structured `ExecError` type that includes the command name and 
 
 - `alpine stop <name>` / `alpine start <name>` -- pause without destroying
 - `alpine init` -- generate `alpine.yaml` with project type detection
-- Shell completion (Cobra built-in, Phase 3)
 - `.goreleaser.yml` for cross-platform release automation
 - Pre-built images published to a registry
 - Resource limits per environment (CPU, memory caps via compose `deploy.resources`)
