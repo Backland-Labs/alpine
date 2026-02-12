@@ -339,6 +339,9 @@ const composeTemplate = `services:
       start_period: 5s
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
     security_opt:
       - no-new-privileges:true
 {{- range .Services }}
@@ -518,14 +521,15 @@ RUN mkdir -p /home/claude/.ssh \
     && chmod 700 /home/claude/.ssh \
     && chmod 600 /home/claude/.ssh/known_hosts
 
-USER claude
 ENV PATH="/home/claude/.local/bin:${PATH}"
 
 # Configure git to use GITHUB_TOKEN for HTTPS auth when available.
+USER claude
 RUN git config --global credential.helper \
     '!f() { echo "username=x-access-token"; echo "password=${GITHUB_TOKEN:-${GH_TOKEN}}"; }; f'
 
 RUN bash -c 'set -o pipefail && curl -fsSL https://claude.ai/install.sh | bash'
+USER root
 
 WORKDIR /workspace
 `)
