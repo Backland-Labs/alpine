@@ -104,7 +104,7 @@ Set these on the host before running `alpine create`. The container inherits the
 
 ### Environment Variables
 
-Alpine itself does not read a `.env` file. Set these in your shell:
+Alpine loads `.env` from the project root (if present) before starting the container. Variables already exported in your shell take precedence.
 
 ```bash
 # Required: at least one of these for git auth
@@ -113,10 +113,12 @@ export GITHUB_TOKEN=ghp_...       # or GH_TOKEN
 
 # Required: at least one of these for Claude
 export ANTHROPIC_API_KEY=sk-...
-export CLAUDE_CODE_OAUTH_TOKEN=...     # alternative to API key
+export CLAUDE_CODE_OAUTH_TOKEN=...     # alternative to API key (run `claude setup-token` to generate)
 ```
 
-The `env_files` field in `alpine.yaml` controls which files are copied into the container -- it does not load variables into Alpine itself.
+You can place these in a `.env` file in your project root instead of exporting them in your shell.
+
+The `env_files` field in `alpine.yaml` controls which additional files are copied into the container.
 
 ## Commands
 

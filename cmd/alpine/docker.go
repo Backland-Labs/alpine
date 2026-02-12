@@ -341,6 +341,7 @@ const composeTemplate = `services:
       - ALL
     cap_add:
       - CHOWN
+      - DAC_OVERRIDE
       - FOWNER
     security_opt:
       - no-new-privileges:true
@@ -530,8 +531,11 @@ RUN git config --global credential.helper \
 
 RUN bash -c 'set -o pipefail && curl -fsSL https://claude.ai/install.sh | bash'
 USER root
+RUN ln -s /home/claude/.local/bin/claude /usr/local/bin/claude
 
 WORKDIR /workspace
+RUN chown claude:claude /workspace
+USER claude
 `)
 	return buf.Bytes()
 }
@@ -556,6 +560,53 @@ func imageExists(ctx context.Context, tag string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// ---------------------------------------------------------------------------
+// Environment helpers
+// ---------------------------------------------------------------------------
+
+// loadDotEnv reads a .env file and sets variables in the process environment.
+// Variables already set in the environment are NOT overwritten, so explicit
+// exports always take precedence. This ensures compose passthrough variables
+// (e.g., CLAUDE_CODE_OAUTH_TOKEN) pick up values from .env files.
+func loadDotEnv(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Strip optional "export " prefix.
+		line = strings.TrimPrefix(line, "export ")
+
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+
+		// Remove surrounding quotes.
+		if len(value) >= 2 {
+			if (value[0] == '"' && value[len(value)-1] == '"') ||
+				(value[0] == '\'' && value[len(value)-1] == '\'') {
+				value = value[1 : len(value)-1]
+			}
+		}
+
+		// Only set if not already in environment.
+		if os.Getenv(key) == "" {
+			os.Setenv(key, value)
+			slog.Debug("loaded env var from .env", "key", key)
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------

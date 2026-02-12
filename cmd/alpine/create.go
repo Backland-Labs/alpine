@@ -94,6 +94,18 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 	slog.Debug("git root found", "path", gitRoot)
 
+	// Load .env from the git root so compose passthrough variables
+	// (CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_API_KEY, etc.) are available
+	// even when the user hasn't exported them in their shell.
+	envPath := filepath.Join(gitRoot, ".env")
+	if _, statErr := os.Stat(envPath); statErr == nil {
+		if loadErr := loadDotEnv(envPath); loadErr != nil {
+			slog.Debug("failed to load .env", "error", loadErr)
+		} else {
+			slog.Debug("loaded .env from git root", "path", envPath)
+		}
+	}
+
 	// ---------------------------------------------------------------
 	// Step 4: Check for duplicate environment
 	// ---------------------------------------------------------------
@@ -268,7 +280,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 14: Copy host ~/.claude into container home for Claude Code setup
+	// Step 14: Copy host ~/.claude and ~/.claude.json into container
 	// ---------------------------------------------------------------
 	if homeDir, homeErr := os.UserHomeDir(); homeErr == nil {
 		hostClaudeDir := filepath.Join(homeDir, ".claude")
@@ -281,6 +293,18 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 				}
 			} else {
 				slog.Debug("copied host ~/.claude into container home")
+			}
+		}
+
+		// Copy ~/.claude.json (onboarding flags, theme, preferences) so
+		// Claude Code skips the interactive setup flow in the container.
+		hostClaudeJSON := filepath.Join(homeDir, ".claude.json")
+		if _, statErr := os.Stat(hostClaudeJSON); statErr == nil {
+			slog.Debug("copying host ~/.claude.json into container home", "src", hostClaudeJSON)
+			if cpErr := copyPathToContainer(ctx, container, hostClaudeJSON, "/home/claude/.claude.json"); cpErr != nil {
+				slog.Debug("failed to copy host ~/.claude.json", "error", cpErr)
+			} else {
+				slog.Debug("copied host ~/.claude.json into container home")
 			}
 		}
 	}
@@ -379,7 +403,43 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// ---------------------------------------------------------------
-	// Step 18: Detach or attach
+	// Step 18: Ensure Claude Code auth is configured inside container
+	// ---------------------------------------------------------------
+	// CLAUDE_CODE_OAUTH_TOKEN is passed through via the compose environment.
+	// Claude Code also requires hasCompletedOnboarding=true in ~/.claude.json
+	// to skip the interactive setup wizard (theme picker, auth prompt).
+	// See: https://github.com/anthropics/claude-code/issues/8938
+	slog.Debug("configuring Claude Code auth in container")
+
+	// Ensure ~/.claude.json exists with hasCompletedOnboarding=true.
+	// If the file was already copied from the host (Step 14), it almost certainly
+	// has the flag. If not, we create a minimal file.
+	_, _, setupErr := run(ctx, "docker", "exec", container,
+		"sh", "-c", `f=/home/claude/.claude.json
+if [ -f "$f" ]; then
+  grep -q '"hasCompletedOnboarding"' "$f" || \
+    sed -i '1s/^{/{"hasCompletedOnboarding":true,/' "$f"
+else
+  echo '{"hasCompletedOnboarding":true}' > "$f"
+fi`)
+	if setupErr != nil {
+		slog.Debug("claude onboarding setup failed (non-fatal)", "error", setupErr)
+	}
+
+	// Verify the OAuth token is available in the container environment.
+	tokenCheck, _, _ := run(ctx, "docker", "exec", container,
+		"sh", "-c", `[ -n "$CLAUDE_CODE_OAUTH_TOKEN" ] && echo "set" || echo "unset"`)
+	if tokenCheck == "set" {
+		slog.Debug("CLAUDE_CODE_OAUTH_TOKEN is set in container")
+	} else {
+		slog.Debug("CLAUDE_CODE_OAUTH_TOKEN is NOT set in container")
+		if !jsonOutput {
+			fmt.Fprintf(os.Stderr, "warning: CLAUDE_CODE_OAUTH_TOKEN is not set. Run `claude setup-token` on the host and export the token to enable auto-auth.\n")
+		}
+	}
+
+	// ---------------------------------------------------------------
+	// Step 19: Detach or attach
 	// ---------------------------------------------------------------
 	if detach || jsonOutput {
 		// Output status JSON and return.
@@ -415,7 +475,7 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 
 	// Interactive mode: drop into a shell inside the container.
 	slog.Debug("attaching to container shell", "container", container)
-	shellErr := runInteractive("docker", "exec", "-it", "-w", "/workspace", container, "/bin/bash")
+	shellErr := runInteractive("docker", "exec", "-it", "--user", "claude", "-w", "/workspace", container, "/bin/bash")
 	if shellErr != nil {
 		slog.Debug("shell session ended", "error", shellErr)
 	}
