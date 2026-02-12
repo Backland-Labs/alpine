@@ -1,0 +1,22 @@
+# alpine.yaml - Configuration for alpine dev environments
+#
+# Place this file in your project root.
+# All fields are optional - sensible defaults are used.
+
+# Command to run after cloning the repo (e.g., "npm install", "pip install -r requirements.txt")
+install: npm install
+
+# Files to copy into the dev container
+env_files:
+  - .env
+  - .env.local
+
+# Base Docker image for the dev container
+# Default: ubuntu:24.04
+base_image: node:20
+
+# Services to start alongside the dev container
+# Supported: postgres, redis
+services:
+  - postgres
+  - redis

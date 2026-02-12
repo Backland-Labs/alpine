@@ -3,3 +3,7 @@ auth.json
 .zshrc
 .claude.json
 .env
+
+# Build artifacts
+/alpine
+/bin/
