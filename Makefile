@@ -2,9 +2,9 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 BINARY := bin/alpine
 
-.PHONY: build test lint install clean
+.PHONY: build test lint install clean setup
 
-build:
+build: setup
 	go build $(LDFLAGS) -o $(BINARY) ./cmd/alpine
 
 test:
@@ -20,6 +20,9 @@ lint:
 
 install:
 	go install $(LDFLAGS) ./cmd/alpine
+
+setup:
+	git config core.hooksPath .githooks
 
 clean:
 	rm -rf bin/

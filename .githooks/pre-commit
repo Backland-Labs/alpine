@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+# Format check -- fail if any staged .go files aren't formatted
+UNFORMATTED=$(gofmt -l $(git diff --cached --name-only --diff-filter=ACM -- '*.go') 2>/dev/null)
+if [ -n "$UNFORMATTED" ]; then
+    echo "gofmt: these files need formatting:"
+    echo "$UNFORMATTED"
+    echo ""
+    echo "Run: gofmt -w \$file"
+    exit 1
+fi
+
+# Lint
+go vet ./...
