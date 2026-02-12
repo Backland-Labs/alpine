@@ -483,11 +483,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl openssh-client ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://cli.anthropic.com/install.sh | sh
-
 RUN useradd -m -s /bin/bash claude
 
 USER claude
+ENV PATH="/home/claude/.local/bin:${PATH}"
+
+RUN bash -c 'set -o pipefail && curl -fsSL https://claude.ai/install.sh | bash'
+
 WORKDIR /workspace
 `)
 	return buf.Bytes()
