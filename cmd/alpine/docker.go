@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime"
 	"strings"
 	"text/template"
@@ -112,6 +113,31 @@ func runAttached(ctx context.Context, name string, args ...string) error {
 	slog.Debug("exec (attached)", "cmd", name, "args", args)
 
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return &ExecError{
+			Command: name + " " + strings.Join(args, " "),
+			Err:     err,
+		}
+	}
+	return nil
+}
+
+// runInteractive executes an interactive command with stdin/stdout/stderr
+// connected to the terminal. Unlike runAttached, it ignores SIGINT in the
+// Go process so Ctrl-C is handled only by the child. This prevents the
+// parent from killing the child when the user presses Ctrl-C (e.g., to
+// exit Claude Code while remaining in a container shell).
+func runInteractive(name string, args ...string) error {
+	slog.Debug("exec (interactive)", "cmd", name, "args", args)
+
+	// Ignore SIGINT in the Go process so Ctrl-C passes only to the child.
+	signal.Ignore(os.Interrupt)
+
+	cmd := exec.Command(name, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

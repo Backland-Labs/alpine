@@ -367,22 +367,13 @@ func runCreate(cmd *cobra.Command, args []string) (err error) {
 		return nil
 	}
 
-	// If no OAuth token is available, run setup-token to authenticate interactively.
-	if os.Getenv("CLAUDE_OAUTH_TOKEN") == "" {
-		slog.Debug("no CLAUDE_OAUTH_TOKEN set, running claude setup-token")
-		setupErr := runAttached(ctx, "docker", "exec", "-it", container, "claude", "setup-token")
-		if setupErr != nil {
-			return sysErr(fmt.Sprintf("claude setup-token failed: %v", setupErr))
-		}
-	}
-
-	// Interactive mode: launch Claude Code in the container.
-	claudeArgs := []string{"exec", "-it", container, "claude", "--dangerously-skip-permissions"}
-
+	// Interactive mode: launch Claude Code inside a bash session so Ctrl-C
+	// exits Claude but drops the user into a container shell.
+	shellCmd := "claude --dangerously-skip-permissions; exec bash"
 	slog.Debug("attaching to Claude Code", "container", container)
-	attachErr := runAttached(ctx, "docker", claudeArgs...)
+	attachErr := runInteractive("docker", "exec", "-it", "-w", "/workspace", container, "bash", "-c", shellCmd)
 	if attachErr != nil {
-		slog.Debug("Claude session ended with error", "error", attachErr)
+		slog.Debug("interactive session ended with error", "error", attachErr)
 	}
 
 	if installFailed {
