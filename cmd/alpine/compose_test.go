@@ -91,6 +91,54 @@ func TestGenerateComposeYAML(t *testing.T) {
 		}
 	})
 
+	t.Run("with browser service", func(t *testing.T) {
+		cfg := &Config{BaseImage: "ubuntu:24.04", Services: []string{"browser"}}
+		yaml, err := generateComposeYAML(cfg, "test", "main", "darwin", "alpine-dev:abc")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		s := string(yaml)
+		if !strings.Contains(s, "browser:") {
+			t.Error("browser should produce browser: service block")
+		}
+		if !strings.Contains(s, "browserless/chromium:latest") {
+			t.Error("browser should use browserless/chromium image")
+		}
+		if !strings.Contains(s, "CMD-SHELL") {
+			t.Error("browser healthcheck should use CMD-SHELL")
+		}
+		if !strings.Contains(s, "wget") {
+			t.Error("browser healthcheck should use wget")
+		}
+		if !strings.Contains(s, "start_period: 10s") {
+			t.Error("browser should have 10s start_period")
+		}
+	})
+
+	t.Run("browser injects BROWSER_WS_ENDPOINT into dev", func(t *testing.T) {
+		cfg := &Config{BaseImage: "ubuntu:24.04", Services: []string{"browser"}}
+		yaml, err := generateComposeYAML(cfg, "test", "main", "darwin", "alpine-dev:abc")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		s := string(yaml)
+		if !strings.Contains(s, "BROWSER_WS_ENDPOINT=ws://browser:3000") {
+			t.Error("dev container should have BROWSER_WS_ENDPOINT when browser is enabled")
+		}
+	})
+
+	t.Run("no BROWSER_WS_ENDPOINT without browser", func(t *testing.T) {
+		cfg := &Config{BaseImage: "ubuntu:24.04", Services: []string{"postgres"}}
+		yaml, err := generateComposeYAML(cfg, "test", "main", "darwin", "alpine-dev:abc")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		s := string(yaml)
+		if strings.Contains(s, "BROWSER_WS_ENDPOINT") {
+			t.Error("dev container should NOT have BROWSER_WS_ENDPOINT when browser is not enabled")
+		}
+	})
+
 	t.Run("both services", func(t *testing.T) {
 		cfg := &Config{BaseImage: "ubuntu:24.04", Services: []string{"postgres", "redis"}}
 		yaml, err := generateComposeYAML(cfg, "test", "main", "darwin", "alpine-dev:abc")
@@ -100,6 +148,21 @@ func TestGenerateComposeYAML(t *testing.T) {
 		s := string(yaml)
 		if !strings.Contains(s, "db:") || !strings.Contains(s, "cache:") {
 			t.Error("both service aliases should be present")
+		}
+	})
+
+	t.Run("all three services", func(t *testing.T) {
+		cfg := &Config{BaseImage: "ubuntu:24.04", Services: []string{"postgres", "redis", "browser"}}
+		yaml, err := generateComposeYAML(cfg, "test", "main", "darwin", "alpine-dev:abc")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		s := string(yaml)
+		if !strings.Contains(s, "db:") || !strings.Contains(s, "cache:") || !strings.Contains(s, "browser:") {
+			t.Error("all three service aliases should be present")
+		}
+		if !strings.Contains(s, "BROWSER_WS_ENDPOINT=ws://browser:3000") {
+			t.Error("BROWSER_WS_ENDPOINT should be injected with all three services")
 		}
 	})
 

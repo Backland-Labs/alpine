@@ -20,8 +20,9 @@
 #   - .env
 
 # Services to start alongside the dev container.
-# Supported: postgres, redis
+# Supported: postgres, redis, browser
 # Default: (none)
 # services:
 #   - postgres
 #   - redis
+#   - browser
