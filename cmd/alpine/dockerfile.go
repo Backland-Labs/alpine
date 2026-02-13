@@ -6,15 +6,22 @@ import (
 	"fmt"
 )
 
-// generateDockerfile produces a Dockerfile that layers Claude CLI and git
-// on top of the provided base image. It creates a non-root "claude" user
-// and hardcodes apt-get with --no-install-recommends.
+// generateDockerfile produces a Dockerfile that layers Claude CLI, git, and
+// GitHub CLI (gh) on top of the provided base image. It creates a non-root
+// "claude" user and hardcodes apt-get with --no-install-recommends.
 func generateDockerfile(baseImage string) []byte {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "FROM %s\n", baseImage)
 	buf.WriteString(`
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl openssh-client ca-certificates \
+    && mkdir -p /usr/share/keyrings \
+    && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+       | tee /usr/share/keyrings/githubcli-archive-keyring.gpg >/dev/null \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+       > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -s /bin/bash claude
