@@ -24,6 +24,42 @@ var (
 // hyphens, no leading/trailing hyphens.
 var nameRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,48}[a-z0-9])?$`)
 
+// sanitizeName converts a raw input (e.g. a branch name like
+// "refactor/make-agent-ready") into a valid environment name by lowercasing,
+// replacing common separators with hyphens, stripping illegal characters,
+// collapsing consecutive hyphens, and trimming leading/trailing hyphens.
+func sanitizeName(raw string) string {
+	s := strings.ToLower(raw)
+
+	// Replace common separators with hyphens.
+	s = strings.NewReplacer("/", "-", "_", "-", ".", "-").Replace(s)
+
+	// Strip any character that isn't lowercase alphanumeric or hyphen.
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			b.WriteRune(r)
+		}
+	}
+	s = b.String()
+
+	// Collapse consecutive hyphens.
+	for strings.Contains(s, "--") {
+		s = strings.ReplaceAll(s, "--", "-")
+	}
+
+	// Trim leading/trailing hyphens.
+	s = strings.Trim(s, "-")
+
+	// Truncate to 50 characters, then trim any trailing hyphen created by truncation.
+	if len(s) > 50 {
+		s = s[:50]
+		s = strings.TrimRight(s, "-")
+	}
+
+	return s
+}
+
 func validateName(name string) error {
 	if !nameRegex.MatchString(name) {
 		return fmt.Errorf("invalid name %q: must be 1-50 lowercase alphanumeric chars or hyphens, no leading/trailing hyphens", name)
@@ -55,7 +91,13 @@ func init() {
 
 func runCreate(cmd *cobra.Command, args []string) (err error) {
 	ctx := cmd.Context()
-	name := args[0]
+	name := sanitizeName(args[0])
+	if name == "" {
+		return userErr(fmt.Sprintf("invalid name %q: nothing left after sanitization", args[0]))
+	}
+	if name != args[0] {
+		slog.Info("sanitized environment name", "input", args[0], "name", name)
+	}
 	project := "alpine-" + name
 
 	// ---------------------------------------------------------------
