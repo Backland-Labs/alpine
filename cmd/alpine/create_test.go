@@ -59,6 +59,39 @@ func TestValidateName(t *testing.T) {
 	}
 }
 
+func TestSanitizeName(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "already valid", input: "my-feature", want: "my-feature"},
+		{name: "slash separated", input: "refactor/make-agent-ready", want: "refactor-make-agent-ready"},
+		{name: "uppercase", input: "MyFeature", want: "myfeature"},
+		{name: "mixed case with slash", input: "Feature/Add-Login", want: "feature-add-login"},
+		{name: "underscores", input: "my_feature_branch", want: "my-feature-branch"},
+		{name: "dots", input: "v1.2.3", want: "v1-2-3"},
+		{name: "multiple slashes", input: "a/b/c", want: "a-b-c"},
+		{name: "leading slash", input: "/leading", want: "leading"},
+		{name: "trailing slash", input: "trailing/", want: "trailing"},
+		{name: "consecutive separators", input: "a//b", want: "a-b"},
+		{name: "special chars stripped", input: "a@b!c", want: "abc"},
+		{name: "empty after sanitize", input: "@!!", want: ""},
+		{name: "truncate to 50", input: strings.Repeat("a", 60), want: strings.Repeat("a", 50)},
+		{name: "single char", input: "a", want: "a"},
+		{name: "numbers", input: "123", want: "123"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sanitizeName(tt.input)
+			if got != tt.want {
+				t.Errorf("sanitizeName(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUserErr(t *testing.T) {
 	err := userErr("something went wrong")
 	var ee *exitError
@@ -161,9 +194,9 @@ func assertContains(t *testing.T, err error, substr string) {
 
 func TestRunCreate_Step1_InvalidName(t *testing.T) {
 	setupCreateTest(t)
-	// No run() calls needed -- validateName fails before any shell-out.
+	// No run() calls needed -- sanitizeName produces "" which fails before any shell-out.
 	mockRun(t, []cmdResult{})
-	err := runCreateCmd(t, context.Background(), "INVALID")
+	err := runCreateCmd(t, context.Background(), "@!!")
 	assertExitCode(t, err, 1)
 	assertContains(t, err, "invalid name")
 }

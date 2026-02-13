@@ -59,13 +59,14 @@ func TestExecute(t *testing.T) {
 		rootCmd.PersistentPreRun(rootCmd, []string{})
 	})
 
-	t.Run("exitError returns custom code via validateName", func(t *testing.T) {
+	t.Run("exitError returns custom code via invalid name", func(t *testing.T) {
 		resetFlags(t)
 		jsonOutput = true
 		mockRun(t, []cmdResult{})
-		// "INVALID" is uppercase and fails validateName, returning exitError code 1.
+		// "@!!" contains only special chars; sanitizeName produces "" which fails,
+		// returning exitError code 1.
 		origArgs := os.Args
-		os.Args = []string{"alpine", "create", "INVALID"}
+		os.Args = []string{"alpine", "create", "@!!"}
 		t.Cleanup(func() { os.Args = origArgs })
 
 		captureStdout(t, func() {
