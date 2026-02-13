@@ -29,15 +29,20 @@ var serviceDefaults = map[string]ServiceConfig{
 		Healthcheck: "redis-cli ping",
 		ExtraCmd:    `redis-server --save "" --appendonly no`,
 	},
+	"browser": {
+		Image:       "browserless/chromium:latest",
+		Healthcheck: "wget -q --spider http://localhost:3000/json/version",
+	},
 }
 
 // serviceAlias maps service names to their compose service aliases.
 var serviceAlias = map[string]string{
 	"postgres": "db",
 	"redis":    "cache",
+	"browser":  "browser",
 }
 
-// composeTemplate is the Go text/template for generating docker-compose.yml.
+// composeTmpl is the parsed Go text/template for generating docker-compose.yml.
 // Key features:
 //   - Dev service uses build: directive for image building
 //   - SSH agent mount is platform-aware (macOS vs Linux)
@@ -46,7 +51,7 @@ var serviceAlias = map[string]string{
 //   - Tuned health checks (interval: 2s)
 //   - Security hardening: cap_drop ALL, no-new-privileges
 //   - tmpfs with size limits for services that need them
-const composeTemplate = `services:
+var composeTmpl = template.Must(template.New("compose").Parse(`services:
   dev:
     image: {{ .ImageTag }}
     container_name: {{ .Project }}-dev-1
@@ -61,6 +66,9 @@ const composeTemplate = `services:
       - GITHUB_TOKEN
       - GH_TOKEN
       - SSH_AUTH_SOCK={{ .SSHTarget }}
+{{- range .ExtraEnv }}
+      - {{ . }}
+{{- end }}
     labels:
       alpine.managed: "true"
       alpine.name: "{{ .Name }}"
@@ -83,10 +91,10 @@ const composeTemplate = `services:
 {{- range .Services }}
 {{ . }}
 {{- end }}
-`
+`))
 
-// serviceTemplate generates the YAML block for a supporting service.
-const serviceTemplate = `  {{ .Alias }}:
+// serviceTmpl generates the YAML block for a supporting service.
+var serviceTmpl = template.Must(template.New("service").Parse(`  {{ .Alias }}:
     image: {{ .Image }}
 {{- if .ExtraCmd }}
     command: {{ .ExtraCmd }}
@@ -112,7 +120,7 @@ const serviceTemplate = `  {{ .Alias }}:
     labels:
       alpine.managed: "true"
       alpine.name: "{{ .EnvName }}"
-`
+`))
 
 // serviceTemplateData holds data for rendering a service block.
 type serviceTemplateData struct {
@@ -137,6 +145,7 @@ type composeData struct {
 	Created   string
 	Branch    string
 	Services  []string
+	ExtraEnv  []string
 }
 
 // generateComposeYAML produces a docker-compose.yml from the given config.
@@ -167,7 +176,7 @@ func generateComposeYAML(cfg *Config, name, branch, platform, imageTag string) (
 	for _, svc := range cfg.Services {
 		defaults, ok := serviceDefaults[svc]
 		if !ok {
-			return nil, fmt.Errorf("unsupported service: %q (supported: postgres, redis)", svc)
+			return nil, fmt.Errorf("unsupported service: %q (supported: postgres, redis, browser)", svc)
 		}
 		alias := serviceAlias[svc]
 
@@ -180,12 +189,15 @@ func generateComposeYAML(cfg *Config, name, branch, platform, imageTag string) (
 			EnvName:     name,
 		}
 
-		// Determine health check format.
-		// postgres uses CMD-SHELL (pg_isready -U postgres), redis uses CMD with split parts.
-		if svc == "postgres" {
+		// Determine health check format and start period.
+		switch svc {
+		case "postgres":
 			data.UseCMDShell = true
 			data.StartPeriod = "5s"
-		} else {
+		case "browser":
+			data.UseCMDShell = true
+			data.StartPeriod = "10s"
+		default:
 			data.UseCMDShell = false
 			// Split the healthcheck command into JSON array parts for CMD format.
 			parts := strings.Fields(defaults.Healthcheck)
@@ -197,15 +209,19 @@ func generateComposeYAML(cfg *Config, name, branch, platform, imageTag string) (
 			data.StartPeriod = "3s"
 		}
 
-		tmpl, err := template.New("service").Parse(serviceTemplate)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse service template: %w", err)
-		}
 		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, data); err != nil {
+		if err := serviceTmpl.Execute(&buf, data); err != nil {
 			return nil, fmt.Errorf("failed to render service %q: %w", svc, err)
 		}
 		serviceBlocks = append(serviceBlocks, buf.String())
+	}
+
+	// Inject extra environment variables into the dev container based on enabled services.
+	var extraEnv []string
+	for _, svc := range cfg.Services {
+		if svc == "browser" {
+			extraEnv = append(extraEnv, "BROWSER_WS_ENDPOINT=ws://browser:3000")
+		}
 	}
 
 	data := composeData{
@@ -217,14 +233,11 @@ func generateComposeYAML(cfg *Config, name, branch, platform, imageTag string) (
 		Created:   created,
 		Branch:    branch,
 		Services:  serviceBlocks,
+		ExtraEnv:  extraEnv,
 	}
 
-	tmpl, err := template.New("compose").Parse(composeTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse compose template: %w", err)
-	}
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
+	if err := composeTmpl.Execute(&buf, data); err != nil {
 		return nil, fmt.Errorf("failed to render compose YAML: %w", err)
 	}
 

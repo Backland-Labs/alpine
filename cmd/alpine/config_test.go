@@ -35,6 +35,11 @@ func TestLoadConfig(t *testing.T) {
 			wantErr: "base_image cannot be empty",
 		},
 		{
+			name:      "valid browser service",
+			yaml:      "base_image: ubuntu:24.04\nservices:\n  - browser\n",
+			wantImage: "ubuntu:24.04",
+		},
+		{
 			name:    "unknown service",
 			yaml:    "base_image: ubuntu:24.04\nservices:\n  - mysql\n",
 			wantErr: "unknown service",
@@ -104,8 +109,16 @@ func TestValidate(t *testing.T) {
 			cfg:  Config{BaseImage: "ubuntu:24.04", Services: []string{"redis"}},
 		},
 		{
+			name: "valid browser",
+			cfg:  Config{BaseImage: "ubuntu:24.04", Services: []string{"browser"}},
+		},
+		{
 			name: "both services",
 			cfg:  Config{BaseImage: "ubuntu:24.04", Services: []string{"postgres", "redis"}},
+		},
+		{
+			name: "all three services",
+			cfg:  Config{BaseImage: "ubuntu:24.04", Services: []string{"postgres", "redis", "browser"}},
 		},
 		{
 			name: "no services",

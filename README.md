@@ -56,10 +56,11 @@ env_files:
   - .env.local
 
 # Sidecar services (default: none)
-# Supported: postgres, redis
+# Supported: postgres, redis, browser
 services:
   - postgres
   - redis
+  - browser
 ```
 
 See `alpine.yaml.example` for the full template with comments.
@@ -71,7 +72,7 @@ See `alpine.yaml.example` for the full template with comments.
 | `base_image` | `ubuntu:24.04` | Docker image for the dev container |
 | `install` | *(none)* | Shell command to run after cloning |
 | `env_files` | *(none)* | Files to copy from host into `/workspace/` |
-| `services` | *(none)* | Sidecar services: `postgres`, `redis` |
+| `services` | *(none)* | Sidecar services: `postgres`, `redis`, `browser` |
 
 If `alpine.yaml` is missing, Alpine uses defaults and logs a warning.
 
@@ -84,6 +85,7 @@ The generated compose project includes:
 - **Dev container** -- your configured base image with git, curl, SSH, and Claude CLI pre-installed. Runs as a non-root `claude` user with `cap_drop: ALL` and `no-new-privileges`.
 - **PostgreSQL** (if configured) -- `postgres:16` with `trust` auth and tmpfs storage.
 - **Redis** (if configured) -- `redis:7` with persistence disabled.
+- **Browser** (if configured) -- `browserless/chromium:latest` for Playwright/Puppeteer E2E testing. Accessible at `ws://browser:3000` from the dev container via `BROWSER_WS_ENDPOINT`.
 
 **Environment variables** are passed through from the host using Docker's passthrough syntax (no literal values in the generated YAML):
 
@@ -97,10 +99,11 @@ Set these on the host before running `alpine create`. The container inherits the
 
 **Service aliases** for use inside the container:
 
-| Service | Hostname | Port |
-|---|---|---|
-| PostgreSQL | `db` | 5432 |
-| Redis | `cache` | 6379 |
+| Service | Hostname | Port | Env var |
+|---|---|---|---|
+| PostgreSQL | `db` | 5432 | -- |
+| Redis | `cache` | 6379 | -- |
+| Browser | `browser` | 3000 | `BROWSER_WS_ENDPOINT` |
 
 ### Environment Variables
 

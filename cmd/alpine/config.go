@@ -20,6 +20,7 @@ type Config struct {
 var validServices = map[string]bool{
 	"postgres": true,
 	"redis":    true,
+	"browser":  true,
 }
 
 // loadConfig reads and validates alpine.yaml from the current directory.
@@ -55,7 +56,7 @@ func (c *Config) validate() error {
 	}
 	for _, svc := range c.Services {
 		if !validServices[svc] {
-			return fmt.Errorf("unknown service %q (supported: postgres, redis)", svc)
+			return fmt.Errorf("unknown service %q (supported: postgres, redis, browser)", svc)
 		}
 	}
 	return nil
