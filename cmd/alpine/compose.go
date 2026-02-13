@@ -103,8 +103,8 @@ var serviceTmpl = template.Must(template.New("service").Parse(`  {{ .Alias }}:
     tmpfs:
       - {{ .Tmpfs }}
 {{- end }}
-    environment:
 {{- if eq .Alias "db" }}
+    environment:
       - POSTGRES_HOST_AUTH_METHOD=trust
 {{- end }}
     healthcheck:
