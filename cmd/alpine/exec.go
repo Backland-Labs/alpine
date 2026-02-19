@@ -42,8 +42,7 @@ func (e *ExecError) Unwrap() error {
 
 // Package-level function variables -- tests swap these via t.Cleanup.
 var (
-	run            = defaultRun
-	runInteractive = defaultRunInteractive
+	run = defaultRun
 )
 
 // defaultRun executes a command and returns stdout and stderr as strings.

@@ -55,3 +55,50 @@ func TestOutputError(t *testing.T) {
 		})
 	}
 }
+
+func TestOutputCommandErrorJSON(t *testing.T) {
+	resetFlags(t)
+	jsonOutput = true
+
+	out := captureStdout(t, func() {
+		outputCommandError(&commandError{
+			exitCode:    2,
+			errorCode:   ErrSandboxProvisionFailed,
+			cause:       "provision failed",
+			nextStep:    "retry",
+			retryable:   true,
+			operationID: "op-1",
+		})
+	})
+
+	if !strings.Contains(out, ErrSandboxProvisionFailed) {
+		t.Fatalf("expected error_code in output, got: %s", out)
+	}
+	if !strings.Contains(out, "operation_id") {
+		t.Fatalf("expected operation_id in output, got: %s", out)
+	}
+}
+
+func TestOutputCommandErrorText(t *testing.T) {
+	resetFlags(t)
+	jsonOutput = false
+
+	stdout, stderr := captureOutputs(t, func() {
+		outputCommandError(&commandError{
+			exitCode:  1,
+			cause:     "boom",
+			nextStep:  "retry",
+			retryable: false,
+		})
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Error: boom") {
+		t.Fatalf("expected error text, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "Next step: retry") {
+		t.Fatalf("expected next step text, got %q", stderr)
+	}
+}

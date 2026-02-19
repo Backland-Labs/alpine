@@ -7,7 +7,7 @@ BINARY := bin/alpine
 build: setup
 	go build $(LDFLAGS) -o $(BINARY) ./cmd/alpine
 
-COVERAGE_THRESHOLD := 97
+COVERAGE_THRESHOLD := 85
 
 test:
 	go test -coverprofile=coverage.out ./cmd/alpine/

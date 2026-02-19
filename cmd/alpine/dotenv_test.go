@@ -58,7 +58,9 @@ func TestLoadDotEnv(t *testing.T) {
 			// Clean env for each sub-test.
 			for k := range tt.wantVars {
 				t.Setenv(k, "")
-				os.Unsetenv(k)
+				if err := os.Unsetenv(k); err != nil {
+					t.Fatalf("os.Unsetenv(%q): %v", k, err)
+				}
 			}
 			for k, v := range tt.preSet {
 				t.Setenv(k, v)

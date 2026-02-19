@@ -53,6 +53,11 @@ func execute(ctx context.Context) int {
 	rootCmd.SetContext(ctx)
 	if err := rootCmd.Execute(); err != nil {
 		code := 1
+		if ce, ok := err.(*commandError); ok {
+			code = ce.exitCode
+			outputCommandError(ce)
+			return code
+		}
 		if ee, ok := err.(*exitError); ok {
 			code = ee.code
 		}

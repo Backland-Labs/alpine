@@ -37,7 +37,7 @@ func TestExecute(t *testing.T) {
 	t.Run("exitError returns custom code", func(t *testing.T) {
 		resetFlags(t)
 		jsonOutput = true
-		// Run "alpine create" with no args -- Cobra's Args validator returns error.
+		// Legacy create command returns commandError with exit code 1.
 		origArgs := os.Args
 		os.Args = []string{"alpine", "create"}
 		t.Cleanup(func() { os.Args = origArgs })
@@ -59,14 +59,12 @@ func TestExecute(t *testing.T) {
 		rootCmd.PersistentPreRun(rootCmd, []string{})
 	})
 
-	t.Run("exitError returns custom code via invalid name", func(t *testing.T) {
+	t.Run("commandError is handled by execute", func(t *testing.T) {
 		resetFlags(t)
 		jsonOutput = true
 		mockRun(t, []cmdResult{})
-		// "@!!" contains only special chars; sanitizeName produces "" which fails,
-		// returning exitError code 1.
 		origArgs := os.Args
-		os.Args = []string{"alpine", "create", "@!!"}
+		os.Args = []string{"alpine", "teardown"}
 		t.Cleanup(func() { os.Args = origArgs })
 
 		captureStdout(t, func() {

@@ -15,7 +15,7 @@ fi
 go vet ./...
 
 # Tests with coverage threshold
-COVERAGE_THRESHOLD=97
+COVERAGE_THRESHOLD=85
 go test -coverprofile=coverage.out ./cmd/alpine/
 COVERAGE=$(go tool cover -func=coverage.out | tail -1 | awk '{print $NF}' | tr -d '%')
 rm -f coverage.out

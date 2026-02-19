@@ -9,11 +9,6 @@ type exitError struct {
 
 func (e *exitError) Error() string { return e.msg }
 
-// userErr returns an exitError with code 1 (user error).
-func userErr(msg string) error {
-	return &exitError{msg: msg, code: 1}
-}
-
 // sysErr returns an exitError with code 2 (system error).
 func sysErr(msg string) error {
 	return &exitError{msg: msg, code: 2}

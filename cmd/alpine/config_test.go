@@ -54,14 +54,27 @@ func TestLoadConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
-			origDir, _ := os.Getwd()
-			os.Chdir(dir)
-			t.Cleanup(func() { os.Chdir(origDir) })
+			origDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("os.Getwd: %v", err)
+			}
+			if err := os.Chdir(dir); err != nil {
+				t.Fatalf("os.Chdir(%q): %v", dir, err)
+			}
+			t.Cleanup(func() {
+				if err := os.Chdir(origDir); err != nil {
+					t.Fatalf("restore cwd: %v", err)
+				}
+			})
 
 			if tt.yaml == "DIRECTORY" {
-				os.Mkdir(filepath.Join(dir, "alpine.yaml"), 0755)
+				if err := os.Mkdir(filepath.Join(dir, "alpine.yaml"), 0755); err != nil {
+					t.Fatalf("os.Mkdir alpine.yaml dir: %v", err)
+				}
 			} else if tt.yaml != "" {
-				os.WriteFile(filepath.Join(dir, "alpine.yaml"), []byte(tt.yaml), 0644)
+				if err := os.WriteFile(filepath.Join(dir, "alpine.yaml"), []byte(tt.yaml), 0644); err != nil {
+					t.Fatalf("os.WriteFile alpine.yaml: %v", err)
+				}
 			}
 
 			cfg, err := loadConfig()
