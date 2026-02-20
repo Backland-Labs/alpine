@@ -1,11 +1,9 @@
 package main
 
-// Tests mutate package-level variables and must NOT use t.Parallel().
-
 import (
-	"context"
 	"encoding/json"
-	"runtime"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,205 +11,172 @@ import (
 )
 
 func TestRunStatus(t *testing.T) {
-	// newCmd creates a minimal cobra.Command for calling runStatus directly.
 	newCmd := func() *cobra.Command {
 		cmd := &cobra.Command{}
-		cmd.SetContext(context.Background())
 		return cmd
 	}
 
-	t.Run("happy path human", func(t *testing.T) {
+	setup := func(t *testing.T) *Config {
+		t.Helper()
 		resetFlags(t)
-		jsonOutput = false
-		mockRun(t, []cmdResult{
-			{stdout: ""}, // 0: docker info
-			{stdout: `{"Name":"alpine-myenv-dev-1","Service":"dev"}`}, // 1: compose ps
-			{stdout: "running"},              // 2: inspect state
-			{stdout: "feature/myenv"},        // 3: inspect branch label
-			{stdout: "2024-01-15T10:30:00Z"}, // 4: inspect created label
-			{stdout: "42"},                   // 5: pgrep claude
-		})
-		out := captureStdout(t, func() {
-			err := runStatus(newCmd(), []string{"myenv"})
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-		})
-		for _, want := range []string{
-			"Environment: myenv",
-			"Container:   alpine-myenv-dev-1",
-			"State:       running",
-			"Branch:      feature/myenv",
-			"Claude:      running",
-		} {
-			if !strings.Contains(out, want) {
-				t.Errorf("output missing %q\ngot:\n%s", want, out)
-			}
+		dir := t.TempDir()
+		origWD, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatalf("chdir temp dir: %v", err)
 		}
-	})
+		t.Cleanup(func() { _ = os.Chdir(origWD) })
 
-	t.Run("happy path json", func(t *testing.T) {
-		resetFlags(t)
+		statePath := filepath.Join(dir, "state.json")
+		if err := os.Setenv("ALPINE_STATE_PATH", statePath); err != nil {
+			t.Fatalf("set env: %v", err)
+		}
+		t.Cleanup(func() { _ = os.Unsetenv("ALPINE_STATE_PATH") })
+
+		cfg, err := loadConfig()
+		if err != nil {
+			t.Fatalf("load config: %v", err)
+		}
+		return cfg
+	}
+
+	t.Run("json status includes lifecycle and durability", func(t *testing.T) {
+		cfg := setup(t)
+		orch := newOrchestrator(cfg)
+		if _, err := orch.launch(launchOptions{Name: "alpha", Repo: "https://github.com/acme/repo.git", ImageProfile: "default"}); err != nil {
+			t.Fatalf("launch: %v", err)
+		}
+		if _, err := orch.teardown(teardownOptions{Name: "alpha", Force: true}); err != nil {
+			t.Fatalf("teardown: %v", err)
+		}
+
 		jsonOutput = true
-		mockRun(t, []cmdResult{
-			{stdout: ""}, // 0: docker info
-			{stdout: `{"Name":"alpine-myenv-dev-1","Service":"dev"}`}, // 1: compose ps
-			{stdout: "running"},              // 2: inspect state
-			{stdout: "feature/myenv"},        // 3: inspect branch label
-			{stdout: "2024-01-15T10:30:00Z"}, // 4: inspect created label
-			{stdout: "42"},                   // 5: pgrep claude
-		})
 		out := captureStdout(t, func() {
-			err := runStatus(newCmd(), []string{"myenv"})
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+			if err := runStatus(newCmd(), []string{"alpha"}); err != nil {
+				t.Fatalf("runStatus: %v", err)
 			}
 		})
-		var status statusOutput
-		if err := json.Unmarshal([]byte(out), &status); err != nil {
-			t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+
+		var got statusOutput
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			t.Fatalf("unmarshal status: %v", err)
 		}
-		if status.Name != "myenv" {
-			t.Errorf("name = %q, want %q", status.Name, "myenv")
+		if got.Name != "alpha" {
+			t.Fatalf("name = %q", got.Name)
 		}
-		if status.Container != "alpine-myenv-dev-1" {
-			t.Errorf("container = %q, want %q", status.Container, "alpine-myenv-dev-1")
+		if got.State != stateDestroyed {
+			t.Fatalf("state = %q", got.State)
 		}
-		if status.State != "running" {
-			t.Errorf("state = %q, want %q", status.State, "running")
-		}
-		if status.Branch != "feature/myenv" {
-			t.Errorf("branch = %q, want %q", status.Branch, "feature/myenv")
-		}
-		if status.Created != "2024-01-15T10:30:00Z" {
-			t.Errorf("created = %q, want %q", status.Created, "2024-01-15T10:30:00Z")
-		}
-		if !status.ClaudeRunning {
-			t.Error("claude_running = false, want true")
-		}
-		if status.ClaudeExitCode != nil {
-			t.Errorf("claude_exit_code = %v, want nil", *status.ClaudeExitCode)
+		if got.Durability.CheckpointID == "" || !got.Durability.Verified {
+			t.Fatalf("expected verified checkpoint: %+v", got.Durability)
 		}
 	})
 
-	t.Run("not found human", func(t *testing.T) {
-		resetFlags(t)
+	t.Run("human status prints key fields", func(t *testing.T) {
+		cfg := setup(t)
+		orch := newOrchestrator(cfg)
+		if _, err := orch.launch(launchOptions{Name: "beta", Repo: "https://github.com/acme/repo.git", ImageProfile: "default"}); err != nil {
+			t.Fatalf("launch: %v", err)
+		}
+		store, err := orch.loadStore()
+		if err != nil {
+			t.Fatalf("loadStore: %v", err)
+		}
+		store.Sandboxes["beta"].TeardownBlockers = []string{"active_export_lock"}
+		store.Sandboxes["beta"].ErrorReason = "checkpoint_checksum_mismatch"
+		if err := orch.saveStore(store); err != nil {
+			t.Fatalf("saveStore: %v", err)
+		}
+
 		jsonOutput = false
-		mockRun(t, []cmdResult{
-			{stdout: ""},           // 0: docker info
-			errResult("not found"), // 1: compose ps fails
+		out := captureStdout(t, func() {
+			if err := runStatus(newCmd(), []string{"beta"}); err != nil {
+				t.Fatalf("runStatus: %v", err)
+			}
 		})
-		err := runStatus(newCmd(), []string{"myenv"})
+
+		for _, want := range []string{"Sandbox:", "State:", "Repo:", "Image profile:", "Blockers:", "Error reason:"} {
+			if !strings.Contains(out, want) {
+				t.Fatalf("missing %q in output: %s", want, out)
+			}
+		}
+	})
+
+	t.Run("stale parsing fallback branch", func(t *testing.T) {
+		cfg := setup(t)
+		orch := newOrchestrator(cfg)
+		if _, err := orch.launch(launchOptions{Name: "gamma", Repo: "https://github.com/acme/repo.git", ImageProfile: "default"}); err != nil {
+			t.Fatalf("launch: %v", err)
+		}
+		store, err := orch.loadStore()
+		if err != nil {
+			t.Fatalf("loadStore: %v", err)
+		}
+		store.Sandboxes["gamma"].RuntimeProbe.CheckedAt = "not-a-time"
+		if err := orch.saveStore(store); err != nil {
+			t.Fatalf("saveStore: %v", err)
+		}
+
+		jsonOutput = true
+		out := captureStdout(t, func() {
+			if err := runStatus(newCmd(), []string{"gamma"}); err != nil {
+				t.Fatalf("runStatus: %v", err)
+			}
+		})
+
+		var got statusOutput
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			t.Fatalf("unmarshal status: %v", err)
+		}
+		if !got.Runtime.ProbeStale {
+			t.Fatal("expected stale=true when probe timestamp invalid")
+		}
+	})
+
+	t.Run("not found returns reason coded error", func(t *testing.T) {
+		_ = setup(t)
+		err := runStatus(newCmd(), []string{"missing"})
 		if err == nil {
 			t.Fatal("expected error")
 		}
-		if !strings.Contains(err.Error(), "not found") {
-			t.Fatalf("error = %q, want to contain 'not found'", err.Error())
+		ee, ok := err.(*exitError)
+		if !ok {
+			t.Fatalf("expected exitError, got %T", err)
+		}
+		if ee.code != 1 {
+			t.Fatalf("code = %d", ee.code)
+		}
+		if ee.reasonCode != "sandbox_not_found" {
+			t.Fatalf("reason = %q", ee.reasonCode)
 		}
 	})
 
-	t.Run("not found json", func(t *testing.T) {
+	t.Run("invalid config returns user error", func(t *testing.T) {
 		resetFlags(t)
-		jsonOutput = true
-		mockRun(t, []cmdResult{
-			{stdout: ""},           // 0: docker info
-			errResult("not found"), // 1: compose ps fails
-		})
-		out := captureStdout(t, func() {
-			err := runStatus(newCmd(), []string{"myenv"})
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-		})
-		var status statusOutput
-		if err := json.Unmarshal([]byte(out), &status); err != nil {
-			t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+		dir := t.TempDir()
+		origWD, _ := os.Getwd()
+		_ = os.Chdir(dir)
+		t.Cleanup(func() { _ = os.Chdir(origWD) })
+		if err := os.WriteFile(filepath.Join(dir, "alpine.yaml"), []byte(":\n  :\n  invalid"), 0644); err != nil {
+			t.Fatalf("write yaml: %v", err)
 		}
-		if status.State != "not_found" {
-			t.Errorf("state = %q, want %q", status.State, "not_found")
-		}
-	})
-
-	t.Run("inspect fails", func(t *testing.T) {
-		resetFlags(t)
-		jsonOutput = false
-		mockRun(t, []cmdResult{
-			{stdout: ""}, // 0: docker info
-			{stdout: `{"Name":"alpine-myenv-dev-1","Service":"dev"}`}, // 1: compose ps
-			errResult("inspect failed"),                               // 2: inspect state fails
-		})
-		err := runStatus(newCmd(), []string{"myenv"})
+		err := runStatus(newCmd(), []string{"alpha"})
 		if err == nil {
-			t.Fatal("expected error when inspect fails")
-		}
-		if !strings.Contains(err.Error(), "failed to inspect") {
-			t.Fatalf("error = %q, want to contain 'failed to inspect'", err.Error())
+			t.Fatal("expected error")
 		}
 	})
 
-	t.Run("claude not running", func(t *testing.T) {
-		resetFlags(t)
-		jsonOutput = false
-		mockRun(t, []cmdResult{
-			{stdout: ""}, // 0: docker info
-			{stdout: `{"Name":"alpine-myenv-dev-1","Service":"dev"}`}, // 1: compose ps
-			{stdout: "running"}, // 2: inspect state
-			{stdout: ""},        // 3: inspect branch (empty)
-			{stdout: ""},        // 4: inspect created (empty)
-			errResult(""),       // 5: pgrep fails
-			errResult(""),       // 6: cat exit code fails
-		})
-		out := captureStdout(t, func() {
-			err := runStatus(newCmd(), []string{"myenv"})
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-		})
-		if !strings.Contains(out, "Claude:      not running") {
-			t.Fatalf("expected 'Claude:      not running'\ngot:\n%s", out)
+	t.Run("state read failure returns system error", func(t *testing.T) {
+		_ = setup(t)
+		if err := os.WriteFile("state.json", []byte("bad"), 0644); err != nil {
+			t.Fatalf("write state: %v", err)
 		}
-	})
-
-	t.Run("claude exited with code", func(t *testing.T) {
-		resetFlags(t)
-		jsonOutput = false
-		mockRun(t, []cmdResult{
-			{stdout: ""}, // 0: docker info
-			{stdout: `{"Name":"alpine-myenv-dev-1","Service":"dev"}`}, // 1: compose ps
-			{stdout: "running"},              // 2: inspect state
-			{stdout: "feature/myenv"},        // 3: inspect branch
-			{stdout: "2024-01-15T10:30:00Z"}, // 4: inspect created
-			errResult(""),                    // 5: pgrep fails
-			{stdout: "1"},                    // 6: cat exit code returns 1
-		})
-		out := captureStdout(t, func() {
-			err := runStatus(newCmd(), []string{"myenv"})
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-		})
-		if !strings.Contains(out, "Claude:      exited (code 1)") {
-			t.Fatalf("expected 'Claude:      exited (code 1)'\ngot:\n%s", out)
-		}
-	})
-
-	t.Run("docker not running", func(t *testing.T) {
-		resetFlags(t)
-		jsonOutput = false
-		responses := []cmdResult{
-			errResult("Cannot connect to Docker daemon"), // docker info fails
-		}
-		if runtime.GOOS == "darwin" {
-			// On darwin, dockerHealthCheck tries to start Docker Desktop.
-			responses = append(responses, errResult("app not found"))
-		}
-		mockRun(t, responses)
-		err := runStatus(newCmd(), []string{"myenv"})
+		err := runStatus(newCmd(), []string{"alpha"})
 		if err == nil {
-			t.Fatal("expected error when Docker is not running")
+			t.Fatal("expected error")
 		}
-		if !strings.Contains(err.Error(), "docker") && !strings.Contains(err.Error(), "Docker") {
-			t.Errorf("expected docker-related error, got: %v", err)
+		ee := err.(*exitError)
+		if ee.code != 2 {
+			t.Fatalf("code=%d", ee.code)
 		}
 	})
 }

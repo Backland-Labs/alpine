@@ -55,3 +55,16 @@ func TestOutputError(t *testing.T) {
 		})
 	}
 }
+
+func TestOutputErrorWithReason(t *testing.T) {
+	resetFlags(t)
+	jsonOutput = true
+	out := captureStdout(t, func() {
+		outputErrorWithReason("retry later", 2, "transient_failure", true)
+	})
+	for _, want := range []string{"\"reason_code\": \"transient_failure\"", "\"retryable\": true"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in output: %s", want, out)
+		}
+	}
+}

@@ -8,18 +8,27 @@ import (
 	"os/signal"
 )
 
-func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+var (
+	notifyContext = signal.NotifyContext
+	exitProcess   = os.Exit
+)
+
+func runMain() int {
+	ctx, cancel := notifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	// Handle double Ctrl+C: second signal force-exits
+	// Handle double Ctrl+C: second signal force-exits.
 	go func() {
 		<-ctx.Done()
-		ctx2, cancel2 := signal.NotifyContext(context.Background(), os.Interrupt)
+		ctx2, cancel2 := notifyContext(context.Background(), os.Interrupt)
 		defer cancel2()
 		<-ctx2.Done()
-		os.Exit(1)
+		exitProcess(1)
 	}()
 
-	os.Exit(execute(ctx))
+	return execute(ctx)
+}
+
+func main() {
+	exitProcess(runMain())
 }

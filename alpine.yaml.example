@@ -1,28 +1,44 @@
-# alpine.yaml - Configuration for Alpine dev environments
-#
-# Place this file in your project root and rename to alpine.yaml.
-# All fields are optional. Defaults are shown in comments.
+# alpine.yaml - Cloud orchestrator defaults
 
-# Base Docker image for the dev container.
-# Default: ubuntu:24.04
+repo:
+  # Default repository used when --repo is omitted.
+  # Required unless passed per launch.
+  default: https://github.com/your-org/your-repo.git
+
+sandbox:
+  # Default image profile key.
+  image_profile: default
+
+  # Profile -> Cloudflare container class mapping.
+  image_profiles:
+    default: opencode-default
+    heavy: opencode-heavy
+
+  # Base URL used by `alpine open`.
+  web_base_url: https://opencode.cloudflare.com
+
+  # Auto-teardown policy after successful durable save.
+  auto_teardown: true
+
+  # Retention window for completed state before destroy.
+  completed_retention_minutes: 60
+
+durability:
+  # Durable checkpoint backing store metadata.
+  bucket: alpine-checkpoints
+  checkpoint_prefix: sandboxes
+
+github:
+  # Export branch prefix.
+  branch_prefix: alpine
+
+  # Require GH_TOKEN/GITHUB_TOKEN for export.
+  require_auth: true
+
+# Legacy local-Docker fields are still recognized by hidden `alpine create`:
 # base_image: ubuntu:24.04
-
-# Command to run after cloning the repo.
-# Runs as: sh -c "cd /workspace && <install>"
-# Default: (none)
 # install: npm install
-
-# Files to copy from the host into /workspace/ in the container.
-# Missing files are skipped with a warning.
-# Paths are relative to the git root and cannot escape it.
-# Default: (none)
 # env_files:
 #   - .env
-
-# Services to start alongside the dev container.
-# Supported: postgres, redis, browser
-# Default: (none)
 # services:
 #   - postgres
-#   - redis
-#   - browser

@@ -18,11 +18,22 @@ func outputJSON(v interface{}) error {
 // outputs a JSON object with "error" and "exit_code" fields. Otherwise it
 // prints a plain text error message.
 func outputError(msg string, exitCode int) {
+	outputErrorWithReason(msg, exitCode, "", false)
+}
+
+func outputErrorWithReason(msg string, exitCode int, reasonCode string, retryable bool) {
 	if jsonOutput {
-		_ = outputJSON(map[string]interface{}{
+		payload := map[string]interface{}{
 			"error":     msg,
 			"exit_code": exitCode,
-		})
+		}
+		if reasonCode != "" {
+			payload["reason_code"] = reasonCode
+		}
+		if retryable {
+			payload["retryable"] = true
+		}
+		_ = outputJSON(payload)
 		return
 	}
 	fmt.Fprintln(os.Stderr, "Error: "+msg)

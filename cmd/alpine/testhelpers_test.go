@@ -98,13 +98,13 @@ func captureStdout(t *testing.T, fn func()) string {
 	outCh := make(chan string)
 	go func() {
 		var buf bytes.Buffer
-		io.Copy(&buf, r)
+		_, _ = io.Copy(&buf, r)
 		outCh <- buf.String()
 	}()
 
 	fn()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = origStdout
 	return <-outCh
 }
@@ -116,11 +116,27 @@ func resetFlags(t *testing.T) {
 	origVerbose := verbose
 	origFrom := fromBranch
 	origDetach := detach
+	origLaunchRepo := launchRepo
+	origLaunchProfile := launchImageProfile
+	origLaunchTask := launchTask
+	origLaunchForceRecreate := launchForceRecreate
+	origOpenPrintOnly := openPrintOnly
+	origExportBranch := exportBranch
+	origExportFromLive := exportFromLive
+	origTeardownForce := teardownForce
 	t.Cleanup(func() {
 		jsonOutput = origJSON
 		verbose = origVerbose
 		fromBranch = origFrom
 		detach = origDetach
+		launchRepo = origLaunchRepo
+		launchImageProfile = origLaunchProfile
+		launchTask = origLaunchTask
+		launchForceRecreate = origLaunchForceRecreate
+		openPrintOnly = origOpenPrintOnly
+		exportBranch = origExportBranch
+		exportFromLive = origExportFromLive
+		teardownForce = origTeardownForce
 	})
 }
 
@@ -204,19 +220,19 @@ func captureOutputs(t *testing.T, fn func()) (stdout, stderr string) {
 	errCh := make(chan string)
 	go func() {
 		var buf bytes.Buffer
-		io.Copy(&buf, rOut)
+		_, _ = io.Copy(&buf, rOut)
 		outCh <- buf.String()
 	}()
 	go func() {
 		var buf bytes.Buffer
-		io.Copy(&buf, rErr)
+		_, _ = io.Copy(&buf, rErr)
 		errCh <- buf.String()
 	}()
 
 	fn()
 
-	wOut.Close()
-	wErr.Close()
+	_ = wOut.Close()
+	_ = wErr.Close()
 	os.Stdout = origStdout
 	os.Stderr = origStderr
 

@@ -8,138 +8,232 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	tests := []struct {
-		name      string
-		yaml      string // empty means no file
-		wantErr   string
-		wantImage string
-	}{
-		{
-			name:      "file not found uses defaults",
-			yaml:      "",
-			wantImage: "ubuntu:24.04",
-		},
-		{
-			name:      "valid yaml",
-			yaml:      "base_image: node:20\nservices:\n  - postgres\n",
-			wantImage: "node:20",
-		},
-		{
-			name:    "invalid yaml",
-			yaml:    ":\n  :\n  invalid",
-			wantErr: "parsing alpine.yaml",
-		},
-		{
-			name:    "validation failure empty base_image",
-			yaml:    "base_image: \"\"\n",
-			wantErr: "base_image cannot be empty",
-		},
-		{
-			name:      "valid browser service",
-			yaml:      "base_image: ubuntu:24.04\nservices:\n  - browser\n",
-			wantImage: "ubuntu:24.04",
-		},
-		{
-			name:    "unknown service",
-			yaml:    "base_image: ubuntu:24.04\nservices:\n  - mysql\n",
-			wantErr: "unknown service",
-		},
-		{
-			name:    "read error (directory instead of file)",
-			yaml:    "DIRECTORY", // sentinel: create a directory named alpine.yaml
-			wantErr: "reading alpine.yaml",
-		},
+	setupDir := func(t *testing.T, yaml string) {
+		t.Helper()
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatalf("chdir: %v", err)
+		}
+		t.Cleanup(func() { _ = os.Chdir(orig) })
+		if yaml != "" {
+			if err := os.WriteFile(filepath.Join(dir, "alpine.yaml"), []byte(yaml), 0644); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+		}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dir := t.TempDir()
-			origDir, _ := os.Getwd()
-			os.Chdir(dir)
-			t.Cleanup(func() { os.Chdir(origDir) })
+	t.Run("defaults when file missing", func(t *testing.T) {
+		setupDir(t, "")
+		cfg, err := loadConfig()
+		if err != nil {
+			t.Fatalf("loadConfig: %v", err)
+		}
+		if cfg.Sandbox.ImageProfile != "default" {
+			t.Fatalf("image profile = %q", cfg.Sandbox.ImageProfile)
+		}
+		if !cfg.Sandbox.AutoTeardown {
+			t.Fatal("expected auto teardown default true")
+		}
+		if cfg.GitHub.BranchPrefix != "alpine" {
+			t.Fatalf("branch prefix = %q", cfg.GitHub.BranchPrefix)
+		}
+	})
 
-			if tt.yaml == "DIRECTORY" {
-				os.Mkdir(filepath.Join(dir, "alpine.yaml"), 0755)
-			} else if tt.yaml != "" {
-				os.WriteFile(filepath.Join(dir, "alpine.yaml"), []byte(tt.yaml), 0644)
-			}
+	t.Run("custom cloud-first schema", func(t *testing.T) {
+		yaml := strings.Join([]string{
+			"repo:",
+			"  default: https://github.com/acme/repo.git",
+			"sandbox:",
+			"  image_profile: heavy",
+			"  image_profiles:",
+			"    default: opencode-default",
+			"    heavy: opencode-heavy",
+			"  web_base_url: https://sandbox.example.com",
+			"  auto_teardown: false",
+			"  completed_retention_minutes: 30",
+			"durability:",
+			"  bucket: checkpoints",
+			"  checkpoint_prefix: sessions",
+			"github:",
+			"  branch_prefix: agent",
+			"  require_auth: false",
+		}, "\n")
+		setupDir(t, yaml)
+		cfg, err := loadConfig()
+		if err != nil {
+			t.Fatalf("loadConfig: %v", err)
+		}
+		if cfg.Repo.Default == "" || cfg.Sandbox.ImageProfiles["heavy"] == "" {
+			t.Fatalf("expected parsed custom config: %+v", cfg)
+		}
+		if cfg.Sandbox.AutoTeardown {
+			t.Fatal("expected auto_teardown false")
+		}
+	})
 
-			cfg, err := loadConfig()
-			if tt.wantErr != "" {
-				if err == nil {
-					t.Fatalf("expected error containing %q, got nil", tt.wantErr)
-				}
-				if !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("expected error containing %q, got %q", tt.wantErr, err.Error())
-				}
-				return
+	t.Run("validation error surfaces", func(t *testing.T) {
+		setupDir(t, "sandbox:\n  image_profile: gpu\n")
+		_, err := loadConfig()
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !strings.Contains(err.Error(), "sandbox.image_profile") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("read error when alpine.yaml is directory", func(t *testing.T) {
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatalf("chdir: %v", err)
+		}
+		t.Cleanup(func() { _ = os.Chdir(orig) })
+		if err := os.Mkdir(filepath.Join(dir, "alpine.yaml"), 0755); err != nil {
+			t.Fatalf("mkdir alpine.yaml: %v", err)
+		}
+		_, err := loadConfig()
+		if err == nil || !strings.Contains(err.Error(), "reading alpine.yaml") {
+			t.Fatalf("expected reading error, got: %v", err)
+		}
+	})
+}
+
+func TestResolveRepo(t *testing.T) {
+	cfg := &Config{}
+
+	t.Run("flag override wins", func(t *testing.T) {
+		repo, err := cfg.resolveRepo("https://github.com/acme/repo.git")
+		if err != nil {
+			t.Fatalf("resolveRepo: %v", err)
+		}
+		if repo == "" {
+			t.Fatal("expected repo")
+		}
+	})
+
+	t.Run("config default used", func(t *testing.T) {
+		cfg.Repo.Default = "git@github.com:acme/repo.git"
+		repo, err := cfg.resolveRepo("")
+		if err != nil {
+			t.Fatalf("resolveRepo: %v", err)
+		}
+		if repo != cfg.Repo.Default {
+			t.Fatalf("repo=%q", repo)
+		}
+	})
+
+	t.Run("missing repo fails", func(t *testing.T) {
+		cfg.Repo.Default = ""
+		_, err := cfg.resolveRepo("")
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
+	t.Run("invalid repo fails validation", func(t *testing.T) {
+		_, err := cfg.resolveRepo("file:///tmp/repo")
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+}
+
+func TestResolveImageProfile(t *testing.T) {
+	cfg := &Config{Sandbox: SandboxConfig{ImageProfile: "default", ImageProfiles: map[string]string{"default": "class-a", "gpu": "class-b"}}}
+
+	t.Run("default profile", func(t *testing.T) {
+		profile, class, err := cfg.resolveImageProfile("")
+		if err != nil {
+			t.Fatalf("resolveImageProfile: %v", err)
+		}
+		if profile != "default" || class != "class-a" {
+			t.Fatalf("got (%s,%s)", profile, class)
+		}
+	})
+
+	t.Run("override profile", func(t *testing.T) {
+		profile, class, err := cfg.resolveImageProfile("gpu")
+		if err != nil {
+			t.Fatalf("resolveImageProfile: %v", err)
+		}
+		if profile != "gpu" || class != "class-b" {
+			t.Fatalf("got (%s,%s)", profile, class)
+		}
+	})
+
+	t.Run("unknown profile", func(t *testing.T) {
+		_, _, err := cfg.resolveImageProfile("unknown")
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+}
+
+func TestValidateRepoURL(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		repo    string
+		wantErr bool
+	}{
+		{name: "https", repo: "https://github.com/acme/repo.git"},
+		{name: "ssh", repo: "ssh://git@github.com/acme/repo.git"},
+		{name: "git@", repo: "git@github.com:acme/repo.git"},
+		{name: "spaces", repo: "not valid", wantErr: true},
+		{name: "empty", repo: "", wantErr: true},
+		{name: "bad git@", repo: "git@github.com/acme/repo.git", wantErr: true},
+		{name: "bad scheme", repo: "file:///tmp/repo", wantErr: true},
+		{name: "missing host", repo: "https:///repo", wantErr: true},
+		{name: "parse error", repo: "https://%zz", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateRepoURL(tc.repo)
+			if tc.wantErr && err == nil {
+				t.Fatal("expected error")
 			}
-			if err != nil {
+			if !tc.wantErr && err != nil {
 				t.Fatalf("unexpected error: %v", err)
-			}
-			if cfg.BaseImage != tt.wantImage {
-				t.Fatalf("BaseImage = %q, want %q", cfg.BaseImage, tt.wantImage)
 			}
 		})
 	}
 }
 
-func TestValidate(t *testing.T) {
-	tests := []struct {
-		name    string
-		cfg     Config
-		wantErr string
-	}{
-		{
-			name:    "empty base_image",
-			cfg:     Config{BaseImage: ""},
-			wantErr: "base_image cannot be empty",
+func TestConfigValidateBranches(t *testing.T) {
+	base := Config{
+		BaseImage: "ubuntu:24.04",
+		Sandbox: SandboxConfig{
+			ImageProfile:           "default",
+			ImageProfiles:          map[string]string{"default": "class-a"},
+			WebBaseURL:             "https://sandbox.example.com",
+			CompletedRetentionMins: 10,
 		},
-		{
-			name:    "unknown service",
-			cfg:     Config{BaseImage: "ubuntu:24.04", Services: []string{"mysql"}},
-			wantErr: "unknown service",
-		},
-		{
-			name: "valid postgres",
-			cfg:  Config{BaseImage: "ubuntu:24.04", Services: []string{"postgres"}},
-		},
-		{
-			name: "valid redis",
-			cfg:  Config{BaseImage: "ubuntu:24.04", Services: []string{"redis"}},
-		},
-		{
-			name: "valid browser",
-			cfg:  Config{BaseImage: "ubuntu:24.04", Services: []string{"browser"}},
-		},
-		{
-			name: "both services",
-			cfg:  Config{BaseImage: "ubuntu:24.04", Services: []string{"postgres", "redis"}},
-		},
-		{
-			name: "all three services",
-			cfg:  Config{BaseImage: "ubuntu:24.04", Services: []string{"postgres", "redis", "browser"}},
-		},
-		{
-			name: "no services",
-			cfg:  Config{BaseImage: "ubuntu:24.04"},
-		},
+		Durability: DurabilityConfig{Bucket: "b", CheckpointPrefix: "p"},
+		GitHub:     GitHubConfig{BranchPrefix: "alpine"},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.cfg.validate()
-			if tt.wantErr != "" {
-				if err == nil {
-					t.Fatalf("expected error containing %q, got nil", tt.wantErr)
-				}
-				if !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("expected error containing %q, got %q", tt.wantErr, err.Error())
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+	tests := []struct {
+		name string
+		edit func(*Config)
+	}{
+		{name: "empty image profile", edit: func(c *Config) { c.Sandbox.ImageProfile = "" }},
+		{name: "missing profile map", edit: func(c *Config) { c.Sandbox.ImageProfiles = map[string]string{} }},
+		{name: "profile missing in map", edit: func(c *Config) { c.Sandbox.ImageProfile = "gpu" }},
+		{name: "empty web base", edit: func(c *Config) { c.Sandbox.WebBaseURL = "" }},
+		{name: "invalid web base", edit: func(c *Config) { c.Sandbox.WebBaseURL = "not a url" }},
+		{name: "negative retention", edit: func(c *Config) { c.Sandbox.CompletedRetentionMins = -1 }},
+		{name: "empty bucket", edit: func(c *Config) { c.Durability.Bucket = "" }},
+		{name: "empty prefix", edit: func(c *Config) { c.Durability.CheckpointPrefix = "" }},
+		{name: "empty branch prefix", edit: func(c *Config) { c.GitHub.BranchPrefix = "" }},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := base
+			cfg.Sandbox.ImageProfiles = map[string]string{"default": "class-a"}
+			tc.edit(&cfg)
+			if err := cfg.validate(); err == nil {
+				t.Fatalf("expected error for %s", tc.name)
 			}
 		})
 	}

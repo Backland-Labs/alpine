@@ -86,6 +86,8 @@ var createCmd = &cobra.Command{
 func init() {
 	createCmd.Flags().StringVar(&fromBranch, "from", "", "base branch (default: current branch)")
 	createCmd.Flags().BoolVarP(&detach, "detach", "d", false, "return immediately after environment is ready")
+	createCmd.Hidden = true
+	createCmd.Deprecated = "use 'alpine launch <name> --repo <url>'"
 	rootCmd.AddCommand(createCmd)
 }
 

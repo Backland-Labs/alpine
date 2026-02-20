@@ -2,25 +2,56 @@ package main
 
 import (
 	"fmt"
-	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
 )
 
+type statusIdentity struct {
+	Repo         string `json:"repo"`
+	ImageProfile string `json:"image_profile"`
+}
+
+type statusDurability struct {
+	CheckpointID string `json:"checkpoint_id,omitempty"`
+	Verified     bool   `json:"verified"`
+	ContentHash  string `json:"content_hash,omitempty"`
+}
+
+type statusRuntime struct {
+	WebURL     string `json:"web_url"`
+	ProbeState string `json:"probe_state"`
+	ProbeAt    string `json:"probe_at"`
+	ProbeStale bool   `json:"probe_stale"`
+}
+
+type statusOperation struct {
+	ID        string `json:"id,omitempty"`
+	Type      string `json:"type,omitempty"`
+	StartedAt string `json:"started_at,omitempty"`
+	ExpiresAt string `json:"expires_at,omitempty"`
+}
+
+type statusTeardown struct {
+	AutoTeardown bool     `json:"auto_teardown"`
+	Blockers     []string `json:"blockers,omitempty"`
+}
+
 type statusOutput struct {
-	Name           string `json:"name"`
-	Container      string `json:"container"`
-	State          string `json:"state"` // "running", "stopped", "not_found"
-	Branch         string `json:"branch"`
-	Created        string `json:"created"`
-	ClaudeRunning  bool   `json:"claude_running"`
-	ClaudeExitCode *int   `json:"claude_exit_code,omitempty"` // nil if still running
+	Name         string           `json:"name"`
+	State        lifecycleState   `json:"state"`
+	Identity     statusIdentity   `json:"identity"`
+	Durability   statusDurability `json:"durability"`
+	Runtime      statusRuntime    `json:"runtime"`
+	Operation    statusOperation  `json:"operation"`
+	Teardown     statusTeardown   `json:"teardown"`
+	LastActivity string           `json:"last_activity"`
+	ErrorReason  string           `json:"error_reason,omitempty"`
 }
 
 var statusCmd = &cobra.Command{
 	Use:   "status <name>",
-	Short: "Show environment status and Claude process state",
+	Short: "Show sandbox lifecycle and durability status",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runStatus,
 }
@@ -29,75 +60,74 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 }
 
-func runStatus(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-	name := args[0]
-
-	if err := dockerHealthCheck(ctx, runtime.GOOS); err != nil {
-		return err
-	}
-
-	// Discover the container
-	container, err := discoverContainer(ctx, name)
+func runStatus(_ *cobra.Command, args []string) error {
+	cfg, err := loadConfig()
 	if err != nil {
-		status := statusOutput{
-			Name:  name,
-			State: "not_found",
-		}
-		if jsonOutput {
-			return outputJSON(status)
-		}
-		return fmt.Errorf("environment %q not found. Run 'alpine list' to see active environments", name)
+		return userErr(fmt.Sprintf("failed to load config: %v", err))
 	}
 
-	// Get container state
-	state, err := inspectContainer(ctx, container, "{{.State.Status}}")
+	orch := newOrchestrator(cfg)
+	rec, ok, stale, err := orch.status(args[0])
 	if err != nil {
-		return fmt.Errorf("failed to inspect container %s: %w", container, err)
+		return sysErr(fmt.Sprintf("failed to read sandbox status: %v", err))
 	}
-	state = strings.TrimSpace(state)
+	if !ok {
+		return userErrReason(fmt.Sprintf("sandbox %q not found", args[0]), "sandbox_not_found")
+	}
 
-	// Get branch label
-	branch, _ := inspectContainer(ctx, container, `{{index .Config.Labels "alpine.branch"}}`)
-	branch = strings.TrimSpace(branch)
+	out := statusOutput{
+		Name:  rec.Identity.Name,
+		State: rec.State,
+		Identity: statusIdentity{
+			Repo:         rec.Identity.Repo,
+			ImageProfile: rec.Identity.ImageProfile,
+		},
+		Runtime: statusRuntime{
+			WebURL:     rec.WebURL,
+			ProbeState: rec.RuntimeProbe.Status,
+			ProbeAt:    rec.RuntimeProbe.CheckedAt,
+			ProbeStale: stale,
+		},
+		Operation: statusOperation{
+			ID:        rec.OperationLock.ID,
+			Type:      rec.OperationLock.Type,
+			StartedAt: rec.OperationLock.StartedAt,
+			ExpiresAt: rec.OperationLock.ExpiresAt,
+		},
+		Teardown: statusTeardown{
+			AutoTeardown: cfg.Sandbox.AutoTeardown,
+			Blockers:     rec.TeardownBlockers,
+		},
+		LastActivity: rec.LastActivityAt,
+		ErrorReason:  rec.ErrorReason,
+	}
 
-	// Get created label
-	created, _ := inspectContainer(ctx, container, `{{index .Config.Labels "alpine.created"}}`)
-	created = strings.TrimSpace(created)
-
-	// Check if Claude is running inside the container
-	claudeRunning, claudeExitCode := checkClaudeProcess(ctx, container, state)
-
-	status := statusOutput{
-		Name:           name,
-		Container:      container,
-		State:          state,
-		Branch:         branch,
-		Created:        created,
-		ClaudeRunning:  claudeRunning,
-		ClaudeExitCode: claudeExitCode,
+	if rec.Checkpoint != nil {
+		out.Durability.CheckpointID = rec.Checkpoint.Manifest.CheckpointID
+		out.Durability.Verified = rec.Checkpoint.Verified
+		out.Durability.ContentHash = rec.Checkpoint.Manifest.ContentHash
 	}
 
 	if jsonOutput {
-		return outputJSON(status)
+		return outputJSON(out)
 	}
 
-	// Human-readable output
-	fmt.Printf("Environment: %s\n", status.Name)
-	fmt.Printf("Container:   %s\n", status.Container)
-	fmt.Printf("State:       %s\n", status.State)
-	if status.Branch != "" {
-		fmt.Printf("Branch:      %s\n", status.Branch)
+	fmt.Printf("Sandbox:       %s\n", out.Name)
+	fmt.Printf("State:         %s\n", out.State)
+	fmt.Printf("Repo:          %s\n", out.Identity.Repo)
+	fmt.Printf("Image profile: %s\n", out.Identity.ImageProfile)
+	fmt.Printf("Runtime probe: %s (checked %s)\n", out.Runtime.ProbeState, out.Runtime.ProbeAt)
+	if out.Runtime.ProbeStale {
+		fmt.Printf("Freshness:     stale\n")
 	}
-	if status.Created != "" {
-		fmt.Printf("Created:     %s\n", status.Created)
+	if out.Durability.CheckpointID != "" {
+		fmt.Printf("Checkpoint:    %s (verified=%t)\n", out.Durability.CheckpointID, out.Durability.Verified)
 	}
-	if status.ClaudeRunning {
-		fmt.Printf("Claude:      running\n")
-	} else if status.ClaudeExitCode != nil {
-		fmt.Printf("Claude:      exited (code %d)\n", *status.ClaudeExitCode)
-	} else {
-		fmt.Printf("Claude:      not running\n")
+	if len(out.Teardown.Blockers) > 0 {
+		fmt.Printf("Blockers:      %s\n", strings.Join(out.Teardown.Blockers, ", "))
+	}
+	if out.ErrorReason != "" {
+		fmt.Printf("Error reason:  %s\n", out.ErrorReason)
 	}
 
 	return nil

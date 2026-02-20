@@ -136,8 +136,12 @@ func setupCreateTest(t *testing.T) string {
 
 	tempDir := t.TempDir()
 	origDir, _ := os.Getwd()
-	os.Chdir(tempDir)
-	t.Cleanup(func() { os.Chdir(origDir) })
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("chdir tempDir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(origDir)
+	})
 
 	t.Setenv("SSH_AUTH_SOCK", "/tmp/fake.sock")
 	t.Setenv("GITHUB_TOKEN", "")
@@ -631,8 +635,12 @@ func TestRunCreate_Step14_CopyClaudeDir(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		tempDir := setupCreateTest(t)
 		claudeDir := filepath.Join(tempDir, ".claude")
-		os.MkdirAll(claudeDir, 0755)
-		os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte("{}"), 0644)
+		if err := os.MkdirAll(claudeDir, 0755); err != nil {
+			t.Fatalf("mkdir .claude: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte("{}"), 0644); err != nil {
+			t.Fatalf("write settings.json: %v", err)
+		}
 
 		responses := happyCreateResponses("test")
 		withCopy := make([]cmdResult, 0, len(responses)+2)
@@ -675,7 +683,9 @@ func TestRunCreate_Step14_CopyClaudeDir(t *testing.T) {
 
 	t.Run("copy fails non-fatal", func(t *testing.T) {
 		tempDir := setupCreateTest(t)
-		os.MkdirAll(filepath.Join(tempDir, ".claude"), 0755)
+		if err := os.MkdirAll(filepath.Join(tempDir, ".claude"), 0755); err != nil {
+			t.Fatalf("mkdir .claude: %v", err)
+		}
 
 		responses := happyCreateResponses("test")
 		withCopy := make([]cmdResult, 0, len(responses)+1)
@@ -697,7 +707,9 @@ func TestRunCreate_Step14_CopyClaudeDir(t *testing.T) {
 
 func TestRunCreate_Step14_CopyClaudeJSON(t *testing.T) {
 	tempDir := setupCreateTest(t)
-	os.WriteFile(filepath.Join(tempDir, ".claude.json"), []byte(`{"hasCompletedOnboarding":true}`), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, ".claude.json"), []byte(`{"hasCompletedOnboarding":true}`), 0644); err != nil {
+		t.Fatalf("write .claude.json: %v", err)
+	}
 
 	responses := happyCreateResponses("test")
 	withJSON := make([]cmdResult, 0, len(responses)+2)
@@ -719,7 +731,9 @@ func TestRunCreate_Step14_CopyClaudeJSON(t *testing.T) {
 
 func TestRunCreate_Step17_InstallSuccess(t *testing.T) {
 	tempDir := setupCreateTest(t)
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte("install: \"make build\"\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte("install: \"make build\"\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
 
 	container := "alpine-test-dev-1"
 	responses := []cmdResult{
@@ -763,7 +777,9 @@ func TestRunCreate_Step17_InstallSuccess(t *testing.T) {
 
 func TestRunCreate_Step17_InstallFails(t *testing.T) {
 	tempDir := setupCreateTest(t)
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte("install: \"make build\"\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte("install: \"make build\"\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
 
 	container := "alpine-test-dev-1"
 	responses := []cmdResult{
@@ -903,7 +919,9 @@ func TestRunCreate_Step19_DetachNonJSON(t *testing.T) {
 
 func TestRunCreate_Step19_InstallFailedDetach(t *testing.T) {
 	tempDir := setupCreateTest(t)
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte("install: \"npm install\"\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte("install: \"npm install\"\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
 
 	container := "alpine-test-dev-1"
 	responses := []cmdResult{
@@ -958,7 +976,9 @@ func TestRunCreate_Step19_InteractiveInstallFailed(t *testing.T) {
 	tempDir := setupCreateTest(t)
 	detach = false
 	jsonOutput = false
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte("install: \"npm install\"\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte("install: \"npm install\"\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
 
 	container := "alpine-test-dev-1"
 	responses := []cmdResult{
@@ -1041,7 +1061,9 @@ func TestRunCreate_NoRollbackBeforeCompose(t *testing.T) {
 
 func TestRunCreate_ConfigLoadError(t *testing.T) {
 	tempDir := setupCreateTest(t)
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte(":\n  invalid"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte(":\n  invalid"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
 
 	mockRun(t, []cmdResult{
 		{stdout: ""},      // 0: docker info
@@ -1078,8 +1100,10 @@ func TestRunCreate_Security_FromFlagInjection(t *testing.T) {
 
 func TestRunCreate_Security_EnvFileEscapesRoot(t *testing.T) {
 	tempDir := setupCreateTest(t)
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
-		[]byte("env_files:\n  - \"../../etc/passwd\"\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
+		[]byte("env_files:\n  - \"../../etc/passwd\"\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
 
 	mockRun(t, happyCreateResponses("test"))
 
@@ -1164,8 +1188,10 @@ func TestRunCreate_HappyPath_CallCount(t *testing.T) {
 
 func TestRunCreate_EnvFileNotFound(t *testing.T) {
 	tempDir := setupCreateTest(t)
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
-		[]byte("env_files:\n  - .env.missing\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
+		[]byte("env_files:\n  - .env.missing\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
 
 	mockRun(t, happyCreateResponses("test"))
 	captureStdout(t, func() {
@@ -1181,7 +1207,9 @@ func TestRunCreate_EnvFileNotFound(t *testing.T) {
 func TestRunCreate_AutoConfigFiles(t *testing.T) {
 	setupCreateTest(t)
 	gitRoot, _ := os.Getwd()
-	os.WriteFile(filepath.Join(gitRoot, ".tool-versions"), []byte("nodejs 20.0.0\n"), 0644)
+	if err := os.WriteFile(filepath.Join(gitRoot, ".tool-versions"), []byte("nodejs 20.0.0\n"), 0644); err != nil {
+		t.Fatalf("write .tool-versions: %v", err)
+	}
 
 	responses := happyCreateResponses("test")
 	// Override response[1] to return the real CWD so os.Stat finds files.
@@ -1259,9 +1287,11 @@ func TestRunCreate_DotEnvLoading(t *testing.T) {
 	tempDir := setupCreateTest(t)
 
 	// Write .env at the gitRoot (tempDir).
-	os.WriteFile(filepath.Join(tempDir, ".env"), []byte("MY_TEST_VAR=loaded\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, ".env"), []byte("MY_TEST_VAR=loaded\n"), 0644); err != nil {
+		t.Fatalf("write .env: %v", err)
+	}
 	t.Setenv("MY_TEST_VAR", "")
-	os.Unsetenv("MY_TEST_VAR")
+	_ = os.Unsetenv("MY_TEST_VAR")
 
 	// Make gitFindRoot return tempDir so .env loading fires.
 	// Also, step 15 auto-detect finds .env at gitRoot and copies it (2 calls).
@@ -1316,9 +1346,13 @@ func TestRunCreate_EnvFileCopySuccess(t *testing.T) {
 	tempDir := setupCreateTest(t)
 
 	// Config with an env file that exists at gitRoot.
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
-		[]byte("env_files:\n  - .env.local\n"), 0644)
-	os.WriteFile(filepath.Join(tempDir, ".env.local"), []byte("SECRET=val\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
+		[]byte("env_files:\n  - .env.local\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tempDir, ".env.local"), []byte("SECRET=val\n"), 0644); err != nil {
+		t.Fatalf("write .env.local: %v", err)
+	}
 
 	// Make gitFindRoot return tempDir so the file is found.
 	responses := happyCreateResponses("test")
@@ -1362,9 +1396,13 @@ func TestRunCreate_EnvFileAlreadyCopied(t *testing.T) {
 	tempDir := setupCreateTest(t)
 
 	// Config references .env which is also in autoConfigPaths.
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
-		[]byte("env_files:\n  - .env\n"), 0644)
-	os.WriteFile(filepath.Join(tempDir, ".env"), []byte("KEY=val\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
+		[]byte("env_files:\n  - .env\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tempDir, ".env"), []byte("KEY=val\n"), 0644); err != nil {
+		t.Fatalf("write .env: %v", err)
+	}
 
 	// Make gitFindRoot return tempDir so auto-detect finds .env.
 	responses := happyCreateResponses("test")
@@ -1397,8 +1435,10 @@ func TestRunCreate_ComposeYAMLError(t *testing.T) {
 	tempDir := setupCreateTest(t)
 
 	// Config with unsupported service -- generateComposeYAML returns error.
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
-		[]byte("base_image: ubuntu:24.04\nservices:\n  - mysql\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
+		[]byte("base_image: ubuntu:24.04\nservices:\n  - mysql\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
 
 	mockRun(t, []cmdResult{
 		{stdout: ""},      // 0: docker info
@@ -1445,7 +1485,9 @@ func TestRunCreate_NonJSON_CopyClaudeFailWarning(t *testing.T) {
 	detach = true
 
 	// Create ~/.claude so the copy path runs.
-	os.MkdirAll(filepath.Join(tempDir, ".claude"), 0755)
+	if err := os.MkdirAll(filepath.Join(tempDir, ".claude"), 0755); err != nil {
+		t.Fatalf("mkdir .claude: %v", err)
+	}
 
 	responses := happyCreateResponses("test")
 	// Insert a copy failure after step 13 (git config user.email).
@@ -1479,8 +1521,10 @@ func TestRunCreate_NonJSON_EnvFileNotFound(t *testing.T) {
 	jsonOutput = false
 	detach = true
 
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
-		[]byte("env_files:\n  - .env.missing\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
+		[]byte("env_files:\n  - .env.missing\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
 
 	mockRun(t, happyCreateResponses("test"))
 
@@ -1506,8 +1550,10 @@ func TestRunCreate_NonJSON_EnvFileEscapesRoot(t *testing.T) {
 	jsonOutput = false
 	detach = true
 
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
-		[]byte("env_files:\n  - \"../../etc/passwd\"\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
+		[]byte("env_files:\n  - \"../../etc/passwd\"\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
 
 	mockRun(t, happyCreateResponses("test"))
 
@@ -1533,9 +1579,13 @@ func TestRunCreate_NonJSON_EnvFileCopyFails(t *testing.T) {
 	jsonOutput = false
 	detach = true
 
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
-		[]byte("env_files:\n  - .env.local\n"), 0644)
-	os.WriteFile(filepath.Join(tempDir, ".env.local"), []byte("KEY=val\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"),
+		[]byte("env_files:\n  - .env.local\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tempDir, ".env.local"), []byte("KEY=val\n"), 0644); err != nil {
+		t.Fatalf("write .env.local: %v", err)
+	}
 
 	// gitFindRoot returns tempDir so env file is found.
 	responses := happyCreateResponses("test")
@@ -1573,7 +1623,9 @@ func TestRunCreate_NonJSON_AutoConfigCopyFails(t *testing.T) {
 	detach = true
 
 	// Create .tool-versions at gitRoot so auto-detect finds it.
-	os.WriteFile(filepath.Join(tempDir, ".tool-versions"), []byte("nodejs 20\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, ".tool-versions"), []byte("nodejs 20\n"), 0644); err != nil {
+		t.Fatalf("write .tool-versions: %v", err)
+	}
 
 	responses := happyCreateResponses("test")
 	responses[1] = cmdResult{stdout: tempDir}
@@ -1607,7 +1659,9 @@ func TestRunCreate_InteractiveInstallFailed_NonJSON(t *testing.T) {
 	detach = false
 	jsonOutput = false
 
-	os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte("install: \"make build\"\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, "alpine.yaml"), []byte("install: \"make build\"\n"), 0644); err != nil {
+		t.Fatalf("write alpine.yaml: %v", err)
+	}
 
 	container := "alpine-test-dev-1"
 	responses := []cmdResult{
@@ -1646,9 +1700,15 @@ func TestRunCreate_DotEnvLoadError(t *testing.T) {
 
 	// Create a .env file that loadDotEnv can stat but not read.
 	envPath := filepath.Join(tempDir, ".env")
-	os.WriteFile(envPath, []byte("KEY=val\n"), 0644)
-	os.Chmod(envPath, 0000)
-	t.Cleanup(func() { os.Chmod(envPath, 0644) })
+	if err := os.WriteFile(envPath, []byte("KEY=val\n"), 0644); err != nil {
+		t.Fatalf("write .env: %v", err)
+	}
+	if err := os.Chmod(envPath, 0000); err != nil {
+		t.Fatalf("chmod .env 0000: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chmod(envPath, 0644)
+	})
 
 	// gitFindRoot returns tempDir so .env is found by os.Stat.
 	responses := happyCreateResponses("test")
@@ -1675,7 +1735,9 @@ func TestRunCreate_DotEnvLoadError(t *testing.T) {
 
 func TestRunCreate_Step14_CopyClaudeJSONFail(t *testing.T) {
 	tempDir := setupCreateTest(t)
-	os.WriteFile(filepath.Join(tempDir, ".claude.json"), []byte(`{}`), 0644)
+	if err := os.WriteFile(filepath.Join(tempDir, ".claude.json"), []byte(`{}`), 0644); err != nil {
+		t.Fatalf("write .claude.json: %v", err)
+	}
 
 	responses := happyCreateResponses("test")
 	// .claude.json triggers copyPathToContainer (docker cp), which fails.
