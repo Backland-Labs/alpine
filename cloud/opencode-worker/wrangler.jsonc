@@ -1,0 +1,27 @@
+{
+  "name": "opencode-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-02-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SANDBOX_DO",
+        "class_name": "Sandbox"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["Sandbox"]
+    }
+  ],
+  "vars": {
+    "ENVIRONMENT": "development"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  }
+}

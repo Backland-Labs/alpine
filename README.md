@@ -98,7 +98,8 @@ sandbox:
   image_profiles:
     default: opencode-default
     heavy: opencode-heavy
-  web_base_url: https://opencode.cloudflare.com
+  control_plane_url: http://127.0.0.1:8787
+  web_base_url: https://<worker>.workers.dev
   auto_teardown: true
   completed_retention_minutes: 60
 
@@ -115,6 +116,74 @@ Resolution order:
 
 - repo: `--repo` > `repo.default` > fail
 - image profile: `--image-profile` > `sandbox.image_profile` > fail
+
+## Auth Setup
+
+Auth sync is **explicit setup** and must be rerun when credentials rotate:
+
+```bash
+make sync-auth-local   # Sync to local Worker dev
+make sync-auth-live    # Sync to production Worker
+```
+
+This provisions `.dev.vars` for local development and secrets for the deployed Worker.
+
+## Deploy
+
+**Deploy is not part of `alpine launch`.** Worker deployment is a separate step:
+
+```bash
+make worker-dev      # Local development (http://127.0.0.1:8787)
+make worker-deploy   # Deploy to Cloudflare Workers
+```
+
+## Verification
+
+### Local Verification
+
+```bash
+make smoke-ui-local
+```
+
+Expected artifacts:
+- `artifacts/screenshots/` contains UI captures
+- Exit code 0 on success
+
+### Live Verification
+
+```bash
+make smoke-ui-live
+```
+
+Expected artifacts:
+- `artifacts/screenshots/` contains production UI captures
+- Exit code 0 on success
+
+## Operational Runbook
+
+### Routine Operations
+
+| Task | Command |
+|------|---------|
+| Deploy Worker | `make worker-deploy` |
+| Sync auth (local) | `make sync-auth-local` |
+| Sync auth (live) | `make sync-auth-live` |
+| Verify local | `make smoke-ui-local` |
+| Verify live | `make smoke-ui-live` |
+
+### Auth Rotation
+
+1. Rotate credentials in your secrets manager
+2. Run `make sync-auth-live`
+3. Run `make smoke-ui-live` to verify
+
+### Troubleshooting
+
+| Symptom | Check |
+|---------|-------|
+| Worker 401 errors | Re-run `make sync-auth-live` |
+| UI smoke test fails | Check `artifacts/screenshots/` for captures |
+| Worker dev won't start | Verify `.dev.vars` exists after `make sync-auth-local` |
 
 ## Error and Exit Contract
 

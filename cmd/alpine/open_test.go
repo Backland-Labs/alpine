@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -131,6 +132,24 @@ func TestRunOpen(t *testing.T) {
 		}
 	})
 
+	t.Run("sanitizes name before open", func(t *testing.T) {
+		setup(t)
+		cfg, _ := loadConfig()
+		orch := newOrchestrator(cfg)
+		if _, err := orch.launch(launchOptions{Name: "alphafeature", Repo: "https://github.com/acme/repo.git", ImageProfile: "default"}); err != nil {
+			t.Fatalf("launch: %v", err)
+		}
+
+		out := captureStdout(t, func() {
+			if err := runOpen(newCmd(), []string{"Alpha Feature"}); err != nil {
+				t.Fatalf("runOpen: %v", err)
+			}
+		})
+		if !strings.Contains(out, "https://") {
+			t.Fatalf("expected url output, got: %s", out)
+		}
+	})
+
 	t.Run("invalid config returns user error", func(t *testing.T) {
 		resetFlags(t)
 		dir := t.TempDir()
@@ -190,6 +209,43 @@ func TestOpenBrowserURLForOS(t *testing.T) {
 		mockRun(t, []cmdResult{{err: errors.New("boom")}})
 		if err := openBrowserURLForOS("linux", "https://example.com"); err == nil {
 			t.Fatal("expected command error")
+		}
+	})
+}
+
+func TestRunOpen_ControlPlane(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir()
+	origWD, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origWD) })
+
+	configYAML := strings.Join([]string{
+		"sandbox:",
+		"  control_plane_url: http://127.0.0.1:9999",
+	}, "\n")
+
+	if err := os.WriteFile(filepath.Join(dir, "alpine.yaml"), []byte(configYAML), 0644); err != nil {
+		t.Fatalf("write yaml: %v", err)
+	}
+
+	newCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "open", RunE: runOpen}
+		cmd.SetContext(context.Background())
+		return cmd
+	}
+
+	t.Run("control plane unreachable returns system error", func(t *testing.T) {
+		resetFlags(t)
+		err := runOpen(newCmd(), []string{"alpha"})
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		ee := err.(*exitError)
+		if ee.code != 2 {
+			t.Fatalf("expected system error code 2, got %d", ee.code)
 		}
 	})
 }

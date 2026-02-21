@@ -1,4 +1,5 @@
 auth.json
+alpine.yaml
 .zshenv
 .zshrc
 .claude.json
@@ -10,3 +11,12 @@ auth.json
 
 # Test artifacts
 coverage.out
+
+# Cloud worker secrets
+cloud/opencode-worker/.dev.vars
+
+# Smoke test artifacts
+artifacts/screenshots/
+
+# Node modules
+cloud/**/node_modules/

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -33,6 +34,10 @@ func runList(cmd *cobra.Command, _ []string) error {
 		return userErr(fmt.Sprintf("failed to load config: %v", err))
 	}
 
+	if cfg.usesControlPlane() {
+		return runListControlPlane(cmd.Context(), cfg)
+	}
+
 	orch := newOrchestrator(cfg)
 	records, err := orch.list()
 	if err != nil {
@@ -47,6 +52,42 @@ func runList(cmd *cobra.Command, _ []string) error {
 			ImageProfile: rec.Identity.ImageProfile,
 			State:        rec.State,
 			LastActivity: rec.LastActivityAt,
+		})
+	}
+
+	if jsonOutput {
+		return outputJSON(items)
+	}
+
+	if len(items) == 0 {
+		fmt.Println("No managed sandboxes. Run 'alpine launch <name> --repo <url>' to get started.")
+		return nil
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "NAME\tSTATE\tPROFILE\tLAST ACTIVITY\tREPO") //nolint:errcheck
+	for _, item := range items {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", item.Name, item.State, item.ImageProfile, item.LastActivity, item.Repo) //nolint:errcheck
+	}
+	return w.Flush()
+}
+
+func runListControlPlane(ctx context.Context, cfg *Config) error {
+	client := newControlPlaneClient(cfg.Sandbox.ControlPlaneURL)
+
+	resp, err := client.ListSandboxes(ctx)
+	if err != nil {
+		return err
+	}
+
+	items := make([]listOutput, 0, len(resp.Sandboxes))
+	for _, sb := range resp.Sandboxes {
+		items = append(items, listOutput{
+			Name:         sb.Name,
+			Repo:         sb.Repo,
+			ImageProfile: sb.ImageProfile,
+			State:        sb.State,
+			LastActivity: sb.LastActivity,
 		})
 	}
 

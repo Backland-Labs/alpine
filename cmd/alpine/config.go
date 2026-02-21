@@ -33,6 +33,7 @@ type SandboxConfig struct {
 	WebBaseURL             string            `yaml:"web_base_url"`
 	AutoTeardown           bool              `yaml:"auto_teardown"`
 	CompletedRetentionMins int               `yaml:"completed_retention_minutes"`
+	ControlPlaneURL        string            `yaml:"control_plane_url"`
 }
 
 type DurabilityConfig struct {
@@ -124,6 +125,11 @@ func (c *Config) validate() error {
 	if c.Sandbox.CompletedRetentionMins < 0 {
 		return fmt.Errorf("sandbox.completed_retention_minutes cannot be negative")
 	}
+	if c.Sandbox.ControlPlaneURL != "" {
+		if _, err := url.ParseRequestURI(c.Sandbox.ControlPlaneURL); err != nil {
+			return fmt.Errorf("sandbox.control_plane_url is invalid: %w", err)
+		}
+	}
 
 	if c.Durability.Bucket == "" {
 		return fmt.Errorf("durability.bucket cannot be empty")
@@ -137,6 +143,10 @@ func (c *Config) validate() error {
 	}
 
 	return nil
+}
+
+func (c *Config) usesControlPlane() bool {
+	return strings.TrimSpace(c.Sandbox.ControlPlaneURL) != ""
 }
 
 func (c *Config) resolveRepo(override string) (string, error) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -60,10 +61,14 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 }
 
-func runStatus(_ *cobra.Command, args []string) error {
+func runStatus(cmd *cobra.Command, args []string) error {
 	cfg, err := loadConfig()
 	if err != nil {
 		return userErr(fmt.Sprintf("failed to load config: %v", err))
+	}
+
+	if cfg.usesControlPlane() {
+		return runStatusControlPlane(cmd.Context(), cfg, args[0])
 	}
 
 	orch := newOrchestrator(cfg)
@@ -106,6 +111,71 @@ func runStatus(_ *cobra.Command, args []string) error {
 		out.Durability.CheckpointID = rec.Checkpoint.Manifest.CheckpointID
 		out.Durability.Verified = rec.Checkpoint.Verified
 		out.Durability.ContentHash = rec.Checkpoint.Manifest.ContentHash
+	}
+
+	if jsonOutput {
+		return outputJSON(out)
+	}
+
+	fmt.Printf("Sandbox:       %s\n", out.Name)
+	fmt.Printf("State:         %s\n", out.State)
+	fmt.Printf("Repo:          %s\n", out.Identity.Repo)
+	fmt.Printf("Image profile: %s\n", out.Identity.ImageProfile)
+	fmt.Printf("Runtime probe: %s (checked %s)\n", out.Runtime.ProbeState, out.Runtime.ProbeAt)
+	if out.Runtime.ProbeStale {
+		fmt.Printf("Freshness:     stale\n")
+	}
+	if out.Durability.CheckpointID != "" {
+		fmt.Printf("Checkpoint:    %s (verified=%t)\n", out.Durability.CheckpointID, out.Durability.Verified)
+	}
+	if len(out.Teardown.Blockers) > 0 {
+		fmt.Printf("Blockers:      %s\n", strings.Join(out.Teardown.Blockers, ", "))
+	}
+	if out.ErrorReason != "" {
+		fmt.Printf("Error reason:  %s\n", out.ErrorReason)
+	}
+
+	return nil
+}
+
+func runStatusControlPlane(ctx context.Context, cfg *Config, name string) error {
+	client := newControlPlaneClient(cfg.Sandbox.ControlPlaneURL)
+
+	resp, err := client.GetSandboxStatus(ctx, name)
+	if err != nil {
+		return err
+	}
+
+	out := statusOutput{
+		Name:  resp.Name,
+		State: resp.State,
+		Identity: statusIdentity{
+			Repo:         resp.Identity.Repo,
+			ImageProfile: resp.Identity.ImageProfile,
+		},
+		Durability: statusDurability{
+			CheckpointID: resp.Durability.CheckpointID,
+			Verified:     resp.Durability.Verified,
+			ContentHash:  resp.Durability.ContentHash,
+		},
+		Runtime: statusRuntime{
+			WebURL:     resp.Runtime.WebURL,
+			ProbeState: resp.Runtime.ProbeState,
+			ProbeAt:    resp.Runtime.ProbeAt,
+			ProbeStale: resp.Runtime.ProbeStale,
+		},
+		Operation: statusOperation{
+			ID:        resp.Operation.ID,
+			Type:      resp.Operation.Type,
+			StartedAt: resp.Operation.StartedAt,
+			ExpiresAt: resp.Operation.ExpiresAt,
+		},
+		Teardown: statusTeardown{
+			AutoTeardown: resp.Teardown.AutoTeardown,
+			Blockers:     resp.Teardown.Blockers,
+		},
+		LastActivity: resp.LastActivity,
+		ErrorReason:  resp.ErrorReason,
 	}
 
 	if jsonOutput {

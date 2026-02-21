@@ -14,8 +14,11 @@ sandbox:
     default: opencode-default
     heavy: opencode-heavy
 
+  # Control plane URL for Worker API.
+  control_plane_url: http://127.0.0.1:8787
+
   # Base URL used by `alpine open`.
-  web_base_url: https://opencode.cloudflare.com
+  web_base_url: https://<worker>.workers.dev
 
   # Auto-teardown policy after successful durable save.
   auto_teardown: true

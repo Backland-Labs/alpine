@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -64,6 +65,10 @@ func runLaunch(cmd *cobra.Command, args []string) error {
 		return userErrReason(err.Error(), "image_profile_unknown")
 	}
 
+	if cfg.usesControlPlane() {
+		return runLaunchControlPlane(cmd.Context(), cfg, name, repo, profile, containerClass)
+	}
+
 	orch := newOrchestrator(cfg)
 	identity, exists, err := orch.sandboxIdentity(name)
 	if err != nil {
@@ -101,6 +106,53 @@ func runLaunch(cmd *cobra.Command, args []string) error {
 		Resumed:        result.Resumed,
 		TaskAccepted:   launchTask != "",
 		OperationID:    result.OperationID,
+	}
+
+	if jsonOutput {
+		return outputJSON(out)
+	}
+
+	fmt.Printf("Sandbox %s is %s\n", out.Name, out.State)
+	if out.Reused {
+		fmt.Printf("Reused existing identity for repo %s (%s)\n", out.Repo, out.ImageProfile)
+	} else {
+		fmt.Printf("Launched sandbox for repo %s (%s)\n", out.Repo, out.ImageProfile)
+	}
+	if out.Resumed {
+		fmt.Printf("Resumed from durable checkpoint\n")
+	}
+	if out.TaskAccepted {
+		fmt.Printf("Initial task accepted\n")
+	}
+	fmt.Printf("OpenCode URL: %s\n", out.WebURL)
+
+	return nil
+}
+
+func runLaunchControlPlane(ctx context.Context, cfg *Config, name, repo, profile, containerClass string) error {
+	client := newControlPlaneClient(cfg.Sandbox.ControlPlaneURL)
+
+	resp, err := client.LaunchSandbox(ctx, name, cpLaunchRequest{
+		Repo:          repo,
+		ImageProfile:  profile,
+		Task:          launchTask,
+		ForceRecreate: launchForceRecreate,
+	})
+	if err != nil {
+		return err
+	}
+
+	out := launchOutput{
+		Name:           resp.Name,
+		State:          resp.State,
+		Repo:           resp.Repo,
+		ImageProfile:   resp.ImageProfile,
+		ContainerClass: containerClass,
+		WebURL:         resp.WebURL,
+		Reused:         resp.Reused,
+		Resumed:        resp.Resumed,
+		TaskAccepted:   resp.TaskAccepted,
+		OperationID:    resp.OperationID,
 	}
 
 	if jsonOutput {

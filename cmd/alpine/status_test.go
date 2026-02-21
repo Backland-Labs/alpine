@@ -180,3 +180,38 @@ func TestRunStatus(t *testing.T) {
 		}
 	})
 }
+
+func TestRunStatus_ControlPlane(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir()
+	origWD, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origWD) })
+
+	configYAML := strings.Join([]string{
+		"sandbox:",
+		"  control_plane_url: http://127.0.0.1:9999",
+	}, "\n")
+
+	if err := os.WriteFile(filepath.Join(dir, "alpine.yaml"), []byte(configYAML), 0644); err != nil {
+		t.Fatalf("write yaml: %v", err)
+	}
+
+	newCmd := func() *cobra.Command {
+		return &cobra.Command{}
+	}
+
+	t.Run("control plane unreachable returns system error", func(t *testing.T) {
+		resetFlags(t)
+		err := runStatus(newCmd(), []string{"alpha"})
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		ee := err.(*exitError)
+		if ee.code != 2 {
+			t.Fatalf("expected system error code 2, got %d", ee.code)
+		}
+	})
+}

@@ -2,7 +2,9 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 BINARY := bin/alpine
 
-.PHONY: build test test-integration test-coverage lint install clean setup
+.PHONY: build test test-integration test-coverage lint install clean setup \
+	worker-dev worker-deploy sync-auth-local sync-auth-live \
+	smoke-ui-local smoke-ui-live
 
 build: setup
 	go build $(LDFLAGS) -o $(BINARY) ./cmd/alpine
@@ -41,3 +43,21 @@ setup:
 
 clean:
 	rm -rf bin/ coverage.out
+
+worker-dev:
+	cd cloud/opencode-worker && npx wrangler dev
+
+worker-deploy:
+	cd cloud/opencode-worker && npx wrangler deploy
+
+sync-auth-local:
+	go run ./cmd/alpine auth sync --local
+
+sync-auth-live:
+	go run ./cmd/alpine auth sync --live
+
+smoke-ui-local:
+	cd cloud/opencode-worker && npm run test:smoke:local
+
+smoke-ui-live:
+	cd cloud/opencode-worker && npm run test:smoke:live

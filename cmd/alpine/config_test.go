@@ -238,3 +238,63 @@ func TestConfigValidateBranches(t *testing.T) {
 		})
 	}
 }
+
+func TestUsesControlPlane(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		expected bool
+	}{
+		{"empty", "", false},
+		{"whitespace", "   ", false},
+		{"localhost", "http://127.0.0.1:8787", true},
+		{"https url", "https://worker.example.com", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &Config{Sandbox: SandboxConfig{ControlPlaneURL: tc.url}}
+			if got := cfg.usesControlPlane(); got != tc.expected {
+				t.Errorf("usesControlPlane() = %t, want %t", got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestControlPlaneURLValidation(t *testing.T) {
+	base := Config{
+		BaseImage: "ubuntu:24.04",
+		Sandbox: SandboxConfig{
+			ImageProfile:           "default",
+			ImageProfiles:          map[string]string{"default": "class-a"},
+			WebBaseURL:             "https://sandbox.example.com",
+			CompletedRetentionMins: 10,
+		},
+		Durability: DurabilityConfig{Bucket: "b", CheckpointPrefix: "p"},
+		GitHub:     GitHubConfig{BranchPrefix: "alpine"},
+	}
+
+	t.Run("valid control plane url", func(t *testing.T) {
+		cfg := base
+		cfg.Sandbox.ControlPlaneURL = "http://127.0.0.1:8787"
+		if err := cfg.validate(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("invalid control plane url", func(t *testing.T) {
+		cfg := base
+		cfg.Sandbox.ControlPlaneURL = "not a url"
+		if err := cfg.validate(); err == nil {
+			t.Error("expected error for invalid control plane url")
+		}
+	})
+
+	t.Run("empty control plane url is valid", func(t *testing.T) {
+		cfg := base
+		cfg.Sandbox.ControlPlaneURL = ""
+		if err := cfg.validate(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+}

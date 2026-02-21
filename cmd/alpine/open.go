@@ -28,22 +28,38 @@ func init() {
 	rootCmd.AddCommand(openCmd)
 }
 
-func runOpen(_ *cobra.Command, args []string) error {
+func runOpen(cmd *cobra.Command, args []string) error {
+	name := sanitizeName(args[0])
+	if name == "" {
+		return userErr(fmt.Sprintf("invalid name %q: nothing left after sanitization", args[0]))
+	}
+	if err := validateName(name); err != nil {
+		return userErr(err.Error())
+	}
+
 	cfg, err := loadConfig()
 	if err != nil {
 		return userErr(fmt.Sprintf("failed to load config: %v", err))
 	}
 
-	orch := newOrchestrator(cfg)
-	webURL, err := orch.open(args[0])
+	var webURL string
+	if cfg.usesControlPlane() {
+		webURL, err = getOpenURLControlPlane(cmd.Context(), cfg, name)
+	} else {
+		orch := newOrchestrator(cfg)
+		webURL, err = orch.open(name)
+	}
 	if err != nil {
 		return err
 	}
 
 	opened := false
+	openErr := ""
 	if !jsonOutput && !openPrintOnly {
 		if err := openBrowserURL(webURL); err == nil {
 			opened = true
+		} else {
+			openErr = err.Error()
 		}
 	}
 
@@ -57,8 +73,20 @@ func runOpen(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if openErr != "" {
+		fmt.Printf("Failed to open browser: %s\n", openErr)
+	}
 	fmt.Println(webURL)
 	return nil
+}
+
+func getOpenURLControlPlane(ctx context.Context, cfg *Config, name string) (string, error) {
+	client := newControlPlaneClient(cfg.Sandbox.ControlPlaneURL)
+	resp, err := client.GetSandboxOpenURL(ctx, name)
+	if err != nil {
+		return "", err
+	}
+	return resp.WebURL, nil
 }
 
 func openBrowserURL(url string) error {

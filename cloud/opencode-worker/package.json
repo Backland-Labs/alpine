@@ -1,0 +1,23 @@
+{
+  "name": "opencode-worker",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "typecheck": "tsc --noEmit",
+    "test": "playwright test",
+    "test:smoke:local": "playwright test smoke-local.spec.ts",
+    "test:smoke:live": "playwright test smoke-live.spec.ts",
+    "test:a11y": "playwright test a11y.spec.ts",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
+    "@cloudflare/workers-types": "^4.20250214.0",
+    "@playwright/test": "^1.50.1",
+    "typescript": "^5.7.3",
+    "wrangler": "^3.107.3"
+  }
+}
