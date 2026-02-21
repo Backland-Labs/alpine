@@ -13,7 +13,7 @@ setup_script="$script_dir/setup-sprite-opencode.sh"
 
 usage() {
   cat <<'EOF'
-Usage: sprite-opencode <command> [options]
+Usage: sc <command> [options]
 
 Commands:
   setup   Create and open a Sprite OpenCode environment
@@ -26,22 +26,22 @@ Setup options:
   -o, --org <org-name>        Sprite organization name
 
 Examples:
-  ./sprite-opencode setup --branch feat/my-change
-  ./sprite-opencode setup --branch fix/login-timeout --org my-org
-  ./sprite-opencode install
-  ./sprite-opencode version
+  ./sc setup --branch feat/my-change
+  ./sc setup --branch fix/login-timeout --org my-org
+  ./sc install
+  ./sc version
 EOF
 }
 
 version() {
-  printf 'sprite-opencode 0.1.0\n'
+  printf 'sc 0.1.0\n'
 }
 
 install_local() {
   local bin_dir target real_script
   bin_dir="$HOME/.local/bin"
-  target="$bin_dir/sprite-opencode"
-  real_script="$script_dir/sprite-opencode"
+  target="$bin_dir/sc"
+  real_script="$script_dir/sc"
 
   mkdir -p "$bin_dir"
   ln -sfn "$real_script" "$target"

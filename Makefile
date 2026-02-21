@@ -1,6 +1,6 @@
 PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
-CLI_NAME := sprite-opencode
+CLI_NAME := sc
 
 .PHONY: help install uninstall
 

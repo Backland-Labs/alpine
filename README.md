@@ -1,6 +1,6 @@
 # Sprite OpenCode Setup
 
-`sprite-opencode` is a basic CLI that creates a ready-to-code Sprite environment for the current repository.
+`sc` is a basic CLI that creates a ready-to-code Sprite environment for the current repository.
 
 ## What it does
 
@@ -24,24 +24,24 @@
 ## Usage
 
 ```bash
-./sprite-opencode setup --branch <branch-name> [--org <org-name>]
-./sprite-opencode --branch <branch-name> [--org <org-name>]
-./sprite-opencode install
-./sprite-opencode version
+./sc setup --branch <branch-name> [--org <org-name>]
+./sc --branch <branch-name> [--org <org-name>]
+./sc install
+./sc version
 ```
 
 Install globally with Make:
 
 ```bash
 make install
-sprite-opencode --help
+sc --help
 ```
 
 Examples:
 
 ```bash
-./sprite-opencode setup --branch feat/my-change
-./sprite-opencode setup --branch fix/login-timeout --org my-org
+./sc setup --branch feat/my-change
+./sc setup --branch fix/login-timeout --org my-org
 ```
 
 ## Notes
