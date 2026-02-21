@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source_path="${BASH_SOURCE[0]}"
+while [[ -L "$source_path" ]]; do
+  link_dir="$(cd "$(dirname "$source_path")" && pwd)"
+  source_path="$(readlink "$source_path")"
+  [[ "$source_path" != /* ]] && source_path="$link_dir/$source_path"
+done
+
+script_dir="$(cd "$(dirname "$source_path")" && pwd)"
+setup_script="$script_dir/setup-sprite-opencode.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: sprite-opencode <command> [options]
+
+Commands:
+  setup   Create and open a Sprite OpenCode environment
+  install Install CLI into ~/.local/bin
+  version Show CLI version
+  help    Show this help
+
+Setup options:
+  -b, --branch <branch-name>  Branch to check out/create inside sprite (required)
+  -o, --org <org-name>        Sprite organization name
+
+Examples:
+  ./sprite-opencode setup --branch feat/my-change
+  ./sprite-opencode setup --branch fix/login-timeout --org my-org
+  ./sprite-opencode install
+  ./sprite-opencode version
+EOF
+}
+
+version() {
+  printf 'sprite-opencode 0.1.0\n'
+}
+
+install_local() {
+  local bin_dir target real_script
+  bin_dir="$HOME/.local/bin"
+  target="$bin_dir/sprite-opencode"
+  real_script="$script_dir/sprite-opencode"
+
+  mkdir -p "$bin_dir"
+  ln -sfn "$real_script" "$target"
+  printf 'Installed: %s -> %s\n' "$target" "$real_script"
+}
+
+if [[ $# -eq 0 ]]; then
+  usage
+  exit 0
+fi
+
+command="$1"
+shift
+
+case "$command" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  -v|--version)
+    version
+    exit 0
+    ;;
+esac
+
+if [[ "$command" == -* ]]; then
+  set -- "$command" "$@"
+  command="setup"
+fi
+
+if [[ ! -f "$setup_script" ]]; then
+  printf 'Missing setup script: %s\n' "$setup_script" >&2
+  exit 1
+fi
+
+case "$command" in
+  setup)
+    exec "$setup_script" "$@"
+    ;;
+  install)
+    install_local
+    ;;
+  version|--version|-v)
+    version
+    ;;
+  help|-h|--help)
+    usage
+    ;;
+  *)
+    printf "Unknown command: %s\n\n" "$command" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

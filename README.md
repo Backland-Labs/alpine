@@ -1,6 +1,6 @@
 # Sprite OpenCode Setup
 
-`setup-sprite-opencode.sh` creates a ready-to-code Sprite environment for the current repository.
+`sprite-opencode` is a basic CLI that creates a ready-to-code Sprite environment for the current repository.
 
 ## What it does
 
@@ -24,18 +24,28 @@
 ## Usage
 
 ```bash
-./setup-sprite-opencode.sh --branch <branch-name> [--org <org-name>]
+./sprite-opencode setup --branch <branch-name> [--org <org-name>]
+./sprite-opencode --branch <branch-name> [--org <org-name>]
+./sprite-opencode install
+./sprite-opencode version
+```
+
+Install globally with Make:
+
+```bash
+make install
+sprite-opencode --help
 ```
 
 Examples:
 
 ```bash
-./setup-sprite-opencode.sh --branch feat/my-change
-./setup-sprite-opencode.sh --branch fix/login-timeout --org my-org
+./sprite-opencode setup --branch feat/my-change
+./sprite-opencode setup --branch fix/login-timeout --org my-org
 ```
 
 ## Notes
 
-- Run the script from inside the git repository you want to clone into Sprite.
+- Run the CLI from inside the git repository you want to clone into Sprite.
 - `--branch` is required.
 - If `expect` is installed, the script auto-enters `sprite console`; otherwise it falls back to direct `sprite exec` launch.
