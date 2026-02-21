@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage: setup-sprite-opencode.sh --branch <branch-name> [--org <org-name>]
 
-Creates a Sprite environment with a repo/branch-tagged random name, installs OpenCode and ast-grep inside it,
+Creates a Sprite environment with a repo/branch-tagged random name, installs OpenCode, Plannotator, and ast-grep inside it,
 copies ~/.local/share/opencode/auth.json, copies ~/.config/opencode,
 copies ~/.claude (including .credentials.json when present),
 copies .env into the sprite and loads all variables,
@@ -203,7 +203,7 @@ fi
 printf "Creating sprite '%s'...\n" "$sprite_name"
 "${sprite_cmd[@]}" create -skip-console "$sprite_name"
 
-printf "Installing OpenCode and ast-grep inside sprite...\n"
+printf "Installing OpenCode, Plannotator, and ast-grep inside sprite...\n"
 "${sprite_cmd[@]}" exec -s "$sprite_name" zsh -lc '
 set -e
 opencode_bin_dir="$HOME/.opencode/bin"
@@ -217,6 +217,7 @@ export PATH="$local_bin_dir:$opencode_bin_dir:$PATH"
 
 if [ ! -x "$HOME/.opencode/bin/opencode" ] && ! command -v opencode >/dev/null 2>&1; then
   curl -fsSL https://opencode.ai/install | bash
+  curl -fsSL https://plannotator.ai/install.sh | bash
 fi
 
 install_ast_grep() {
