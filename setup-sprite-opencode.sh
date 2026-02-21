@@ -146,16 +146,28 @@ printf "Creating sprite '%s'...\n" "$sprite_name"
 printf "Installing OpenCode inside sprite...\n"
 "${sprite_cmd[@]}" exec -s "$sprite_name" zsh -lc '
 set -e
+opencode_bin_dir="$HOME/.opencode/bin"
+path_line='\''export PATH="$HOME/.opencode/bin:$PATH"'\''
+
 if [ ! -x "$HOME/.opencode/bin/opencode" ] && ! command -v opencode >/dev/null 2>&1; then
   curl -fsSL https://opencode.ai/install | bash
 fi
+
+for rc_file in "$HOME/.zshrc" "$HOME/.zprofile" "$HOME/.bashrc" "$HOME/.profile"; do
+  [ -f "$rc_file" ] || touch "$rc_file"
+  if ! grep -Fqx "$path_line" "$rc_file"; then
+    printf "\n%s\n" "$path_line" >> "$rc_file"
+  fi
+done
+
+export PATH="$opencode_bin_dir:$PATH"
+command -v opencode >/dev/null 2>&1
 '
 
 remote_home=$("${sprite_cmd[@]}" exec -s "$sprite_name" sh -c 'printf %s "$HOME"')
 remote_auth="$remote_home/.local/share/opencode/auth.json"
 remote_config_parent="$remote_home/.config"
 remote_tmp_tar="/tmp/opencode-config-$RANDOM-$RANDOM.tar.gz"
-remote_opencode_bin="$remote_home/.opencode/bin/opencode"
 
 printf "Preparing remote directories...\n"
 "${sprite_cmd[@]}" exec -s "$sprite_name" sh -c 'mkdir -p "$HOME/.local/share/opencode" "$HOME/.config"'
@@ -179,7 +191,7 @@ printf "Done. Sprite '%s' is ready with OpenCode auth and config.\n" "$sprite_na
 
 printf "Connecting via sprite console and launching OpenCode...\n"
 if command -v expect >/dev/null 2>&1; then
-  if SPRITE_NAME="$sprite_name" SPRITE_ORG="$sprite_org" REMOTE_OPENCODE_BIN="$remote_opencode_bin" expect -c '
+  if SPRITE_NAME="$sprite_name" SPRITE_ORG="$sprite_org" expect -c '
 set timeout 20
 set cmd [list sprite]
 if {[info exists env(SPRITE_ORG)] && $env(SPRITE_ORG) ne ""} {
@@ -188,7 +200,7 @@ if {[info exists env(SPRITE_ORG)] && $env(SPRITE_ORG) ne ""} {
 lappend cmd console -s $env(SPRITE_NAME)
 spawn {*}$cmd
 after 1200
-send -- "$env(REMOTE_OPENCODE_BIN)\r"
+send -- ". ~/.profile >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; opencode\r"
 interact
 '; then
     exit 0
@@ -198,4 +210,4 @@ interact
 else
   printf "'expect' is not installed, falling back to direct launch.\n"
 fi
-exec "${sprite_cmd[@]}" exec -s "$sprite_name" -tty "$remote_opencode_bin"
+exec "${sprite_cmd[@]}" exec -s "$sprite_name" -tty zsh -lc '. ~/.zprofile >/dev/null 2>&1 || true; . ~/.zshrc >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; if command -v opencode >/dev/null 2>&1; then exec opencode; fi; exec "$HOME/.opencode/bin/opencode"'
