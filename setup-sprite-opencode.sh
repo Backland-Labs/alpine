@@ -7,6 +7,7 @@ Usage: setup-sprite-opencode.sh [--org <org-name>]
 
 Creates a Sprite environment with a two-word random name, installs OpenCode inside it,
 copies ~/.local/share/opencode/auth.json, copies ~/.config/opencode,
+copies .env into the sprite and loads all variables,
 then opens sprite console and launches opencode.
 
 Options:
@@ -94,6 +95,8 @@ done
 
 local_auth="$HOME/.local/share/opencode/auth.json"
 local_config_dir="$HOME/.config/opencode"
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+local_env_file="$script_dir/.env"
 
 if [[ ! -f "$local_auth" ]]; then
   printf "Missing file: %s\n" "$local_auth" >&2
@@ -102,6 +105,11 @@ fi
 
 if [[ ! -d "$local_config_dir" ]]; then
   printf "Missing directory: %s\n" "$local_config_dir" >&2
+  exit 1
+fi
+
+if [[ ! -f "$local_env_file" ]]; then
+  printf "Missing file: %s\n" "$local_env_file" >&2
   exit 1
 fi
 
@@ -148,6 +156,7 @@ printf "Installing OpenCode inside sprite...\n"
 set -e
 opencode_bin_dir="$HOME/.opencode/bin"
 path_line='\''export PATH="$HOME/.opencode/bin:$PATH"'\''
+env_line='\''if [ -f "$HOME/.env" ]; then set -a; . "$HOME/.env"; set +a; fi'\''
 
 if [ ! -x "$HOME/.opencode/bin/opencode" ] && ! command -v opencode >/dev/null 2>&1; then
   curl -fsSL https://opencode.ai/install | bash
@@ -158,14 +167,23 @@ for rc_file in "$HOME/.zshrc" "$HOME/.zprofile" "$HOME/.bashrc" "$HOME/.profile"
   if ! grep -Fqx "$path_line" "$rc_file"; then
     printf "\n%s\n" "$path_line" >> "$rc_file"
   fi
+  if ! grep -Fqx "$env_line" "$rc_file"; then
+    printf "%s\n" "$env_line" >> "$rc_file"
+  fi
 done
 
 export PATH="$opencode_bin_dir:$PATH"
+if [ -f "$HOME/.env" ]; then
+  set -a
+  . "$HOME/.env"
+  set +a
+fi
 command -v opencode >/dev/null 2>&1
 '
 
 remote_home=$("${sprite_cmd[@]}" exec -s "$sprite_name" sh -c 'printf %s "$HOME"')
 remote_auth="$remote_home/.local/share/opencode/auth.json"
+remote_env="$remote_home/.env"
 remote_config_parent="$remote_home/.config"
 remote_tmp_tar="/tmp/opencode-config-$RANDOM-$RANDOM.tar.gz"
 
@@ -183,6 +201,9 @@ COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -C "$HOME/.config" -czf "$c
 
 printf "Copying auth.json...\n"
 "${sprite_cmd[@]}" exec -s "$sprite_name" -file "$local_auth:$remote_auth" sh -c 'true'
+
+printf "Copying .env...\n"
+"${sprite_cmd[@]}" exec -s "$sprite_name" -file "$local_env_file:$remote_env" sh -c 'true'
 
 printf "Copying ~/.config/opencode...\n"
 "${sprite_cmd[@]}" exec -s "$sprite_name" -file "$config_tar:$remote_tmp_tar" sh -c "tar -xzf \"$remote_tmp_tar\" -C \"$remote_config_parent\" && rm -f \"$remote_tmp_tar\""
