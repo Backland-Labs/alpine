@@ -149,9 +149,32 @@ export class Sandbox implements DurableObject {
       );
     }
 
-    return new Response('OpenCode UI placeholder - proxy to sandbox container', {
-      headers: { 'content-type': 'text/plain' },
-    });
+    try {
+      // Proxy to OpenCode server running in the sandbox container on port 3000
+      const url = new URL(request.url);
+      const proxyUrl = `http://localhost:3000${url.pathname}${url.search}`;
+      
+      const proxyRequest = new Request(proxyUrl, {
+        method: request.method,
+        headers: request.headers,
+        body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
+      });
+      
+      const response = await fetch(proxyRequest);
+      
+      // Clone the response to allow reading it
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    } catch (err) {
+      console.error('proxy error:', err);
+      return new Response('OpenCode service unavailable', {
+        status: 503,
+        headers: { 'content-type': 'text/plain' },
+      });
+    }
   }
 }
 
