@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	sprites "github.com/superfly/sprites-go"
 )
@@ -19,197 +20,137 @@ type TransferConfig struct {
 	LocalConfigDir string
 }
 
-type backupEntry struct {
-	existed bool
-	data    []byte
-	mode    fs.FileMode
-}
-
 func Transfer(ctx context.Context, sp *sprites.Sprite, cfg TransferConfig) (string, error) {
 	home, err := remoteHome(ctx, sp)
 	if err != nil {
 		return "", err
 	}
+
+	repoName, err := repoNameFromLocalEnv(cfg.LocalEnv)
+	if err != nil {
+		return "", err
+	}
+
 	remoteFS := sp.FilesystemAt("/")
+	remoteAuth := path.Join(home, ".local", "share", "opencode", "auth.json")
+	remoteEnv := path.Join(home, ".env")
+	remoteConfigParent := path.Join(home, ".config")
+	remoteConfigRoot := path.Join(remoteConfigParent, filepath.Base(filepath.Clean(cfg.LocalConfigDir)))
+	remoteRepoParent := path.Join(home, "code")
+	remoteRepoDir := path.Join(remoteRepoParent, repoName)
+	remoteTmpTar := fmt.Sprintf("/tmp/opencode-config-%d-%d.tar.gz", time.Now().UnixNano(), os.Getpid())
 
-	restore := map[string]backupEntry{}
-	created := map[string]struct{}{}
-	rollback := func() {
-		for p := range created {
-			_ = remoteFS.RemoveAll(p)
-		}
-		for p, b := range restore {
-			if !b.existed {
-				_ = remoteFS.RemoveAll(p)
-				continue
-			}
-			_ = remoteFS.WriteFile(p, b.data, b.mode)
-			_ = remoteFS.Chmod(p, b.mode)
-		}
-	}
-
-	writeFileSafe := func(dst string, srcBytes []byte, mode fs.FileMode) error {
-		if err := backup(remoteFS, dst, restore); err != nil {
-			return err
-		}
-		if err := removeIfExists(remoteFS, dst); err != nil {
-			return err
-		}
-		if err := remoteFS.WriteFile(dst, srcBytes, mode); err != nil {
-			return err
-		}
-		if err := remoteFS.Chmod(dst, mode); err != nil {
-			return err
-		}
-		created[dst] = struct{}{}
-		return nil
-	}
-
-	authDst, err := safeAllowedPath(home, ".local/share/opencode/auth.json")
-	if err != nil {
-		return "", err
-	}
-	envDst, err := safeAllowedPath(home, ".env")
-	if err != nil {
-		return "", err
-	}
-	configRoot, err := safeAllowedPath(home, ".config/opencode")
-	if err != nil {
-		return "", err
+	prepareCmd := sp.CommandContext(ctx, "sh", "-lc", `mkdir -p "$HOME/.local/share/opencode" "$HOME/.config"`)
+	if out, err := prepareCmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("prepare remote directories: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 
 	authBytes, err := os.ReadFile(cfg.LocalAuth)
 	if err != nil {
 		return "", fmt.Errorf("read local auth.json: %w", err)
 	}
-	authParent := path.Dir(authDst)
-	if err := remoteFS.MkdirAll(authParent, 0o700); err != nil {
-		return "", fmt.Errorf("create remote auth.json parent dir: %w", err)
-	}
-	if err := writeFileSafe(authDst, authBytes, 0o600); err != nil {
-		rollback()
+	if err := remoteFS.WriteFile(remoteAuth, authBytes, 0o600); err != nil {
 		return "", fmt.Errorf("write remote auth.json: %w", err)
+	}
+	if err := remoteFS.Chmod(remoteAuth, 0o600); err != nil {
+		return "", fmt.Errorf("chmod remote auth.json: %w", err)
 	}
 
 	envBytes, err := os.ReadFile(cfg.LocalEnv)
 	if err != nil {
-		rollback()
 		return "", fmt.Errorf("read local .env: %w", err)
 	}
-	if err := writeFileSafe(envDst, envBytes, 0o600); err != nil {
-		rollback()
+	if err := remoteFS.WriteFile(remoteEnv, envBytes, 0o600); err != nil {
 		return "", fmt.Errorf("write remote .env: %w", err)
 	}
-
-	if err := copyTree(remoteFS, cfg.LocalConfigDir, configRoot, restore, created, true); err != nil {
-		rollback()
-		return "", fmt.Errorf("copy ~/.config/opencode: %w", err)
+	if err := remoteFS.Chmod(remoteEnv, 0o600); err != nil {
+		return "", fmt.Errorf("chmod remote .env: %w", err)
 	}
 
-	_ = remoteFS.Chmod(configRoot, 0o700)
-
-	repoParent, err := safeAllowedPath(home, "code")
+	configTar, err := packLocalConfigTar(cfg.LocalConfigDir)
 	if err != nil {
 		return "", err
 	}
-	repoDir, err := safeAllowedPath(home, path.Join("code", filepath.Base(filepath.Clean(filepath.Dir(cfg.LocalEnv)))))
-	if err != nil {
-		return "", err
+	if err := remoteFS.WriteFile(remoteTmpTar, configTar, 0o600); err != nil {
+		return "", fmt.Errorf("write remote config tar: %w", err)
 	}
-	if err := remoteFS.MkdirAll(repoParent, 0o755); err != nil {
+	_ = remoteFS.Chmod(remoteTmpTar, 0o600)
+
+	extractCmd := sp.CommandContext(
+		ctx,
+		"sh",
+		"-lc",
+		"tar -xzf "+shellQuote(remoteTmpTar)+" -C "+shellQuote(remoteConfigParent)+" && rm -f "+shellQuote(remoteTmpTar),
+	)
+	if out, err := extractCmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("extract remote config tar: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+
+	if _, err := remoteFS.Stat(remoteConfigRoot); err != nil {
+		return "", fmt.Errorf("verify remote config directory: %w", err)
+	}
+
+	if err := remoteFS.MkdirAll(remoteRepoParent, 0o755); err != nil {
 		return "", fmt.Errorf("create remote repo parent: %w", err)
 	}
-	return repoDir, nil
+
+	return remoteRepoDir, nil
 }
 
-func copyTree(remoteFS sprites.FS, srcRoot, dstRoot string, restore map[string]backupEntry, created map[string]struct{}, strictSecretMode bool) error {
-	return filepath.WalkDir(srcRoot, func(srcPath string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if d.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("symlinks are not allowed: %s", srcPath)
-		}
-		rel, err := filepath.Rel(srcRoot, srcPath)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
-		if rel == "." {
-			if err := remoteFS.MkdirAll(dstRoot, 0o700); err != nil {
-				return err
-			}
-			created[dstRoot] = struct{}{}
+func packLocalConfigTar(localConfigDir string) ([]byte, error) {
+	localConfigDir = filepath.Clean(localConfigDir)
+	configParent := filepath.Dir(localConfigDir)
+	configName := filepath.Base(localConfigDir)
+
+	tmpFile, err := os.CreateTemp("", "opencode-config-*.tar.gz")
+	if err != nil {
+		return nil, fmt.Errorf("create temp tar file: %w", err)
+	}
+	tmpTarPath := tmpFile.Name()
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpTarPath)
+		return nil, fmt.Errorf("close temp tar file: %w", err)
+	}
+	defer os.Remove(tmpTarPath)
+
+	if err := runTarWithFallback(configParent, configName, tmpTarPath); err != nil {
+		return nil, err
+	}
+
+	b, err := os.ReadFile(tmpTarPath)
+	if err != nil {
+		return nil, fmt.Errorf("read packed config tar: %w", err)
+	}
+	return b, nil
+}
+
+func runTarWithFallback(configParent, configName, tarPath string) error {
+	withMacOptions := []string{"--no-xattrs", "--no-mac-metadata", "-C", configParent, "-czf", tarPath, configName}
+	if out, err := exec.Command("tar", withMacOptions...).CombinedOutput(); err == nil {
+		return nil
+	} else {
+		basic := []string{"-C", configParent, "-czf", tarPath, configName}
+		out2, err2 := exec.Command("tar", basic...).CombinedOutput()
+		if err2 == nil {
 			return nil
 		}
-		dst, err := safeChild(dstRoot, rel)
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			if err := remoteFS.MkdirAll(dst, 0o700); err != nil {
-				return err
-			}
-			created[dst] = struct{}{}
-			return nil
+		if msg := strings.TrimSpace(string(out2)); msg != "" {
+			return fmt.Errorf("pack local config directory: %w: %s", err2, msg)
 		}
 
-		data, err := os.ReadFile(srcPath)
-		if err != nil {
-			return err
+		if msg := strings.TrimSpace(string(out)); msg != "" {
+			return fmt.Errorf("pack local config directory: %w: %s", err, msg)
 		}
-		if err := backup(remoteFS, dst, restore); err != nil {
-			return err
-		}
-		if err := removeIfExists(remoteFS, dst); err != nil {
-			return err
-		}
-		mode := fs.FileMode(0o644)
-		if strictSecretMode {
-			mode = 0o600
-		}
-		if strings.HasSuffix(srcPath, ".credentials.json") {
-			mode = 0o600
-		}
-		if err := remoteFS.WriteFile(dst, data, mode); err != nil {
-			return err
-		}
-		if err := remoteFS.Chmod(dst, mode); err != nil {
-			return err
-		}
-		created[dst] = struct{}{}
-		return nil
-	})
+		return fmt.Errorf("pack local config directory: %w", err2)
+	}
 }
 
-func backup(remoteFS sprites.FS, dst string, store map[string]backupEntry) error {
-	if _, ok := store[dst]; ok {
-		return nil
+func repoNameFromLocalEnv(localEnvPath string) (string, error) {
+	name := filepath.Base(filepath.Clean(filepath.Dir(localEnvPath)))
+	if name == "" || name == "." || name == string(filepath.Separator) {
+		return "", fmt.Errorf("unable to derive repo name from local env path: %s", localEnvPath)
 	}
-	st, err := remoteFS.Stat(dst)
-	if err != nil {
-		store[dst] = backupEntry{existed: false}
-		return nil
-	}
-	if st.IsDir() {
-		return errors.New("refusing to overwrite directory with file: " + dst)
-	}
-	b, err := remoteFS.ReadFile(dst)
-	if err != nil {
-		return err
-	}
-	store[dst] = backupEntry{existed: true, data: b, mode: st.Mode()}
-	return nil
-}
-
-func removeIfExists(remoteFS sprites.FS, dst string) error {
-	if _, err := remoteFS.Stat(dst); err != nil {
-		return nil
-	}
-	if err := remoteFS.Remove(dst); err != nil {
-		return err
-	}
-	return nil
+	return name, nil
 }
 
 func remoteHome(ctx context.Context, sp *sprites.Sprite) (string, error) {
@@ -223,38 +164,4 @@ func remoteHome(ctx context.Context, sp *sprites.Sprite) (string, error) {
 		return "", errors.New("remote HOME is empty")
 	}
 	return h, nil
-}
-
-func safeAllowedPath(home, rel string) (string, error) {
-	if strings.HasPrefix(rel, "/") {
-		return "", fmt.Errorf("absolute path not allowed: %s", rel)
-	}
-	if strings.Contains(rel, "..") {
-		return "", fmt.Errorf("path traversal rejected: %s", rel)
-	}
-	clean := path.Clean(path.Join(home, rel))
-	allowed := []string{
-		path.Join(home, ".local", "share", "opencode"),
-		path.Join(home, ".config", "opencode"),
-		path.Join(home, ".env"),
-		path.Join(home, "code"),
-	}
-	for _, base := range allowed {
-		if clean == base || strings.HasPrefix(clean, base+"/") {
-			return clean, nil
-		}
-	}
-	return "", fmt.Errorf("destination not in allowlist: %s", clean)
-}
-
-func safeChild(root, rel string) (string, error) {
-	rel = strings.TrimPrefix(rel, "./")
-	if strings.HasPrefix(rel, "/") || strings.Contains(rel, "..") {
-		return "", fmt.Errorf("invalid relative path: %s", rel)
-	}
-	out := path.Clean(path.Join(root, rel))
-	if out != root && !strings.HasPrefix(out, root+"/") {
-		return "", fmt.Errorf("symlink/path escape rejected: %s", rel)
-	}
-	return out, nil
 }

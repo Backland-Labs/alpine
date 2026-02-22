@@ -22,7 +22,7 @@ var nouns = []string{"badger", "canyon", "comet", "delta", "dune", "falcon", "fo
 func Run(ctx context.Context, cfg cli.Config, stdout, stderr io.Writer) error {
 	logf(stderr, "preflight", "start", "repository=%s branch=%s", cfg.RepoName, cfg.Branch)
 
-	client := spritesclient.New(cfg.SpritesToken)
+	client := spritesclient.New(cfg.SpritesToken, cfg.Org)
 	defer client.Close()
 
 	name, err := chooseName(ctx, client, cfg.NamePrefix)

@@ -23,7 +23,7 @@ then clones the current repository in the Sprite and checks out the target branc
 
 Options:
   -b, --branch <branch-name> Branch to check out/create inside sprite (required)
-  -o, --org <org-name>       Sprite organization name (currently fail-closed)
+  -o, --org <org-name>       Sprite organization name
   -h, --help                 Show this help`
 
 type Config struct {
@@ -70,13 +70,6 @@ func Parse(args []string, env []string, stderr io.Writer) (Config, error) {
 		fmt.Fprintln(stderr, usageText)
 		return cfg, fmt.Errorf("%w: missing required argument --branch", apperr.ErrUsage)
 	}
-	if err := checkBranchName(cfg.Branch); err != nil {
-		return cfg, fmt.Errorf("%w: invalid branch name %q: %v", apperr.ErrUsage, cfg.Branch, err)
-	}
-
-	if strings.TrimSpace(cfg.Org) != "" {
-		return cfg, fmt.Errorf("%w: --org is currently fail-closed; sprites-go does not guarantee org scoping for create/list/exec operations", apperr.ErrAuth)
-	}
 
 	repoRoot, err := gitOut("rev-parse", "--show-toplevel")
 	if err != nil {
@@ -121,14 +114,6 @@ func Parse(args []string, env []string, stderr io.Writer) (Config, error) {
 	cfg.SpritesToken = token
 
 	return cfg, nil
-}
-
-func checkBranchName(branch string) error {
-	cmd := exec.Command("git", "check-ref-format", "--branch", branch)
-	if err := cmd.Run(); err != nil {
-		return errors.New("git check-ref-format failed")
-	}
-	return nil
 }
 
 func gitOut(args ...string) (string, error) {

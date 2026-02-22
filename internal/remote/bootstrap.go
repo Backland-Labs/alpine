@@ -13,27 +13,7 @@ opencode_bin_dir="$HOME/.opencode/bin"
 local_bin_dir="$HOME/.local/bin"
 opencode_path_line='export PATH="$HOME/.opencode/bin:$PATH"'
 local_bin_path_line='export PATH="$HOME/.local/bin:$PATH"'
-
-load_env_file() {
-  [ -f "$HOME/.env" ] || return 0
-  while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in
-      ""|\#*)
-        continue
-        ;;
-      *=*)
-        key="${line%%=*}"
-        val="${line#*=}"
-        case "$key" in
-          ""|*[!A-Za-z0-9_]*)
-            continue
-            ;;
-        esac
-        export "$key=$val"
-        ;;
-    esac
-  done < "$HOME/.env"
-}
+env_line='if [ -f "$HOME/.env" ]; then set -a; . "$HOME/.env"; set +a; fi'
 
 mkdir -p "$local_bin_dir"
 export PATH="$local_bin_dir:$opencode_bin_dir:$PATH"
@@ -120,9 +100,14 @@ for rc_file in "$HOME/.zshrc" "$HOME/.zprofile" "$HOME/.bashrc" "$HOME/.profile"
   [ -f "$rc_file" ] || touch "$rc_file"
   grep -Fqx "$local_bin_path_line" "$rc_file" || printf "\n%s\n" "$local_bin_path_line" >> "$rc_file"
   grep -Fqx "$opencode_path_line" "$rc_file" || printf "%s\n" "$opencode_path_line" >> "$rc_file"
+  grep -Fqx "$env_line" "$rc_file" || printf "%s\n" "$env_line" >> "$rc_file"
 done
 
-load_env_file
+if [ -f "$HOME/.env" ]; then
+  set -a
+  . "$HOME/.env"
+  set +a
+fi
 command -v opencode >/dev/null 2>&1
 command -v ast-grep >/dev/null 2>&1 || command -v sg >/dev/null 2>&1
 `

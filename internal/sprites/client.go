@@ -3,16 +3,22 @@ package spritesclient
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	sprites "github.com/superfly/sprites-go"
 )
 
 type Client struct {
 	sdk *sprites.Client
+	org *sprites.OrganizationInfo
 }
 
-func New(token string) *Client {
-	return &Client{sdk: sprites.New(token)}
+func New(token, org string) *Client {
+	var orgInfo *sprites.OrganizationInfo
+	if trimmed := strings.TrimSpace(org); trimmed != "" {
+		orgInfo = &sprites.OrganizationInfo{Name: trimmed}
+	}
+	return &Client{sdk: sprites.New(token), org: orgInfo}
 }
 
 func (c *Client) Close() error {
@@ -23,9 +29,20 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) CreateSprite(ctx context.Context, name string) (*sprites.Sprite, error) {
-	sp, err := c.sdk.CreateSprite(ctx, name, nil)
+	var (
+		sp  *sprites.Sprite
+		err error
+	)
+	if c.org != nil {
+		sp, err = c.sdk.CreateSpriteWithOrg(ctx, name, nil, c.org)
+	} else {
+		sp, err = c.sdk.CreateSprite(ctx, name, nil)
+	}
 	if err != nil {
 		return nil, err
+	}
+	if c.org != nil {
+		return c.sdk.GetSpriteWithOrg(ctx, sp.Name(), c.org)
 	}
 	return c.sdk.GetSprite(ctx, sp.Name())
 }
@@ -35,7 +52,15 @@ func (c *Client) DeleteSprite(ctx context.Context, name string) error {
 }
 
 func (c *Client) ListSpriteNames(ctx context.Context) ([]string, error) {
-	all, err := c.sdk.ListAllSprites(ctx, "")
+	var (
+		all []*sprites.Sprite
+		err error
+	)
+	if c.org != nil {
+		all, err = c.sdk.ListAllSpritesWithOrg(ctx, "", c.org)
+	} else {
+		all, err = c.sdk.ListAllSprites(ctx, "")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +72,9 @@ func (c *Client) ListSpriteNames(ctx context.Context) ([]string, error) {
 }
 
 func (c *Client) Sprite(name string) *sprites.Sprite {
+	if c.org != nil {
+		return c.sdk.SpriteWithOrg(name, c.org)
+	}
 	return c.sdk.Sprite(name)
 }
 

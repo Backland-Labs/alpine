@@ -5,92 +5,97 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
+	"os/exec"
 	"strings"
-	"syscall"
 
 	sprites "github.com/superfly/sprites-go"
 	"golang.org/x/term"
 )
 
-const (
-	defaultTTYRows = 24
-	defaultTTYCols = 80
-)
+const directLaunchScript = `. ~/.zprofile >/dev/null 2>&1 || true; . ~/.zshrc >/dev/null 2>&1 || true; cd "$SPRITE_REPO_DIR" >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; if command -v opencode >/dev/null 2>&1; then exec opencode; fi; exec "$HOME/.opencode/bin/opencode"`
 
-const launchScript = `. ~/.zprofile >/dev/null 2>&1 || true
-. ~/.zshrc >/dev/null 2>&1 || true
-if [ -f "$HOME/.env" ]; then
-  while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in
-      ""|\#*)
-        continue
-        ;;
-      *=*)
-        key="${line%%=*}"
-        val="${line#*=}"
-        case "$key" in
-          ""|*[!A-Za-z0-9_]*)
-            continue
-            ;;
-        esac
-        export "$key=$val"
-        ;;
-    esac
-  done < "$HOME/.env"
-fi
-cd "$SPRITE_REPO_DIR" >/dev/null 2>&1 || true
-hash -r 2>/dev/null || true
-if command -v opencode >/dev/null 2>&1; then exec opencode; fi
-exec "$HOME/.opencode/bin/opencode"`
+const expectLaunchScript = `set timeout 20
+set cmd [list sprite]
+if {[info exists env(SPRITE_ORG)] && $env(SPRITE_ORG) ne ""} {
+  lappend cmd -o $env(SPRITE_ORG)
+}
+lappend cmd console -s $env(SPRITE_NAME)
+spawn {*}$cmd
+after 1200
+send -- ". ~/.profile >/dev/null 2>&1 || true; cd \"$env(SPRITE_REPO_DIR)\" >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; opencode\r"
+interact`
 
 func Launch(ctx context.Context, sp *sprites.Sprite, repoDir string, stdout, stderr io.Writer) error {
+	org := ""
+	if orgInfo := sp.Organization(); orgInfo != nil {
+		org = strings.TrimSpace(orgInfo.Name)
+	}
+
 	if !isTTY() {
-		reconnect := "sprite exec -s " + shellQuote(sp.Name()) + " -tty zsh -lc " + shellQuote(launchScriptWithRepoDir(repoDir))
+		reconnect := reconnectCommand(sp.Name(), org, repoDir)
 		fmt.Fprintf(stdout, "status=ready\nsprite_id=%s\nreconnect=%s\n", sp.Name(), reconnect)
 		return nil
 	}
 
-	cmd := sp.CommandContext(ctx, "zsh", "-lc", launchScript)
-	cmd.Env = []string{"SPRITE_REPO_DIR=" + repoDir}
-	cmd.SetTTY(true)
-	setInitialTTYSize(cmd)
+	if _, err := exec.LookPath("expect"); err == nil {
+		cmd := exec.CommandContext(ctx, "expect", "-c", expectLaunchScript)
+		cmd.Env = append(os.Environ(),
+			"SPRITE_NAME="+sp.Name(),
+			"SPRITE_ORG="+org,
+			"SPRITE_REPO_DIR="+repoDir,
+		)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err == nil {
+			return nil
+		}
+		fmt.Fprintln(stderr, "Automatic console launch failed, falling back to direct launch.")
+	} else {
+		fmt.Fprintln(stderr, "'expect' is not installed, falling back to direct launch.")
+	}
+
+	args := []string{}
+	if org != "" {
+		args = append(args, "-o", org)
+	}
+	args = append(args,
+		"exec",
+		"-s", sp.Name(),
+		"-env", "SPRITE_REPO_DIR="+repoDir,
+		"-tty",
+		"zsh",
+		"-lc",
+		directLaunchScript,
+	)
+
+	cmd := exec.CommandContext(ctx, "sprite", args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
-	resize := make(chan os.Signal, 1)
-	signal.Notify(resize, syscall.SIGWINCH)
-	defer signal.Stop(resize)
-	go func() {
-		for range resize {
-			if cols, rows, err := term.GetSize(int(os.Stdout.Fd())); err == nil && cols > 0 && rows > 0 {
-				_ = cmd.SetTTYSize(uint16(rows), uint16(cols))
-			}
-		}
-	}()
-
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("launch opencode: %w", err)
 	}
 	return nil
 }
 
+func reconnectCommand(spriteName, org, repoDir string) string {
+	cmd := "sprite"
+	if org != "" {
+		cmd += " -o " + shellQuote(org)
+	}
+	cmd += " exec -s " + shellQuote(spriteName)
+	cmd += " -env " + shellQuote("SPRITE_REPO_DIR="+repoDir)
+	cmd += " -tty zsh -lc " + shellQuote(launchScriptWithRepoDir(repoDir))
+	return cmd
+}
+
 func isTTY() bool {
 	return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
 }
 
-func setInitialTTYSize(cmd *sprites.Cmd) {
-	cols, rows, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil || cols <= 0 || rows <= 0 {
-		_ = cmd.SetTTYSize(defaultTTYRows, defaultTTYCols)
-		return
-	}
-	_ = cmd.SetTTYSize(uint16(rows), uint16(cols))
-}
-
 func launchScriptWithRepoDir(repoDir string) string {
-	return `. ~/.zprofile >/dev/null 2>&1 || true; . ~/.zshrc >/dev/null 2>&1 || true; if [ -f "$HOME/.env" ]; then while IFS= read -r line || [ -n "$line" ]; do case "$line" in ""|\#*) continue ;; *=*) key="${line%%=*}"; val="${line#*=}"; case "$key" in ""|*[!A-Za-z0-9_]*) continue ;; esac; export "$key=$val" ;; esac; done < "$HOME/.env"; fi; cd ` + shellQuote(repoDir) + ` >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; if command -v opencode >/dev/null 2>&1; then exec opencode; fi; exec "$HOME/.opencode/bin/opencode"`
+	return `. ~/.zprofile >/dev/null 2>&1 || true; . ~/.zshrc >/dev/null 2>&1 || true; cd ` + shellQuote(repoDir) + ` >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; if command -v opencode >/dev/null 2>&1; then exec opencode; fi; exec "$HOME/.opencode/bin/opencode"`
 }
 
 func shellQuote(s string) string {
