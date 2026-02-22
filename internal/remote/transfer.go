@@ -87,10 +87,15 @@ func Transfer(ctx context.Context, sp *sprites.Sprite, cfg TransferConfig) (stri
 	if err != nil {
 		return "", fmt.Errorf("read local auth.json: %w", err)
 	}
+	authParent := path.Dir(authDst)
+	if err := remoteFS.MkdirAll(authParent, 0o700); err != nil {
+		return "", fmt.Errorf("create remote auth.json parent dir: %w", err)
+	}
 	if err := writeFileSafe(authDst, authBytes, 0o600); err != nil {
 		rollback()
 		return "", fmt.Errorf("write remote auth.json: %w", err)
 	}
+
 
 	envBytes, err := os.ReadFile(cfg.LocalEnv)
 	if err != nil {
