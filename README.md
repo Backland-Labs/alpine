@@ -6,7 +6,7 @@
 
 - Creates a new Sprite with a unique name based on repo and branch
 - Installs OpenCode and ast-grep inside the Sprite
-- Copies local auth/config files (`~/.local/share/opencode/auth.json`, `~/.config/opencode`, `~/.claude`)
+- Copies local auth/config files (`~/.local/share/opencode/auth.json`, `~/.config/opencode`)
 - Copies repository `.env` to the Sprite and loads its variables
 - Clones the current repo in the Sprite and checks out (or creates) the target branch
 - Opens a Sprite shell and launches `opencode`
@@ -18,7 +18,6 @@
 - Local files/directories present:
   - `~/.local/share/opencode/auth.json`
   - `~/.config/opencode`
-  - `~/.claude`
   - `<repo>/.env`
 
 ## Usage

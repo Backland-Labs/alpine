@@ -17,7 +17,6 @@ type TransferConfig struct {
 	LocalAuth      string
 	LocalEnv       string
 	LocalConfigDir string
-	LocalClaudeDir string
 }
 
 type backupEntry struct {
@@ -78,10 +77,6 @@ func Transfer(ctx context.Context, sp *sprites.Sprite, cfg TransferConfig) (stri
 	if err != nil {
 		return "", err
 	}
-	claudeRoot, err := safeAllowedPath(home, ".claude")
-	if err != nil {
-		return "", err
-	}
 
 	authBytes, err := os.ReadFile(cfg.LocalAuth)
 	if err != nil {
@@ -95,7 +90,6 @@ func Transfer(ctx context.Context, sp *sprites.Sprite, cfg TransferConfig) (stri
 		rollback()
 		return "", fmt.Errorf("write remote auth.json: %w", err)
 	}
-
 
 	envBytes, err := os.ReadFile(cfg.LocalEnv)
 	if err != nil {
@@ -111,17 +105,8 @@ func Transfer(ctx context.Context, sp *sprites.Sprite, cfg TransferConfig) (stri
 		rollback()
 		return "", fmt.Errorf("copy ~/.config/opencode: %w", err)
 	}
-	if err := copyTree(remoteFS, cfg.LocalClaudeDir, claudeRoot, restore, created, true); err != nil {
-		rollback()
-		return "", fmt.Errorf("copy ~/.claude: %w", err)
-	}
 
 	_ = remoteFS.Chmod(configRoot, 0o700)
-	_ = remoteFS.Chmod(claudeRoot, 0o700)
-	credPath := path.Join(claudeRoot, ".credentials.json")
-	if _, err := remoteFS.Stat(credPath); err == nil {
-		_ = remoteFS.Chmod(credPath, 0o600)
-	}
 
 	repoParent, err := safeAllowedPath(home, "code")
 	if err != nil {
@@ -251,7 +236,6 @@ func safeAllowedPath(home, rel string) (string, error) {
 	allowed := []string{
 		path.Join(home, ".local", "share", "opencode"),
 		path.Join(home, ".config", "opencode"),
-		path.Join(home, ".claude"),
 		path.Join(home, ".env"),
 		path.Join(home, "code"),
 	}

@@ -57,7 +57,6 @@ func Run(ctx context.Context, cfg cli.Config, stdout, stderr io.Writer) error {
 		LocalAuth:      cfg.LocalAuth,
 		LocalEnv:       cfg.LocalEnvFile,
 		LocalConfigDir: cfg.LocalConfigDir,
-		LocalClaudeDir: cfg.LocalClaudeDir,
 	})
 	if err != nil {
 		return cleanupOnErr(err)

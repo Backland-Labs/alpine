@@ -18,7 +18,7 @@ import (
 const usageText = `Usage: setup-sprite-opencode --branch <branch-name> [--org <org-name>]
 
 Creates a Sprite environment with a repo/branch-tagged random name, installs OpenCode and ast-grep,
-copies ~/.local/share/opencode/auth.json, ~/.config/opencode, ~/.claude, and .env,
+copies ~/.local/share/opencode/auth.json, ~/.config/opencode, and .env,
 then clones the current repository in the Sprite and checks out the target branch.
 
 Options:
@@ -38,7 +38,6 @@ type Config struct {
 	NamePrefix     string
 	LocalAuth      string
 	LocalConfigDir string
-	LocalClaudeDir string
 	LocalEnvFile   string
 	SpritesToken   string
 }
@@ -100,16 +99,12 @@ func Parse(args []string, env []string, stderr io.Writer) (Config, error) {
 	cfg.NamePrefix = nonEmpty(cfg.RepoSlug, "repo") + "-" + nonEmpty(cfg.BranchSlug, "branch")
 	cfg.LocalAuth = filepath.Join(os.Getenv("HOME"), ".local", "share", "opencode", "auth.json")
 	cfg.LocalConfigDir = filepath.Join(os.Getenv("HOME"), ".config", "opencode")
-	cfg.LocalClaudeDir = filepath.Join(os.Getenv("HOME"), ".claude")
 	cfg.LocalEnvFile = filepath.Join(repoRoot, ".env")
 
 	if err := requireFile(cfg.LocalAuth); err != nil {
 		return cfg, fmt.Errorf("%w: %v", apperr.ErrPreflight, err)
 	}
 	if err := requireDir(cfg.LocalConfigDir); err != nil {
-		return cfg, fmt.Errorf("%w: %v", apperr.ErrPreflight, err)
-	}
-	if err := requireDir(cfg.LocalClaudeDir); err != nil {
 		return cfg, fmt.Errorf("%w: %v", apperr.ErrPreflight, err)
 	}
 	if err := requireFile(cfg.LocalEnvFile); err != nil {
