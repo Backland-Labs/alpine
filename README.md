@@ -27,6 +27,12 @@
 ./setup-sprite-opencode.sh --branch <branch-name> [--org <org-name>]
 ```
 
+Run Opencode in an interactive Sprite session:
+
+```bash
+sprite exec -dir /home/sprite/code/alpine -tty bash -lc 'opencode run "/ralph-loop"'
+```
+
 Examples:
 
 ```bash
