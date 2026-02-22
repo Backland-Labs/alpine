@@ -7,7 +7,6 @@ Usage: setup-sprite-opencode.sh --branch <branch-name> [--org <org-name>]
 
 Creates a Sprite environment with a repo/branch-tagged random name, installs OpenCode and ast-grep inside it,
 copies ~/.local/share/opencode/auth.json, copies ~/.config/opencode,
-copies ~/.claude (including .credentials.json when present),
 copies .env into the sprite and loads all variables,
 clones the current repository inside the sprite,
 checks out or creates the requested branch,
@@ -17,6 +16,9 @@ Options:
   -b, --branch <branch-name> Branch to check out/create inside sprite (required)
   -o, --org <org-name>   Sprite organization name
   -h, --help             Show this help
+
+Environment:
+  SPRITE_ORG=<org-name>          Default organization when --org is omitted
 EOF
 }
 
@@ -142,7 +144,6 @@ sprite_name_prefix="${repo_slug:-repo}-${branch_slug:-branch}"
 
 local_auth="$HOME/.local/share/opencode/auth.json"
 local_config_dir="$HOME/.config/opencode"
-local_claude_dir="$HOME/.claude"
 local_env_file="$repo_root/.env"
 
 if [[ ! -f "$local_auth" ]]; then
@@ -152,11 +153,6 @@ fi
 
 if [[ ! -d "$local_config_dir" ]]; then
   printf "Missing directory: %s\n" "$local_config_dir" >&2
-  exit 1
-fi
-
-if [[ ! -d "$local_claude_dir" ]]; then
-  printf "Missing directory: %s\n" "$local_claude_dir" >&2
   exit 1
 fi
 
@@ -328,28 +324,21 @@ remote_home=$("${sprite_cmd[@]}" exec -s "$sprite_name" sh -c 'printf %s "$HOME"
 remote_auth="$remote_home/.local/share/opencode/auth.json"
 remote_env="$remote_home/.env"
 remote_config_parent="$remote_home/.config"
-remote_claude_parent="$remote_home"
 remote_repo_parent="$remote_home/code"
 remote_repo_dir="$remote_repo_parent/$repo_name"
 remote_tmp_tar="/tmp/opencode-config-$RANDOM-$RANDOM.tar.gz"
-remote_claude_tmp_tar="/tmp/claude-config-$RANDOM-$RANDOM.tar.gz"
 
 printf "Preparing remote directories...\n"
-"${sprite_cmd[@]}" exec -s "$sprite_name" sh -c 'mkdir -p "$HOME/.local/share/opencode" "$HOME/.config" "$HOME/.claude"'
+"${sprite_cmd[@]}" exec -s "$sprite_name" sh -c 'mkdir -p "$HOME/.local/share/opencode" "$HOME/.config"'
 
 config_tar=$(mktemp -t opencode-config)
-claude_tar=$(mktemp -t claude-config)
 cleanup() {
   rm -f "$config_tar"
-  rm -f "$claude_tar"
 }
 trap cleanup EXIT
 
 printf "Packing local config directory...\n"
 COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -C "$HOME/.config" -czf "$config_tar" opencode
-
-printf "Packing local ~/.claude directory...\n"
-COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -C "$HOME" -czf "$claude_tar" .claude
 
 printf "Copying auth.json...\n"
 "${sprite_cmd[@]}" exec -s "$sprite_name" -file "$local_auth:$remote_auth" sh -c 'true'
@@ -359,9 +348,6 @@ printf "Copying .env...\n"
 
 printf "Copying ~/.config/opencode...\n"
 "${sprite_cmd[@]}" exec -s "$sprite_name" -file "$config_tar:$remote_tmp_tar" sh -c "tar -xzf \"$remote_tmp_tar\" -C \"$remote_config_parent\" && rm -f \"$remote_tmp_tar\""
-
-printf "Copying ~/.claude...\n"
-"${sprite_cmd[@]}" exec -s "$sprite_name" -file "$claude_tar:$remote_claude_tmp_tar" sh -c "tar -xzf \"$remote_claude_tmp_tar\" -C \"$remote_claude_parent\" && rm -f \"$remote_claude_tmp_tar\" && if [ -f \"$remote_claude_parent/.claude/.credentials.json\" ]; then chmod 600 \"$remote_claude_parent/.claude/.credentials.json\"; fi"
 
 printf "Cloning repository and preparing branch inside sprite...\n"
 "${sprite_cmd[@]}" exec -s "$sprite_name" -env "SPRITE_REPO_URL=$repo_url,SPRITE_REPO_DIR=$remote_repo_dir,SPRITE_TARGET_BRANCH=$target_branch" zsh -lc '
