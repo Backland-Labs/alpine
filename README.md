@@ -27,6 +27,12 @@
 go run ./cmd/setup-sprite-opencode --branch <branch-name>
 ```
 
+To install globally:
+
+```bash
+make install
+```
+
 Examples:
 
 ```bash
