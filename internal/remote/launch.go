@@ -49,7 +49,7 @@ func Launch(ctx context.Context, sp *sprites.Sprite, repoDir string, stdout, std
 	cmd := sp.CommandContext(ctx, "zsh", "-lc", launchScript)
 	cmd.Env = []string{"SPRITE_REPO_DIR=" + repoDir}
 	cmd.SetTTY(true)
-	if rows, cols, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
+	if cols, rows, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
 		_ = cmd.SetTTYSize(uint16(rows), uint16(cols))
 	}
 	cmd.Stdin = os.Stdin
@@ -61,7 +61,7 @@ func Launch(ctx context.Context, sp *sprites.Sprite, repoDir string, stdout, std
 	defer signal.Stop(resize)
 	go func() {
 		for range resize {
-			if rows, cols, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
+			if cols, rows, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
 				_ = cmd.SetTTYSize(uint16(rows), uint16(cols))
 			}
 		}
