@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+func noSpriteLookup() (string, error) { return "", nil }
+
 func TestSlugify(t *testing.T) {
 	got := slugify("Feat/My.Change Test")
 	if got != "feat-my-change-test" {
@@ -19,7 +21,7 @@ func TestResolveTokenPrefersEnv(t *testing.T) {
 	if err := os.WriteFile(authPath, []byte(`{"token":"from-file"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	token, warn, err := resolveToken([]string{"SPRITES_TOKEN=from-env"}, authPath)
+	token, warn, err := resolveTokenWithSpriteLookup([]string{"SPRITES_TOKEN=from-env"}, authPath, noSpriteLookup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +40,7 @@ func TestResolveTokenFallsBackToAuthJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	token, warn, err := resolveToken(nil, authPath)
+	token, warn, err := resolveTokenWithSpriteLookup(nil, authPath, noSpriteLookup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,9 +59,30 @@ func TestResolveTokenMissingEverywhere(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _, err := resolveToken(nil, authPath)
+	_, _, err := resolveTokenWithSpriteLookup(nil, authPath, noSpriteLookup)
 	if err == nil {
 		t.Fatal("expected missing token error")
+	}
+}
+
+func TestResolveTokenFallsBackToSpritesLogin(t *testing.T) {
+	dir := t.TempDir()
+	authPath := filepath.Join(dir, "auth.json")
+	if err := os.WriteFile(authPath, []byte(`{"other":"value"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	token, warn, err := resolveTokenWithSpriteLookup(nil, authPath, func() (string, error) {
+		return "from-sprites-login", nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if token != "from-sprites-login" {
+		t.Fatalf("expected sprites login token, got %q", token)
+	}
+	if warn {
+		t.Fatal("did not expect mismatch warning")
 	}
 }
 

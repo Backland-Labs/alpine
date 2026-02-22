@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -166,6 +167,10 @@ func requireDir(path string) error {
 }
 
 func resolveToken(env []string, authPath string) (token string, warnDifferent bool, err error) {
+	return resolveTokenWithSpriteLookup(env, authPath, tokenFromSpritesLogin)
+}
+
+func resolveTokenWithSpriteLookup(env []string, authPath string, spriteLookup func() (string, error)) (token string, warnDifferent bool, err error) {
 	envToken := ""
 	for _, kv := range env {
 		if strings.HasPrefix(kv, "SPRITES_TOKEN=") {
@@ -184,7 +189,135 @@ func resolveToken(env []string, authPath string) (token string, warnDifferent bo
 	if authToken != "" {
 		return authToken, false, nil
 	}
-	return "", false, errors.New("missing SPRITES_TOKEN and no token found in auth.json")
+	if spriteLookup != nil {
+		spriteToken, spriteErr := spriteLookup()
+		if spriteErr == nil && strings.TrimSpace(spriteToken) != "" {
+			return strings.TrimSpace(spriteToken), false, nil
+		}
+	}
+	return "", false, errors.New("missing SPRITES_TOKEN and no token found in auth.json or sprites login")
+}
+
+type spritesConfig struct {
+	CurrentSelection struct {
+		URL string `json:"url"`
+		Org string `json:"org"`
+	} `json:"current_selection"`
+	URLs map[string]struct {
+		Orgs map[string]spritesOrg `json:"orgs"`
+	} `json:"urls"`
+	Users []struct {
+		ID string `json:"id"`
+	} `json:"users"`
+	CurrentUser string `json:"current_user"`
+}
+
+type spritesOrg struct {
+	KeyringKey string `json:"keyring_key"`
+	UseKeyring *bool  `json:"use_keyring"`
+	APIToken   string `json:"api_token"`
+	Token      string `json:"token"`
+}
+
+func tokenFromSpritesLogin() (string, error) {
+	home := strings.TrimSpace(os.Getenv("HOME"))
+	if home == "" {
+		return "", errors.New("HOME is not set")
+	}
+	configPath := filepath.Join(home, ".sprites", "sprites.json")
+	b, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", err
+	}
+
+	var cfg spritesConfig
+	if err := json.Unmarshal(b, &cfg); err != nil {
+		return "", err
+	}
+
+	url := strings.TrimSpace(cfg.CurrentSelection.URL)
+	if url == "" {
+		url = "https://api.sprites.dev"
+	}
+	org := strings.TrimSpace(cfg.CurrentSelection.Org)
+	if org == "" {
+		return "", errors.New("sprites current_selection.org is empty")
+	}
+
+	orgCfg, ok := spritesOrgConfig(cfg, url, org)
+	if !ok {
+		return "", fmt.Errorf("sprites org config not found for %s at %s", org, url)
+	}
+
+	if tok := strings.TrimSpace(firstNonEmpty(orgCfg.APIToken, orgCfg.Token)); tok != "" {
+		return tok, nil
+	}
+
+	userID := strings.TrimSpace(cfg.CurrentUser)
+	if userID == "" && len(cfg.Users) > 0 {
+		userID = strings.TrimSpace(cfg.Users[0].ID)
+	}
+	if userID == "" {
+		return "", errors.New("sprites current_user is empty")
+	}
+
+	service := "sprites-cli:" + userID
+	account := strings.TrimSpace(orgCfg.KeyringKey)
+	if account == "" {
+		account = fmt.Sprintf("sprites:org:%s:%s", url, org)
+	}
+
+	if _, err := exec.LookPath("security"); err != nil {
+		return "", err
+	}
+
+	cmd := exec.Command("security", "find-generic-password", "-s", service, "-a", account, "-w")
+	out, err := cmd.Output()
+	if err != nil {
+		cmd = exec.Command("security", "find-generic-password", "-a", account, "-w")
+		out, err = cmd.Output()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	raw := strings.TrimSpace(string(out))
+	if strings.HasPrefix(raw, "go-keyring-base64:") {
+		enc := strings.TrimPrefix(raw, "go-keyring-base64:")
+		decoded, err := base64.StdEncoding.DecodeString(enc)
+		if err != nil {
+			return "", err
+		}
+		raw = string(decoded)
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", errors.New("sprites token was empty")
+	}
+	return raw, nil
+}
+
+func spritesOrgConfig(cfg spritesConfig, url, org string) (spritesOrg, bool) {
+	if byURL, ok := cfg.URLs[url]; ok {
+		if orgCfg, ok := byURL.Orgs[org]; ok {
+			return orgCfg, true
+		}
+	}
+	for _, byURL := range cfg.URLs {
+		if orgCfg, ok := byURL.Orgs[org]; ok {
+			return orgCfg, true
+		}
+	}
+	return spritesOrg{}, false
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func tokenFromAuthJSON(path string) (string, error) {
