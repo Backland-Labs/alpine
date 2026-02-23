@@ -1,5 +1,5 @@
-CMD_DIR := ./cmd/setup-sprite-opencode
-BINARY := setup-sprite-opencode
+CMD_DIR := ./cmd/sc
+BINARY := sc
 
 ifeq ($(origin GOBIN), undefined)
 GOBIN := $(shell go env GOBIN)

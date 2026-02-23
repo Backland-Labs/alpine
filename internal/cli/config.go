@@ -15,7 +15,7 @@ import (
 	"alpine/internal/apperr"
 )
 
-const usageText = `Usage: setup-sprite-opencode --branch <branch-name> [--org <org-name>]
+const usageText = `Usage: sc --branch <branch-name> [--org <org-name>]
 
 Creates a Sprite environment with a repo/branch-tagged random name, installs OpenCode and ast-grep,
 copies ~/.local/share/opencode/auth.json, ~/.config/opencode, and .env,
@@ -45,7 +45,7 @@ type Config struct {
 func Parse(args []string, env []string, stderr io.Writer) (Config, error) {
 	cfg := Config{}
 
-	fs := flag.NewFlagSet("setup-sprite-opencode", flag.ContinueOnError)
+	fs := flag.NewFlagSet("sc", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&cfg.Branch, "branch", "", "")
 	fs.StringVar(&cfg.Branch, "b", "", "")

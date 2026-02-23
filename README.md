@@ -1,6 +1,6 @@
 # Sprite OpenCode Setup
 
-`setup-sprite-opencode` creates a ready-to-code Sprite environment for the current repository.
+`sc` creates a ready-to-code Sprite environment for the current repository.
 
 ## What it does
 
@@ -23,7 +23,7 @@
 ## Usage
 
 ```bash
-go run ./cmd/setup-sprite-opencode --branch <branch-name>
+go run ./cmd/sc --branch <branch-name>
 ```
 
 To install globally:
@@ -41,14 +41,14 @@ sprite exec -dir /home/sprite/code/alpine -tty bash -lc 'opencode run "/ralph-lo
 Examples:
 
 ```bash
-go run ./cmd/setup-sprite-opencode --branch feat/my-change
+go run ./cmd/sc --branch feat/my-change
 ```
 
 To build a standalone binary:
 
 ```bash
-go build -o setup-sprite-opencode ./cmd/setup-sprite-opencode
-./setup-sprite-opencode --branch feat/my-change
+go build -o sc ./cmd/sc
+./sc --branch feat/my-change
 ```
 
 ## Migration notes
