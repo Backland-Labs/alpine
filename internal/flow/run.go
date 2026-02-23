@@ -20,7 +20,11 @@ var adjectives = []string{"amber", "brisk", "cedar", "daring", "ember", "frosty"
 var nouns = []string{"badger", "canyon", "comet", "delta", "dune", "falcon", "forest", "harbor", "meadow", "mesa", "orbit", "otter", "pine", "quill", "ridge", "river", "summit", "thicket", "valley", "willow"}
 
 func Run(ctx context.Context, cfg cli.Config, stdout, stderr io.Writer) error {
-	logf(stderr, "preflight", "start", "repository=%s branch=%s", cfg.RepoName, cfg.Branch)
+	if cfg.Plain {
+		logf(stderr, "preflight", "start", "mode=plain")
+	} else {
+		logf(stderr, "preflight", "start", "repository=%s branch=%s", cfg.RepoName, cfg.Branch)
+	}
 
 	client := spritesclient.New(cfg.SpritesToken, cfg.Org)
 	defer client.Close()
@@ -53,7 +57,7 @@ func Run(ctx context.Context, cfg cli.Config, stdout, stderr io.Writer) error {
 	}
 
 	logf(stderr, "transfer", "start", "sprite=%s", sp.Name())
-	repoDir, err := remote.Transfer(ctx, sp, remote.TransferConfig{
+	workDir, err := remote.Transfer(ctx, sp, remote.TransferConfig{
 		LocalAuth:      cfg.LocalAuth,
 		LocalEnv:       cfg.LocalEnvFile,
 		LocalConfigDir: cfg.LocalConfigDir,
@@ -62,13 +66,17 @@ func Run(ctx context.Context, cfg cli.Config, stdout, stderr io.Writer) error {
 		return cleanupOnErr(err)
 	}
 
-	logf(stderr, "git", "setup", "repo=%s", sanitizeRepoURL(cfg.RepoURL))
-	if err := remote.GitSetup(ctx, sp, cfg.RepoURL, repoDir, cfg.Branch, stdout, stderr); err != nil {
-		return cleanupOnErr(err)
+	if cfg.Plain {
+		logf(stderr, "git", "skip", "mode=plain")
+	} else {
+		logf(stderr, "git", "setup", "repo=%s", sanitizeRepoURL(cfg.RepoURL))
+		if err := remote.GitSetup(ctx, sp, cfg.RepoURL, workDir, cfg.Branch, stdout, stderr); err != nil {
+			return cleanupOnErr(err)
+		}
 	}
 
 	logf(stderr, "launch", "start", "sprite_id=%s", sp.Name())
-	if err := remote.Launch(ctx, sp, repoDir, stdout, stderr); err != nil {
+	if err := remote.Launch(ctx, sp, workDir, stdout, stderr); err != nil {
 		return cleanupOnErr(err)
 	}
 

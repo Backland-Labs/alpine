@@ -15,19 +15,27 @@ import (
 	"alpine/internal/apperr"
 )
 
-const usageText = `Usage: sc --branch <branch-name> [--org <org-name>]
+const usageText = `Usage:
+  sc --branch <branch-name> [--org <org-name>]
+  sc --plain [--org <org-name>]
 
-Creates a Sprite environment with a repo/branch-tagged random name, installs OpenCode and ast-grep,
-copies ~/.local/share/opencode/auth.json, ~/.config/opencode, and .env,
-then clones the current repository in the Sprite and checks out the target branch.
+Creates a Sprite environment, installs OpenCode and ast-grep, and copies
+~/.local/share/opencode/auth.json plus ~/.config/opencode.
+
+In repo mode (--branch), the CLI also copies .env, clones the current repository,
+and checks out (or creates) the target branch.
+
+In plain mode (--plain), the CLI skips all repository and git setup.
 
 Options:
-  -b, --branch <branch-name> Branch to check out/create inside sprite (required)
+  -b, --branch <branch-name> Branch to check out/create inside sprite
+  -p, --plain                Launch a plain sprite with no repository connection
   -o, --org <org-name>       Sprite organization name
   -h, --help                 Show this help`
 
 type Config struct {
 	Branch         string
+	Plain          bool
 	Org            string
 	ShowHelp       bool
 	RepoRoot       string
@@ -49,6 +57,8 @@ func Parse(args []string, env []string, stderr io.Writer) (Config, error) {
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&cfg.Branch, "branch", "", "")
 	fs.StringVar(&cfg.Branch, "b", "", "")
+	fs.BoolVar(&cfg.Plain, "plain", false, "")
+	fs.BoolVar(&cfg.Plain, "p", false, "")
 	fs.StringVar(&cfg.Org, "org", os.Getenv("SPRITE_ORG"), "")
 	fs.StringVar(&cfg.Org, "o", os.Getenv("SPRITE_ORG"), "")
 	fs.BoolVar(&cfg.ShowHelp, "help", false, "")
@@ -66,33 +76,43 @@ func Parse(args []string, env []string, stderr io.Writer) (Config, error) {
 		fmt.Fprintln(stderr, usageText)
 		return cfg, nil
 	}
-	if strings.TrimSpace(cfg.Branch) == "" {
+	cfg.Branch = strings.TrimSpace(cfg.Branch)
+	if cfg.Plain && cfg.Branch != "" {
+		fmt.Fprintln(stderr, usageText)
+		return cfg, fmt.Errorf("%w: --plain cannot be combined with --branch", apperr.ErrUsage)
+	}
+	if !cfg.Plain && cfg.Branch == "" {
 		fmt.Fprintln(stderr, usageText)
 		return cfg, fmt.Errorf("%w: missing required argument --branch", apperr.ErrUsage)
 	}
 
-	repoRoot, err := gitOut("rev-parse", "--show-toplevel")
-	if err != nil {
-		return cfg, fmt.Errorf("%w: must run inside a git repository", apperr.ErrPreflight)
-	}
-	repoURL, err := gitOut("-C", repoRoot, "config", "--get", "remote.origin.url")
-	if err != nil || strings.TrimSpace(repoURL) == "" {
-		return cfg, fmt.Errorf("%w: unable to determine remote.origin.url for %s", apperr.ErrPreflight, repoRoot)
-	}
-	repoName := strings.TrimSuffix(filepath.Base(repoURL), ".git")
-	if repoName == "" || repoName == "." {
-		return cfg, fmt.Errorf("%w: unable to derive repository name from %s", apperr.ErrPreflight, repoURL)
-	}
-
-	cfg.RepoRoot = repoRoot
-	cfg.RepoURL = repoURL
-	cfg.RepoName = repoName
-	cfg.RepoSlug = truncate(slugify(repoName), 16)
-	cfg.BranchSlug = truncate(slugify(cfg.Branch), 16)
-	cfg.NamePrefix = nonEmpty(cfg.RepoSlug, "repo") + "-" + nonEmpty(cfg.BranchSlug, "branch")
 	cfg.LocalAuth = filepath.Join(os.Getenv("HOME"), ".local", "share", "opencode", "auth.json")
 	cfg.LocalConfigDir = filepath.Join(os.Getenv("HOME"), ".config", "opencode")
-	cfg.LocalEnvFile = filepath.Join(repoRoot, ".env")
+
+	if cfg.Plain {
+		cfg.NamePrefix = "plain"
+	} else {
+		repoRoot, err := gitOut("rev-parse", "--show-toplevel")
+		if err != nil {
+			return cfg, fmt.Errorf("%w: must run inside a git repository", apperr.ErrPreflight)
+		}
+		repoURL, err := gitOut("-C", repoRoot, "config", "--get", "remote.origin.url")
+		if err != nil || strings.TrimSpace(repoURL) == "" {
+			return cfg, fmt.Errorf("%w: unable to determine remote.origin.url for %s", apperr.ErrPreflight, repoRoot)
+		}
+		repoName := strings.TrimSuffix(filepath.Base(repoURL), ".git")
+		if repoName == "" || repoName == "." {
+			return cfg, fmt.Errorf("%w: unable to derive repository name from %s", apperr.ErrPreflight, repoURL)
+		}
+
+		cfg.RepoRoot = repoRoot
+		cfg.RepoURL = repoURL
+		cfg.RepoName = repoName
+		cfg.RepoSlug = truncate(slugify(repoName), 16)
+		cfg.BranchSlug = truncate(slugify(cfg.Branch), 16)
+		cfg.NamePrefix = nonEmpty(cfg.RepoSlug, "repo") + "-" + nonEmpty(cfg.BranchSlug, "branch")
+		cfg.LocalEnvFile = filepath.Join(repoRoot, ".env")
+	}
 
 	if err := requireFile(cfg.LocalAuth); err != nil {
 		return cfg, fmt.Errorf("%w: %v", apperr.ErrPreflight, err)
@@ -100,8 +120,10 @@ func Parse(args []string, env []string, stderr io.Writer) (Config, error) {
 	if err := requireDir(cfg.LocalConfigDir); err != nil {
 		return cfg, fmt.Errorf("%w: %v", apperr.ErrPreflight, err)
 	}
-	if err := requireFile(cfg.LocalEnvFile); err != nil {
-		return cfg, fmt.Errorf("%w: %v", apperr.ErrPreflight, err)
+	if !cfg.Plain {
+		if err := requireFile(cfg.LocalEnvFile); err != nil {
+			return cfg, fmt.Errorf("%w: %v", apperr.ErrPreflight, err)
+		}
 	}
 
 	token, warnDifferent, err := resolveToken(env, cfg.LocalAuth)

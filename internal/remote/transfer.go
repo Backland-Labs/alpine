@@ -26,18 +26,12 @@ func Transfer(ctx context.Context, sp *sprites.Sprite, cfg TransferConfig) (stri
 		return "", err
 	}
 
-	repoName, err := repoNameFromLocalEnv(cfg.LocalEnv)
-	if err != nil {
-		return "", err
-	}
+	localEnv := strings.TrimSpace(cfg.LocalEnv)
 
 	remoteFS := sp.FilesystemAt("/")
 	remoteAuth := path.Join(home, ".local", "share", "opencode", "auth.json")
-	remoteEnv := path.Join(home, ".env")
 	remoteConfigParent := path.Join(home, ".config")
 	remoteConfigRoot := path.Join(remoteConfigParent, filepath.Base(filepath.Clean(cfg.LocalConfigDir)))
-	remoteRepoParent := path.Join(home, "code")
-	remoteRepoDir := path.Join(remoteRepoParent, repoName)
 	remoteTmpTar := fmt.Sprintf("/tmp/opencode-config-%d-%d.tar.gz", time.Now().UnixNano(), os.Getpid())
 
 	prepareCmd := sp.CommandContext(ctx, "sh", "-lc", `mkdir -p "$HOME/.local/share/opencode" "$HOME/.config"`)
@@ -56,15 +50,18 @@ func Transfer(ctx context.Context, sp *sprites.Sprite, cfg TransferConfig) (stri
 		return "", fmt.Errorf("chmod remote auth.json: %w", err)
 	}
 
-	envBytes, err := os.ReadFile(cfg.LocalEnv)
-	if err != nil {
-		return "", fmt.Errorf("read local .env: %w", err)
-	}
-	if err := remoteFS.WriteFile(remoteEnv, envBytes, 0o600); err != nil {
-		return "", fmt.Errorf("write remote .env: %w", err)
-	}
-	if err := remoteFS.Chmod(remoteEnv, 0o600); err != nil {
-		return "", fmt.Errorf("chmod remote .env: %w", err)
+	if localEnv != "" {
+		remoteEnv := path.Join(home, ".env")
+		envBytes, err := os.ReadFile(localEnv)
+		if err != nil {
+			return "", fmt.Errorf("read local .env: %w", err)
+		}
+		if err := remoteFS.WriteFile(remoteEnv, envBytes, 0o600); err != nil {
+			return "", fmt.Errorf("write remote .env: %w", err)
+		}
+		if err := remoteFS.Chmod(remoteEnv, 0o600); err != nil {
+			return "", fmt.Errorf("chmod remote .env: %w", err)
+		}
 	}
 
 	configTar, err := packLocalConfigTar(cfg.LocalConfigDir)
@@ -90,11 +87,21 @@ func Transfer(ctx context.Context, sp *sprites.Sprite, cfg TransferConfig) (stri
 		return "", fmt.Errorf("verify remote config directory: %w", err)
 	}
 
-	if err := remoteFS.MkdirAll(remoteRepoParent, 0o755); err != nil {
-		return "", fmt.Errorf("create remote repo parent: %w", err)
+	workDir := home
+	if localEnv != "" {
+		repoName, err := repoNameFromLocalEnv(localEnv)
+		if err != nil {
+			return "", err
+		}
+		remoteRepoParent := path.Join(home, "code")
+		remoteRepoDir := path.Join(remoteRepoParent, repoName)
+		if err := remoteFS.MkdirAll(remoteRepoParent, 0o755); err != nil {
+			return "", fmt.Errorf("create remote repo parent: %w", err)
+		}
+		workDir = remoteRepoDir
 	}
 
-	return remoteRepoDir, nil
+	return workDir, nil
 }
 
 func packLocalConfigTar(localConfigDir string) ([]byte, error) {

@@ -12,7 +12,7 @@ import (
 	"golang.org/x/term"
 )
 
-const directLaunchScript = `. ~/.zprofile >/dev/null 2>&1 || true; . ~/.zshrc >/dev/null 2>&1 || true; cd "$SPRITE_REPO_DIR" >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; if command -v opencode >/dev/null 2>&1; then exec opencode; fi; exec "$HOME/.opencode/bin/opencode"`
+const directLaunchScript = `. ~/.zprofile >/dev/null 2>&1 || true; . ~/.zshrc >/dev/null 2>&1 || true; cd "$SPRITE_WORK_DIR" >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; if command -v opencode >/dev/null 2>&1; then exec opencode; fi; exec "$HOME/.opencode/bin/opencode"`
 
 const expectLaunchScript = `set timeout 20
 set cmd [list sprite]
@@ -22,17 +22,17 @@ if {[info exists env(SPRITE_ORG)] && $env(SPRITE_ORG) ne ""} {
 lappend cmd console -s $env(SPRITE_NAME)
 spawn {*}$cmd
 after 1200
-send -- ". ~/.profile >/dev/null 2>&1 || true; cd \"$env(SPRITE_REPO_DIR)\" >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; opencode\r"
+send -- ". ~/.profile >/dev/null 2>&1 || true; cd \"$env(SPRITE_WORK_DIR)\" >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; opencode\r"
 interact`
 
-func Launch(ctx context.Context, sp *sprites.Sprite, repoDir string, stdout, stderr io.Writer) error {
+func Launch(ctx context.Context, sp *sprites.Sprite, workDir string, stdout, stderr io.Writer) error {
 	org := ""
 	if orgInfo := sp.Organization(); orgInfo != nil {
 		org = strings.TrimSpace(orgInfo.Name)
 	}
 
 	if !isTTY() {
-		reconnect := reconnectCommand(sp.Name(), org, repoDir)
+		reconnect := reconnectCommand(sp.Name(), org, workDir)
 		fmt.Fprintf(stdout, "status=ready\nsprite_id=%s\nreconnect=%s\n", sp.Name(), reconnect)
 		return nil
 	}
@@ -42,7 +42,7 @@ func Launch(ctx context.Context, sp *sprites.Sprite, repoDir string, stdout, std
 		cmd.Env = append(os.Environ(),
 			"SPRITE_NAME="+sp.Name(),
 			"SPRITE_ORG="+org,
-			"SPRITE_REPO_DIR="+repoDir,
+			"SPRITE_WORK_DIR="+workDir,
 		)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
@@ -62,7 +62,7 @@ func Launch(ctx context.Context, sp *sprites.Sprite, repoDir string, stdout, std
 	args = append(args,
 		"exec",
 		"-s", sp.Name(),
-		"-env", "SPRITE_REPO_DIR="+repoDir,
+		"-env", "SPRITE_WORK_DIR="+workDir,
 		"-tty",
 		"zsh",
 		"-lc",
@@ -79,14 +79,14 @@ func Launch(ctx context.Context, sp *sprites.Sprite, repoDir string, stdout, std
 	return nil
 }
 
-func reconnectCommand(spriteName, org, repoDir string) string {
+func reconnectCommand(spriteName, org, workDir string) string {
 	cmd := "sprite"
 	if org != "" {
 		cmd += " -o " + shellQuote(org)
 	}
 	cmd += " exec -s " + shellQuote(spriteName)
-	cmd += " -env " + shellQuote("SPRITE_REPO_DIR="+repoDir)
-	cmd += " -tty zsh -lc " + shellQuote(launchScriptWithRepoDir(repoDir))
+	cmd += " -env " + shellQuote("SPRITE_WORK_DIR="+workDir)
+	cmd += " -tty zsh -lc " + shellQuote(launchScriptWithWorkDir(workDir))
 	return cmd
 }
 
@@ -94,8 +94,8 @@ func isTTY() bool {
 	return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
 }
 
-func launchScriptWithRepoDir(repoDir string) string {
-	return `. ~/.zprofile >/dev/null 2>&1 || true; . ~/.zshrc >/dev/null 2>&1 || true; cd ` + shellQuote(repoDir) + ` >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; if command -v opencode >/dev/null 2>&1; then exec opencode; fi; exec "$HOME/.opencode/bin/opencode"`
+func launchScriptWithWorkDir(workDir string) string {
+	return `. ~/.zprofile >/dev/null 2>&1 || true; . ~/.zshrc >/dev/null 2>&1 || true; cd ` + shellQuote(workDir) + ` >/dev/null 2>&1 || true; hash -r 2>/dev/null || true; if command -v opencode >/dev/null 2>&1; then exec opencode; fi; exec "$HOME/.opencode/bin/opencode"`
 }
 
 func shellQuote(s string) string {

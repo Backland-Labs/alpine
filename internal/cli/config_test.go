@@ -1,9 +1,13 @@
 package cli
 
 import (
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"alpine/internal/apperr"
 )
 
 func noSpriteLookup() (string, error) { return "", nil }
@@ -99,5 +103,59 @@ func TestTokenFromAuthJSONNestedAuthObject(t *testing.T) {
 	}
 	if token != "nested-token" {
 		t.Fatalf("expected nested token, got %q", token)
+	}
+}
+
+func TestParsePlainModeSkipsRepoChecks(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	authPath := filepath.Join(home, ".local", "share", "opencode", "auth.json")
+	configDir := filepath.Join(home, ".config", "opencode")
+	if err := os.MkdirAll(filepath.Dir(authPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(authPath, []byte(`{"token":"from-file"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Parse([]string{"--plain"}, []string{"SPRITES_TOKEN=from-env"}, io.Discard)
+	if err != nil {
+		t.Fatalf("expected parse success, got error: %v", err)
+	}
+	if !cfg.Plain {
+		t.Fatal("expected plain mode")
+	}
+	if cfg.NamePrefix != "plain" {
+		t.Fatalf("expected plain name prefix, got %q", cfg.NamePrefix)
+	}
+	if cfg.LocalEnvFile != "" {
+		t.Fatalf("expected no local env file in plain mode, got %q", cfg.LocalEnvFile)
+	}
+	if cfg.RepoRoot != "" || cfg.RepoURL != "" || cfg.RepoName != "" {
+		t.Fatalf("expected repo fields to be empty in plain mode: root=%q url=%q name=%q", cfg.RepoRoot, cfg.RepoURL, cfg.RepoName)
+	}
+}
+
+func TestParsePlainRejectsBranch(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	authPath := filepath.Join(home, ".local", "share", "opencode", "auth.json")
+	configDir := filepath.Join(home, ".config", "opencode")
+	if err := os.MkdirAll(filepath.Dir(authPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(authPath, []byte(`{"token":"from-file"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Parse([]string{"--plain", "--branch", "feat/test"}, []string{"SPRITES_TOKEN=from-env"}, io.Discard)
+	if !errors.Is(err, apperr.ErrUsage) {
+		t.Fatalf("expected usage error, got: %v", err)
 	}
 }
