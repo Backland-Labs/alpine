@@ -1,16 +1,14 @@
-CMD_DIR := ./cmd/sc
-BINARY := sc
+.PHONY: build clean install test
 
-ifeq ($(origin GOBIN), undefined)
-GOBIN := $(shell go env GOBIN)
-endif
-ifeq ($(GOBIN),)
-GOBIN := $(shell go env GOPATH)/bin
-endif
+build:
+	npm run build
 
-.PHONY: install
+clean:
+	npm run clean
 
-install:
-	@mkdir -p "$(GOBIN)"
-	go build -o "$(GOBIN)/$(BINARY)" "$(CMD_DIR)"
-	@printf "installed $(BINARY) to %s\n" "$(GOBIN)"
+test:
+	npm test
+
+install: build
+	npm link
+	@printf "installed sc via npm link\n"

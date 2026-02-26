@@ -1,0 +1,27 @@
+{
+  "name": "alpine",
+  "version": "1.0.0",
+  "description": "CLI that sets up Sprite environments with OpenCode and ast-grep",
+  "type": "module",
+  "main": "dist/main.js",
+  "bin": {
+    "sc": "dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "npm run build && node --test dist/test/**/*.test.js",
+    "clean": "rm -rf dist",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@fly/sprites": "0.0.1-dev.408"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
